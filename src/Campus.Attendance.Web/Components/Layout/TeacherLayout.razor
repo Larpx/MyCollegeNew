@@ -1,0 +1,11 @@
+@* 教师区域布局：基于 MainLayout，附加 Teacher/Counselor 角色守卫 *@
+@layout MainLayout
+@inherits LayoutComponentBase
+
+<AccessGuard Roles="Teacher,Counselor">
+    @Body
+</AccessGuard>
+
+@code {
+    // 教师区域布局：嵌套于 MainLayout 之上，使用 AccessGuard 限制 Teacher 与 Counselor 角色可访问
+}

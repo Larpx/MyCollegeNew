@@ -1,0 +1,320 @@
+@page "/teacher/rollcall/{SessionId:long}"
+@layout TeacherLayout
+@attribute [Authorize]
+@using Campus.Attendance.Core.Enums
+@using Campus.Attendance.Models.Attendance
+@inject IApiClient ApiClient
+@inject NavigationManager NavigationManager
+@inject ILogger<Components.Pages.Teacher.RollCall> Logger
+
+<PageTitle>课堂点名 - 考勤管理系统</PageTitle>
+
+<PageHeader Title="课堂点名" Icon="check-square" Subtitle="@(_session?.CourseName ?? "点名")">
+    <Actions>
+        <Button Variant="ButtonVariant.Secondary" Icon="arrow-left" OnClick="GoBack">返回</Button>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert--error">
+        <span class="alert__icon"><Icon Name="alert-circle" Size="20" /></span>
+        <span class="alert__body">@_errorMessage</span>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <div class="alert alert--success">
+        <span class="alert__icon"><Icon Name="check-circle" Size="20" /></span>
+        <span class="alert__body">@_successMessage</span>
+    </div>
+}
+
+@if (_loading)
+{
+    <div class="loading-state">
+        <span class="loading-state__spinner"></span>
+        <span>加载中...</span>
+    </div>
+}
+else if (_session is not null)
+{
+    @* 随机点名区域 *@
+    <Card Title="随机点名" Class="mb-6">
+        @if (_randomPick is not null)
+        {
+            <div class="random-pick">
+                <div class="random-pick__name">@_randomPick.StudentName</div>
+                <div class="random-pick__id">学号：@_randomPick.StudentId</div>
+                <div class="random-pick__id">班级：@_randomPick.ClassName</div>
+                <div class="random-pick__actions">
+                    <Button Variant="ButtonVariant.Primary" Icon="check" OnClick="() => MarkRandomPickAsync(true)" Loading="_operating">已回答</Button>
+                    <Button Variant="ButtonVariant.Outline" Icon="x" OnClick="() => MarkRandomPickAsync(false)" Loading="_operating">未回答</Button>
+                    <Button Variant="ButtonVariant.Primary" Icon="shuffle" OnClick="RandomPickAsync" Loading="_operating">再抽一个</Button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="random-pick">
+                <div class="random-pick__name">点击下方按钮随机抽取学生</div>
+                <div class="random-pick__actions">
+                    <Button Variant="ButtonVariant.Primary" Icon="shuffle" OnClick="RandomPickAsync" Loading="_operating">开始随机点名</Button>
+                </div>
+            </div>
+        }
+    </Card>
+
+    @* 点名操作 *@
+    <Card Title="一键点名" Class="mb-6">
+        <div class="dashboard-actions">
+            <Button Variant="ButtonVariant.Primary" Icon="check-square" OnClick="RollCallAllAsync" Loading="_operating">全部出勤</Button>
+            <Button Variant="ButtonVariant.Secondary" Icon="refresh-cw" OnClick="LoadRecordsAsync" Loading="_operating">刷新列表</Button>
+        </div>
+        <div class="mt-4 text-sm text-secondary">
+            出勤统计：正常 @_presentCount 人 / 迟到 @_lateCount 人 / 缺勤 @_absentCount 人 / 请假 @_leaveCount 人
+        </div>
+    </Card>
+
+    @* 学生考勤列表 *@
+    <Card Title="学生考勤列表">
+        @if (_records is null || _records.Count == 0)
+        {
+            <EmptyState Title="暂无记录" Description="请先执行一键点名" Icon="clipboard-list" />
+        }
+        else
+        {
+            <Table T="AttendanceRecordResponseDto" Items="_records" Columns="_recordColumns" />
+        }
+    </Card>
+}
+
+@code {
+    [Parameter]
+    public long SessionId { get; set; }
+
+    private SessionResponseDto? _session;
+    private List<AttendanceRecordResponseDto>? _records;
+    private RandomPickResult? _randomPick;
+    private bool _loading;
+    private bool _operating;
+    private string? _errorMessage;
+    private string? _successMessage;
+
+    private int _presentCount;
+    private int _lateCount;
+    private int _absentCount;
+    private int _leaveCount;
+
+    private List<Table<AttendanceRecordResponseDto>.Column<AttendanceRecordResponseDto>> _recordColumns = new();
+
+    /// <summary>页面初始化</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        BuildRecordColumns();
+        await LoadSessionAsync();
+    }
+
+    /// <summary>构建记录表格列</summary>
+    private void BuildRecordColumns()
+    {
+        _recordColumns = new List<Table<AttendanceRecordResponseDto>.Column<AttendanceRecordResponseDto>>
+        {
+            new() { Title = "学号", Template = item => @<span class="font-medium">@item.StudentId</span> },
+            new() { Title = "姓名", Template = item => @<span>@item.StudentName</span> },
+            new() { Title = "状态", Template = item => RenderStatusBadge(item.Status) },
+            new() { Title = "签到时间", Template = item => @<span class="text-secondary">@(item.CheckInTime.HasValue ? item.CheckInTime.Value.ToLocalTime().ToString("HH:mm:ss") : "—")</span> },
+            new() { Title = "修改状态", Template = item => RenderStatusSelect(item) }
+        };
+    }
+
+    /// <summary>渲染考勤状态徽章</summary>
+    private RenderFragment RenderStatusBadge(AttendanceStatus status)
+    {
+        var (text, variant) = status switch
+        {
+            AttendanceStatus.Present => ("正常", BadgeVariant.Success),
+            AttendanceStatus.Late => ("迟到", BadgeVariant.Warning),
+            AttendanceStatus.Absent => ("缺勤", BadgeVariant.Error),
+            AttendanceStatus.Leave => ("请假", BadgeVariant.Primary),
+            _ => ("未知", BadgeVariant.Neutral)
+        };
+        return @<Badge Variant="variant">@text</Badge>;
+    }
+
+    /// <summary>渲染状态下拉选择</summary>
+    private RenderFragment RenderStatusSelect(AttendanceRecordResponseDto item) => @<select class="status-select" @onchange="e => UpdateRecordStatusAsync(item, e)">
+        <option value="@AttendanceStatus.Present" selected="@(item.Status == AttendanceStatus.Present)">正常</option>
+        <option value="@AttendanceStatus.Late" selected="@(item.Status == AttendanceStatus.Late)">迟到</option>
+        <option value="@AttendanceStatus.Absent" selected="@(item.Status == AttendanceStatus.Absent)">缺勤</option>
+        <option value="@AttendanceStatus.Leave" selected="@(item.Status == AttendanceStatus.Leave)">请假</option>
+    </select>;
+
+    /// <summary>加载会话详情</summary>
+    private async Task LoadSessionAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            _session = await ApiClient.GetAsync<SessionResponseDto>($"api/sessions/{SessionId}");
+            await LoadRecordsAsync();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载会话失败，请稍后重试";
+            Logger.LogError(ex, "加载会话异常");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>加载签到记录并统计</summary>
+    private async Task LoadRecordsAsync()
+    {
+        try
+        {
+            _records = await ApiClient.GetAsync<List<AttendanceRecordResponseDto>>($"api/sessions/{SessionId}/records");
+            UpdateStatistics();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "加载签到记录失败");
+        }
+    }
+
+    /// <summary>更新统计计数</summary>
+    private void UpdateStatistics()
+    {
+        if (_records is null)
+        {
+            _presentCount = _lateCount = _absentCount = _leaveCount = 0;
+            return;
+        }
+        _presentCount = _records.Count(r => r.Status == AttendanceStatus.Present);
+        _lateCount = _records.Count(r => r.Status == AttendanceStatus.Late);
+        _absentCount = _records.Count(r => r.Status == AttendanceStatus.Absent);
+        _leaveCount = _records.Count(r => r.Status == AttendanceStatus.Leave);
+    }
+
+    /// <summary>一键点名：将未签到学生标记为缺勤</summary>
+    private async Task RollCallAllAsync()
+    {
+        if (_session is null) return;
+        _operating = true;
+        _errorMessage = null;
+        try
+        {
+            await ApiClient.PostAsync<object>($"api/sessions/{_session.Id}/roll-call-all", null);
+            _successMessage = "一键点名完成";
+            await LoadRecordsAsync();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "一键点名失败，请稍后重试";
+            Logger.LogError(ex, "一键点名异常");
+        }
+        finally
+        {
+            _operating = false;
+        }
+    }
+
+    /// <summary>随机点名</summary>
+    private async Task RandomPickAsync()
+    {
+        if (_session is null) return;
+        _operating = true;
+        _errorMessage = null;
+        try
+        {
+            _randomPick = await ApiClient.PostAsync<RandomPickResult>($"api/sessions/random-pick/{_session.ClassId}?sessionId={_session.Id}", null);
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "随机点名失败，请稍后重试";
+            Logger.LogError(ex, "随机点名异常");
+        }
+        finally
+        {
+            _operating = false;
+        }
+    }
+
+    /// <summary>标记随机点名结果</summary>
+    private async Task MarkRandomPickAsync(bool answered)
+    {
+        if (_session is null || _randomPick is null) return;
+        _operating = true;
+        _errorMessage = null;
+        try
+        {
+            var dto = new MarkRandomPickDto { StudentId = _randomPick.StudentId, Answered = answered };
+            await ApiClient.PostAsync<object>($"api/sessions/random-pick/{_session.Id}/mark", dto);
+            _successMessage = answered ? "已标记为已回答" : "已标记为未回答";
+            _randomPick = null;
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "标记失败，请稍后重试";
+            Logger.LogError(ex, "标记随机点名结果异常");
+        }
+        finally
+        {
+            _operating = false;
+        }
+    }
+
+    /// <summary>修改单条记录状态</summary>
+    private async Task UpdateRecordStatusAsync(AttendanceRecordResponseDto record, ChangeEventArgs e)
+    {
+        if (!Enum.TryParse<AttendanceStatus>(e.Value?.ToString(), out var newStatus)) return;
+
+        _operating = true;
+        _errorMessage = null;
+        try
+        {
+            var dto = new UpdateRecordStatusDto { Status = newStatus };
+            await ApiClient.PutAsync<object>($"api/sessions/records/{record.Id}", dto);
+            await LoadRecordsAsync();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "修改状态失败，请稍后重试";
+            Logger.LogError(ex, "修改考勤记录状态异常");
+        }
+        finally
+        {
+            _operating = false;
+        }
+    }
+
+    /// <summary>返回会话页</summary>
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo($"/teacher/session/{SessionId}");
+    }
+}

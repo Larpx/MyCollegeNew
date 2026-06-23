@@ -1,0 +1,80 @@
+@using Campus.Attendance.Models.Organization
+@* 专业树节点组件：渲染专业及其下班级 *@
+<div class="tree-node">
+    <div class="tree-node__header">
+        <button type="button"
+                class="tree-node__toggle @(_majorExpanded ? "tree-node__toggle--expanded" : "")"
+                @onclick="ToggleMajor"
+                aria-label="展开/折叠专业">
+            <Icon Name="chevron-right" Size="16" />
+        </button>
+        <Icon Name="book-open" Size="16" />
+        <span class="tree-node__title">@Node.Major.Name</span>
+        <span class="tree-node__meta">@Node.Classes.Count 班</span>
+        <span class="tree-node__actions">
+            <button type="button" class="table-action-btn" @onclick="() => OnAddClass.InvokeAsync(Node.Major)" title="新增班级" aria-label="新增班级">
+                <Icon Name="plus" Size="16" />
+            </button>
+            <button type="button" class="table-action-btn" @onclick="() => OnEditMajor.InvokeAsync(Node.Major)" title="编辑专业" aria-label="编辑专业">
+                <Icon Name="edit" Size="16" />
+            </button>
+            <button type="button" class="table-action-btn table-action-btn--danger" @onclick="() => OnDeleteMajor.InvokeAsync(Node.Major)" title="删除专业" aria-label="删除专业">
+                <Icon Name="trash" Size="16" />
+            </button>
+        </span>
+    </div>
+
+    @if (_majorExpanded)
+    {
+        <div class="tree-node__children">
+            @foreach (var cls in Node.Classes)
+            {
+                <div class="tree-node__header">
+                    <span style="width: var(--space-4);"></span>
+                    <Icon Name="users" Size="16" />
+                    <span class="tree-node__title">@cls.Name</span>
+                    <span class="tree-node__meta">@cls.StudentCount 人 · @cls.Grade 级</span>
+                    <span class="tree-node__actions">
+                        <button type="button" class="table-action-btn" @onclick="() => OnEditClass.InvokeAsync(cls)" title="编辑班级" aria-label="编辑班级">
+                            <Icon Name="edit" Size="16" />
+                        </button>
+                        <button type="button" class="table-action-btn table-action-btn--danger" @onclick="() => OnDeleteClass.InvokeAsync(cls)" title="删除班级" aria-label="删除班级">
+                            <Icon Name="trash" Size="16" />
+                        </button>
+                    </span>
+                </div>
+            }
+            @if (Node.Classes.Count == 0)
+            {
+                <div class="text-tertiary text-xs" style="padding: var(--space-1) var(--space-2);">暂无班级，点击 + 新增</div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>专业树节点数据</summary>
+    [Parameter]
+    [EditorRequired]
+    public MajorTreeNodeDto Node { get; set; } = default!;
+
+    /// <summary>编辑专业回调</summary>
+    [Parameter] public EventCallback<MajorResponseDto> OnEditMajor { get; set; }
+
+    /// <summary>删除专业回调</summary>
+    [Parameter] public EventCallback<MajorResponseDto> OnDeleteMajor { get; set; }
+
+    /// <summary>新增班级回调（传入所属专业）</summary>
+    [Parameter] public EventCallback<MajorResponseDto> OnAddClass { get; set; }
+
+    /// <summary>编辑班级回调</summary>
+    [Parameter] public EventCallback<ClassResponseDto> OnEditClass { get; set; }
+
+    /// <summary>删除班级回调</summary>
+    [Parameter] public EventCallback<ClassResponseDto> OnDeleteClass { get; set; }
+
+    private bool _majorExpanded = true;
+
+    /// <summary>切换专业展开/折叠</summary>
+    private void ToggleMajor() => _majorExpanded = !_majorExpanded;
+}

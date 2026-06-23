@@ -1,0 +1,19 @@
+@inherits LayoutComponentBase
+
+@* 登录页专用布局：居中卡片，无侧边栏 *@
+<div class="login-layout">
+    <div class="login-layout__container">
+        <div class="login-layout__brand">
+            <Icon Name="graduation-cap" Size="32" />
+            <h1 class="login-layout__title">考勤管理系统</h1>
+        </div>
+        @Body
+        <footer class="login-layout__footer">
+            <span>© @DateTime.UtcNow.Year 校园考勤管理系统</span>
+        </footer>
+    </div>
+</div>
+
+@code {
+    // 登录布局：居中卡片，无侧边栏与导航
+}

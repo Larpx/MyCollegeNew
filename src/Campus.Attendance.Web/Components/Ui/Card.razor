@@ -1,0 +1,39 @@
+@* 卡片组件：边框或阴影二选一，圆角 var(--radius-sm)，padding var(--space-4) *@
+<div class="ui-card @(HasBorder ? "ui-card--bordered" : "ui-card--shadowed") @Class">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <div class="ui-card__header">
+            <h3 class="ui-card__title">@Title</h3>
+            @if (Actions is not null)
+            {
+                <div class="ui-card__actions">@Actions</div>
+            }
+        </div>
+    }
+    <div class="ui-card__body">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    /// <summary>卡片标题（可选）</summary>
+    [Parameter]
+    public string? Title { get; set; }
+
+    /// <summary>是否使用边框样式（默认 true；为 false 时使用阴影）</summary>
+    [Parameter]
+    public bool HasBorder { get; set; } = true;
+
+    /// <summary>自定义 CSS 类</summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>卡片头部操作区（按钮等）</summary>
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+
+    /// <summary>卡片内容</summary>
+    [Parameter]
+    [EditorRequired]
+    public RenderFragment ChildContent { get; set; } = default!;
+}

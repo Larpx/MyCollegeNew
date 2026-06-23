@@ -1,0 +1,109 @@
+@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+@inject CustomAuthStateProvider AuthStateProvider
+@inject TokenService TokenService
+@inject IApiClient ApiClient
+
+@* 主布局：顶部导航栏 + 侧边栏 + 主内容区；移动端抽屉式导航 *@
+<div class="app-layout @(_drawerOpen ? "app-layout--drawer-open" : "")">
+    @* 移动端遮罩层 *@
+    @if (_drawerOpen)
+    {
+        <div class="app-layout__overlay" @onclick="CloseDrawer"></div>
+    }
+
+    @* 侧边栏（桌面端固定，移动端抽屉式） *@
+    <aside class="app-layout__sidebar">
+        <NavMenu />
+    </aside>
+
+    @* 主区域 *@
+    <div class="app-layout__main">
+        @* 顶部导航栏 *@
+        <header class="app-layout__header">
+            <button type="button" class="app-layout__menu-btn" @onclick="ToggleDrawer" aria-label="切换菜单">
+                <Icon Name="menu" Size="20" />
+            </button>
+            <div class="app-layout__header-spacer"></div>
+            <AuthorizeView>
+                <Authorized>
+                    <div class="app-layout__user">
+                        <span class="app-layout__user-name">@context.User.Identity?.Name</span>
+                        @{
+                            var role = context.User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Role)?.Value;
+                        }
+                        @if (!string.IsNullOrEmpty(role))
+                        {
+                            <Badge Variant="BadgeVariant.Primary">@GetRoleDisplayName(role)</Badge>
+                        }
+                    </div>
+                    <button type="button" class="app-layout__logout" @onclick="HandleLogout">
+                        <Icon Name="log-out" Size="20" />
+                        <span>登出</span>
+                    </button>
+                </Authorized>
+            </AuthorizeView>
+        </header>
+
+        @* 主内容区 *@
+        <main class="app-layout__content">
+            @Body
+        </main>
+    </div>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private bool _drawerOpen;
+
+    /// <summary>切换抽屉菜单开关状态</summary>
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    /// <summary>关闭抽屉菜单</summary>
+    private void CloseDrawer()
+    {
+        _drawerOpen = false;
+    }
+
+    /// <summary>
+    /// 获取角色显示名称
+    /// </summary>
+    /// <param name="role">角色标识</param>
+    /// <returns>中文显示名</returns>
+    private static string GetRoleDisplayName(string role) => role switch
+    {
+        "Admin" => "管理员",
+        "Teacher" => "教师",
+        "Counselor" => "辅导员",
+        "Student" => "学生",
+        _ => role
+    };
+
+    /// <summary>
+    /// 处理登出：清除 Token、通知认证状态变更、重定向到登录页
+    /// </summary>
+    private async Task HandleLogout()
+    {
+        try
+        {
+            // 调用后端登出接口（可选，JWT 无状态）
+            await ApiClient.PostNoContentAsync("api/auth/logout");
+        }
+        catch
+        {
+            // 登出失败不阻断前端登出流程
+        }
+
+        await TokenService.RemoveTokenAsync();
+        AuthStateProvider.NotifyUserLogout();
+        NavigationManager.NavigateTo("/login", forceLoad: true);
+    }
+}

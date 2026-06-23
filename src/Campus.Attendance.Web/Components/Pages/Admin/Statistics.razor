@@ -1,0 +1,260 @@
+@page "/admin/statistics"
+@layout AdminLayout
+@attribute [Authorize]
+@using Campus.Attendance.Models.Statistics
+@inject IApiClient ApiClient
+@inject IJSRuntime JSRuntime
+@inject ILogger<Components.Pages.Admin.Statistics> Logger
+
+<PageTitle>考勤统计 - 考勤管理系统</PageTitle>
+
+<PageHeader Title="考勤统计" Icon="bar-chart" Subtitle="全校考勤数据统计与报表导出">
+    <Actions>
+        <Button Variant="ButtonVariant.Secondary" Icon="refresh-cw" OnClick="LoadDataAsync" Loading="_loading">刷新</Button>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert--error">
+        <span class="alert__icon"><Icon Name="alert-circle" Size="20" /></span>
+        <span class="alert__body">@_errorMessage</span>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <div class="alert alert--success">
+        <span class="alert__icon"><Icon Name="check-circle" Size="20" /></span>
+        <span class="alert__body">@_successMessage</span>
+    </div>
+}
+
+@* 日期范围过滤器 *@
+<div class="page-filters">
+    <div class="page-filters__field">
+        <label class="page-filters__label">开始日期</label>
+        <InputText type="date" @bind-Value="_startDateStr" class="form-field__input" />
+    </div>
+    <div class="page-filters__field">
+        <label class="page-filters__label">结束日期</label>
+        <InputText type="date" @bind-Value="_endDateStr" class="form-field__input" />
+    </div>
+    <div class="page-filters__actions">
+        <Button Variant="ButtonVariant.Secondary" Icon="search" OnClick="LoadDataAsync">查询</Button>
+        <Button Variant="ButtonVariant.Outline" Icon="download" OnClick="ExportOverviewAsync" Loading="_exporting">导出趋势数据</Button>
+    </div>
+</div>
+
+@if (_loading && _overview is null)
+{
+    <div class="loading-state">
+        <span class="loading-state__spinner"></span>
+        <span>加载中...</span>
+    </div>
+}
+else
+{
+    @* 概览卡片 *@
+    <div class="dashboard-grid">
+        <Card>
+            <div class="stat-card">
+                <span class="stat-card__icon"><Icon Name="users" Size="24" /></span>
+                <div class="stat-card__body">
+                    <div class="stat-card__label">学生总数</div>
+                    <div class="stat-card__value">@(_overview?.TotalStudents ?? 0)</div>
+                </div>
+            </div>
+        </Card>
+        <Card>
+            <div class="stat-card">
+                <span class="stat-card__icon stat-card__icon--success"><Icon Name="user-check" Size="24" /></span>
+                <div class="stat-card__body">
+                    <div class="stat-card__label">教师总数</div>
+                    <div class="stat-card__value">@(_overview?.TotalTeachers ?? 0)</div>
+                </div>
+            </div>
+        </Card>
+        <Card>
+            <div class="stat-card">
+                <span class="stat-card__icon stat-card__icon--warning"><Icon Name="calendar" Size="24" /></span>
+                <div class="stat-card__body">
+                    <div class="stat-card__label">今日会话数</div>
+                    <div class="stat-card__value">@(_overview?.TodaySessions ?? 0)</div>
+                </div>
+            </div>
+        </Card>
+        <Card>
+            <div class="stat-card">
+                <span class="stat-card__icon stat-card__icon--success"><Icon Name="percent" Size="24" /></span>
+                <div class="stat-card__body">
+                    <div class="stat-card__label">全校出勤率</div>
+                    <div class="stat-card__value">@((_overview?.OverallAttendanceRate ?? 0).ToString("F1"))%</div>
+                    <div class="stat-card__hint">今日：@((_overview?.TodayAttendanceRate ?? 0).ToString("F1"))%</div>
+                </div>
+            </div>
+        </Card>
+    </div>
+
+    @* 出勤趋势图 *@
+    <Card Title="出勤趋势" Class="mb-6">
+        <div class="chart-container">
+            @if (_trend is null || _trend.Count == 0)
+            {
+                <EmptyState Title="暂无趋势数据" Description="所选区间内没有考勤记录" Icon="bar-chart" />
+            }
+            else
+            {
+                <div class="chart">
+                    @foreach (var item in _trend)
+                    {
+                        var heightPercent = Math.Max(2, item.AttendanceRate);
+                        <div class="chart__item">
+                            <div class="chart__bar-wrapper">
+                                <div class="chart__bar" style="height: @(heightPercent)%;">
+                                    <span class="chart__bar-value">@item.AttendanceRate.ToString("F0")%</span>
+                                </div>
+                            </div>
+                            <span class="chart__label">@item.Date.ToString("MM-dd")</span>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </Card>
+
+    @* 院系排名 *@
+    <Card Title="院系出勤率排名">
+        @if (_ranking is null || _ranking.Count == 0)
+        {
+            <EmptyState Title="暂无排名数据" Description="还没有院系考勤数据" Icon="bar-chart" />
+        }
+        else
+        {
+            <Table T="DepartmentRankingDto" Items="_ranking" Columns="_rankingColumns" />
+        }
+    </Card>
+}
+
+@code {
+    private OverviewStatisticsDto? _overview;
+    private List<DepartmentRankingDto>? _ranking;
+    private List<AttendanceTrendDto>? _trend;
+    private bool _loading;
+    private bool _exporting;
+    private string? _errorMessage;
+    private string? _successMessage;
+
+    // 默认查询最近 30 天
+    private string _startDateStr = DateTime.UtcNow.AddDays(-29).ToString("yyyy-MM-dd");
+    private string _endDateStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
+
+    private List<Table<DepartmentRankingDto>.Column<DepartmentRankingDto>> _rankingColumns = new();
+
+    /// <summary>页面初始化</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        BuildRankingColumns();
+        await LoadDataAsync();
+    }
+
+    /// <summary>构建院系排名表格列</summary>
+    private void BuildRankingColumns()
+    {
+        _rankingColumns = new List<Table<DepartmentRankingDto>.Column<DepartmentRankingDto>>
+        {
+            new() { Title = "排名", Template = item => @<span class="font-semibold">@item.Rank</span> },
+            new() { Title = "院系名称", Template = item => @<span>@item.DepartmentName</span> },
+            new() { Title = "学生数", Template = item => @<span>@item.StudentCount</span> },
+            new() { Title = "出勤率", Template = item => RenderRateBadge(item) }
+        };
+    }
+
+    /// <summary>渲染出勤率徽章：根据数值显示不同颜色</summary>
+    private RenderFragment RenderRateBadge(DepartmentRankingDto item)
+    {
+        var variant = item.AttendanceRate >= 90 ? BadgeVariant.Success
+            : item.AttendanceRate >= 75 ? BadgeVariant.Warning
+            : BadgeVariant.Error;
+        return @<Badge Variant="variant">@item.AttendanceRate.ToString("F1")%</Badge>;
+    }
+
+    /// <summary>并行加载统计数据、院系排名、出勤趋势</summary>
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            // 解析日期范围（UTC）
+            var startDate = DateTime.Parse(_startDateStr);
+            var endDate = DateTime.Parse(_endDateStr).AddDays(1).AddSeconds(-1);
+            var trendUrl = $"api/statistics/attendance-trend?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}";
+
+            // 并行调用三个统计端点
+            var overviewTask = ApiClient.GetAsync<OverviewStatisticsDto>("api/statistics/overview");
+            var rankingTask = ApiClient.GetAsync<List<DepartmentRankingDto>>("api/statistics/department-ranking");
+            var trendTask = ApiClient.GetAsync<List<AttendanceTrendDto>>(trendUrl);
+
+            await Task.WhenAll(overviewTask, rankingTask, trendTask);
+
+            _overview = overviewTask.Result;
+            _ranking = rankingTask.Result;
+            _trend = trendTask.Result;
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+            Logger.LogWarning(ex, "加载统计数据失败");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载数据失败，请稍后重试";
+            Logger.LogError(ex, "加载统计数据异常");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>导出趋势数据为 CSV（前端生成，避免后端无对应端点）</summary>
+    private async Task ExportOverviewAsync()
+    {
+        if (_trend is null || _trend.Count == 0)
+        {
+            _errorMessage = "暂无数据可导出";
+            return;
+        }
+
+        _exporting = true;
+        _errorMessage = null;
+        try
+        {
+            // 构建 CSV 内容
+            var csv = new System.Text.StringBuilder();
+            csv.AppendLine("日期,出勤率(%),迟到人数,缺勤人数,请假人数");
+            foreach (var item in _trend)
+            {
+                csv.AppendLine($"{item.Date:yyyy-MM-dd},{item.AttendanceRate:F1},{item.LateCount},{item.AbsentCount},{item.LeaveCount}");
+            }
+
+            // 通过 JS 下载文件
+            var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
+            var base64 = Convert.ToBase64String(bytes);
+            var fileName = $"考勤趋势_{_startDateStr}_{_endDateStr}.csv";
+            await JSRuntime.InvokeVoidAsync("eval", $"var a=document.createElement('a');a.href='data:text/csv;charset=utf-8;base64,{base64}';a.download='{fileName}';a.click();");
+
+            _successMessage = "导出成功";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "导出失败，请稍后重试";
+            Logger.LogError(ex, "导出趋势数据异常");
+        }
+        finally
+        {
+            _exporting = false;
+        }
+    }
+}

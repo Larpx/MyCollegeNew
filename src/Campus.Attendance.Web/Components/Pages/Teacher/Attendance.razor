@@ -1,0 +1,213 @@
+@page "/teacher/attendance"
+@layout TeacherLayout
+@attribute [Authorize]
+@using Campus.Attendance.Core.Enums
+@using Campus.Attendance.Models.Attendance
+@inject IApiClient ApiClient
+@inject IJSRuntime JSRuntime
+@inject TokenService TokenService
+@inject NavigationManager NavigationManager
+@inject ILogger<Components.Pages.Teacher.Attendance> Logger
+
+<PageTitle>考勤记录 - 考勤管理系统</PageTitle>
+
+<PageHeader Title="考勤记录" Icon="clipboard-list" Subtitle="查询历史考勤会话与记录">
+    <Actions>
+        <Button Variant="ButtonVariant.Secondary" Icon="refresh-cw" OnClick="LoadSessionsAsync" Loading="_loading">刷新</Button>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert--error">
+        <span class="alert__icon"><Icon Name="alert-circle" Size="20" /></span>
+        <span class="alert__body">@_errorMessage</span>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <div class="alert alert--success">
+        <span class="alert__icon"><Icon Name="check-circle" Size="20" /></span>
+        <span class="alert__body">@_successMessage</span>
+    </div>
+}
+
+@* 日期范围过滤器 *@
+<div class="page-filters">
+    <div class="page-filters__field">
+        <label class="page-filters__label">开始日期</label>
+        <InputText type="date" @bind-Value="_startDateStr" class="form-field__input" />
+    </div>
+    <div class="page-filters__field">
+        <label class="page-filters__label">结束日期</label>
+        <InputText type="date" @bind-Value="_endDateStr" class="form-field__input" />
+    </div>
+    <div class="page-filters__actions">
+        <Button Variant="ButtonVariant.Secondary" Icon="search" OnClick="SearchAsync">查询</Button>
+    </div>
+</div>
+
+@* 考勤会话列表 *@
+@if (_loading && _sessions is null)
+{
+    <div class="loading-state">
+        <span class="loading-state__spinner"></span>
+        <span>加载中...</span>
+    </div>
+}
+else
+{
+    <Card>
+        <Table T="SessionResponseDto"
+               Items="_sessions?.Items"
+               Columns="_columns"
+               ShowPagination="true"
+               PageIndex="_pageIndex"
+               PageSize="_pageSize"
+               TotalCount="(int)(_sessions?.Total ?? 0)"
+               PageChanged="OnPageChanged" />
+    </Card>
+}
+
+@code {
+    private PagedResult<SessionResponseDto>? _sessions;
+    private int _pageIndex = 1;
+    private int _pageSize = 10;
+    private bool _loading;
+    private string? _errorMessage;
+    private string? _successMessage;
+    private string _userId = string.Empty;
+
+    // 默认查询最近 30 天
+    private string _startDateStr = DateTime.UtcNow.AddDays(-29).ToString("yyyy-MM-dd");
+    private string _endDateStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
+
+    private List<Table<SessionResponseDto>.Column<SessionResponseDto>> _columns = new();
+
+    /// <summary>页面初始化</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        var userInfo = await TokenService.GetUserInfoAsync();
+        if (userInfo is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+        _userId = userInfo.UserId;
+        BuildColumns();
+        await LoadSessionsAsync();
+    }
+
+    /// <summary>构建表格列</summary>
+    private void BuildColumns()
+    {
+        _columns = new List<Table<SessionResponseDto>.Column<SessionResponseDto>>
+        {
+            new() { Title = "课程", Template = item => @<span class="font-medium">@item.CourseName</span> },
+            new() { Title = "班级", Template = item => @<span>@item.ClassName</span> },
+            new() { Title = "开始时间", Template = item => @<span>@item.StartTime.ToLocalTime().ToString("MM-dd HH:mm")</span> },
+            new() { Title = "结束时间", Template = item => @<span>@item.EndTime.ToLocalTime().ToString("MM-dd HH:mm")</span> },
+            new() { Title = "状态", Template = item => RenderStatusBadge(item.Status) },
+            new() { Title = "操作", Template = item => RenderActions(item) }
+        };
+    }
+
+    /// <summary>渲染会话状态徽章</summary>
+    private RenderFragment RenderStatusBadge(SessionStatus status)
+    {
+        var (text, variant) = status switch
+        {
+            SessionStatus.Active => ("进行中", BadgeVariant.Success),
+            SessionStatus.Closed => ("已关闭", BadgeVariant.Neutral),
+            _ => ("未知", BadgeVariant.Neutral)
+        };
+        return @<Badge Variant="variant">@text</Badge>;
+    }
+
+    /// <summary>渲染行操作按钮</summary>
+    private RenderFragment RenderActions(SessionResponseDto item) => @<span class="table-actions">
+        <button type="button" class="table-action-btn" @onclick="() => ViewSession(item.Id)" title="查看详情" aria-label="查看详情">
+            <Icon Name="eye" Size="16" />
+        </button>
+        <button type="button" class="table-action-btn" @onclick="() => ExportSessionAsync(item.Id)" title="导出记录" aria-label="导出记录">
+            <Icon Name="download" Size="16" />
+        </button>
+    </span>;
+
+    /// <summary>加载考勤会话历史</summary>
+    private async Task LoadSessionsAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            var startDate = DateTime.Parse(_startDateStr);
+            var endDate = DateTime.Parse(_endDateStr).AddDays(1).AddSeconds(-1);
+            var url = $"api/sessions/history?pageIndex={_pageIndex}&pageSize={_pageSize}&startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}";
+            _sessions = await ApiClient.GetAsync<PagedResult<SessionResponseDto>>(url);
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载考勤记录失败，请稍后重试";
+            Logger.LogError(ex, "加载考勤会话历史异常");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>查询按钮：重置页码后加载</summary>
+    private async Task SearchAsync()
+    {
+        _pageIndex = 1;
+        await LoadSessionsAsync();
+    }
+
+    /// <summary>分页变更</summary>
+    private async Task OnPageChanged(int newPage)
+    {
+        _pageIndex = newPage;
+        await LoadSessionsAsync();
+    }
+
+    /// <summary>查看会话详情</summary>
+    private void ViewSession(long sessionId)
+    {
+        NavigationManager.NavigateTo($"/teacher/session/{sessionId}");
+    }
+
+    /// <summary>导出会话考勤记录为 Excel</summary>
+    private async Task ExportSessionAsync(long sessionId)
+    {
+        _errorMessage = null;
+        try
+        {
+            var bytes = await ApiClient.DownloadFileAsync($"api/statistics/export/session/{sessionId}");
+            var fileName = $"考勤记录_{sessionId}_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+            await DownloadFileAsync(bytes, fileName);
+            _successMessage = "导出成功";
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "导出失败，请稍后重试";
+            Logger.LogError(ex, "导出考勤记录异常");
+        }
+    }
+
+    /// <summary>通过 JS 触发浏览器下载文件</summary>
+    private async Task DownloadFileAsync(byte[] bytes, string fileName)
+    {
+        var base64 = Convert.ToBase64String(bytes);
+        await JSRuntime.InvokeVoidAsync("eval", $"var a=document.createElement('a');a.href='data:application/octet-stream;base64,{base64}';a.download='{fileName}';a.click();");
+    }
+}

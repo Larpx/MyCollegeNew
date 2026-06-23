@@ -1,0 +1,11 @@
+@* 管理员区域布局：基于 MainLayout，附加 Admin 角色守卫 *@
+@layout MainLayout
+@inherits LayoutComponentBase
+
+<AccessGuard Roles="Admin">
+    @Body
+</AccessGuard>
+
+@code {
+    // 管理员区域布局：嵌套于 MainLayout 之上，使用 AccessGuard 限制仅 Admin 角色可访问
+}

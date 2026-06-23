@@ -1,0 +1,75 @@
+@* 模态框组件 *@
+@if (Visible)
+{
+    <div class="ui-modal-overlay" onclick="@OnOverlayClick">
+        <div class="ui-modal @Class" onclick="@StopPropagation" role="dialog" aria-modal="true">
+            <div class="ui-modal__header">
+                <h3 class="ui-modal__title">@Title</h3>
+                @if (ShowCloseButton)
+                {
+                    <button type="button" class="ui-modal__close" onclick="OnClose" aria-label="关闭">
+                        <Icon Name="x" Size="20" />
+                    </button>
+                }
+            </div>
+            <div class="ui-modal__body">
+                @ChildContent
+            </div>
+            @if (Footer is not null)
+            {
+                <div class="ui-modal__footer">
+                    @Footer
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>是否显示</summary>
+    [Parameter]
+    public bool Visible { get; set; }
+
+    /// <summary>标题</summary>
+    [Parameter]
+    public string? Title { get; set; }
+
+    /// <summary>是否显示关闭按钮</summary>
+    [Parameter]
+    public bool ShowCloseButton { get; set; } = true;
+
+    /// <summary>点击遮罩是否关闭</summary>
+    [Parameter]
+    public bool CloseOnOverlayClick { get; set; } = true;
+
+    /// <summary>关闭回调</summary>
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    /// <summary>底部内容（按钮等）</summary>
+    [Parameter]
+    public RenderFragment? Footer { get; set; }
+
+    /// <summary>自定义 CSS 类</summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>模态框内容</summary>
+    [Parameter]
+    [EditorRequired]
+    public RenderFragment ChildContent { get; set; } = default!;
+
+    private async Task OnOverlayClick()
+    {
+        if (CloseOnOverlayClick)
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    private Task StopPropagation()
+    {
+        // 阻止点击模态框内容时冒泡到遮罩层
+        return Task.CompletedTask;
+    }
+}

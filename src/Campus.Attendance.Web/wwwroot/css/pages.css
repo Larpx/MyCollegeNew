@@ -1,0 +1,1388 @@
+/* ===================================================================
+ * 仪表盘页面样式
+ * =================================================================== */
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+}
+
+.dashboard-metric {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-primary);
+    line-height: var(--line-height-heading);
+}
+
+.dashboard-actions {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.redirect-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 100vh;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+}
+
+.redirect-loading__spinner {
+    width: var(--space-4);
+    height: var(--space-4);
+    border: 2px solid var(--color-neutral-300);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: redirect-spin 0.6s linear infinite;
+}
+
+@keyframes redirect-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 响应式：平板双列 */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* 响应式：移动端单列 */
+@media (max-width: 767.98px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===================================================================
+ * 统计卡片（带图标）
+ * =================================================================== */
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.stat-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-12);
+    height: var(--space-12);
+    border-radius: var(--radius-md);
+    background-color: rgba(37, 99, 235, 0.1);
+    color: var(--color-primary);
+    flex-shrink: 0;
+}
+
+.stat-card__icon--success {
+    background-color: rgba(22, 163, 74, 0.1);
+    color: var(--color-success);
+}
+
+.stat-card__icon--warning {
+    background-color: rgba(217, 119, 6, 0.1);
+    color: var(--color-warning);
+}
+
+.stat-card__icon--error {
+    background-color: rgba(220, 38, 38, 0.1);
+    color: var(--color-error);
+}
+
+.stat-card__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.stat-card__label {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-1);
+}
+
+.stat-card__value {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    line-height: var(--line-height-heading);
+}
+
+.stat-card__hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin-top: var(--space-1);
+}
+
+/* ===================================================================
+ * 过滤器工具栏
+ * =================================================================== */
+
+.page-filters {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-4);
+}
+
+.page-filters__field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: var(--space-16);
+}
+
+.page-filters__label {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-medium);
+}
+
+.page-filters__actions {
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-end;
+    margin-left: auto;
+}
+
+.page-filters__select {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-sm);
+    line-height: var(--line-height-base);
+    color: var(--color-text-primary);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-neutral-300);
+    border-radius: var(--radius-sm);
+    transition: border-color 0.15s ease;
+    min-width: var(--space-16);
+}
+
+    .page-filters__select:focus {
+        outline: 2px solid var(--color-primary);
+        outline-offset: -1px;
+        border-color: var(--color-primary);
+    }
+
+@media (max-width: 767.98px) {
+    .page-filters__actions {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .page-filters__field {
+        flex: 1;
+        min-width: calc(50% - var(--space-3));
+    }
+}
+
+/* ===================================================================
+ * 表单网格（Modal 内表单布局）
+ * =================================================================== */
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-4);
+}
+
+.form-grid--single {
+    grid-template-columns: 1fr;
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.form-field--full {
+    grid-column: 1 / -1;
+}
+
+.form-field__label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
+}
+
+.form-field__label--required::after {
+    content: " *";
+    color: var(--color-error);
+}
+
+.form-field__input {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-sm);
+    line-height: var(--line-height-base);
+    color: var(--color-text-primary);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-neutral-300);
+    border-radius: var(--radius-sm);
+    transition: border-color 0.15s ease;
+}
+
+    .form-field__input:focus {
+        outline: 2px solid var(--color-primary);
+        outline-offset: -1px;
+        border-color: var(--color-primary);
+    }
+
+    .form-field__input:disabled {
+        background-color: var(--color-neutral-100);
+        cursor: not-allowed;
+    }
+
+.form-field__hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+.form-field__error {
+    font-size: var(--text-xs);
+    color: var(--color-error);
+}
+
+@media (max-width: 767.98px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===================================================================
+ * 表格行操作按钮
+ * =================================================================== */
+
+.table-actions {
+    display: inline-flex;
+    gap: var(--space-1);
+    align-items: center;
+}
+
+.table-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-8);
+    height: var(--space-8);
+    padding: 0;
+    color: var(--color-text-secondary);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+    .table-action-btn:hover {
+        background-color: var(--color-neutral-100);
+        color: var(--color-text-primary);
+    }
+
+.table-action-btn--danger:hover {
+    background-color: rgba(220, 38, 38, 0.1);
+    color: var(--color-error);
+}
+
+/* ===================================================================
+ * 提示消息（错误/成功/警告）
+ * =================================================================== */
+
+.alert {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--space-4);
+    font-size: var(--text-sm);
+}
+
+.alert--error {
+    background-color: rgba(220, 38, 38, 0.08);
+    color: var(--color-error);
+    border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.alert--success {
+    background-color: rgba(22, 163, 74, 0.08);
+    color: var(--color-success);
+    border: 1px solid rgba(22, 163, 74, 0.2);
+}
+
+.alert--warning {
+    background-color: rgba(217, 119, 6, 0.08);
+    color: var(--color-warning);
+    border: 1px solid rgba(217, 119, 6, 0.2);
+}
+
+.alert--info {
+    background-color: rgba(37, 99, 235, 0.08);
+    color: var(--color-primary);
+    border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.alert__icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+}
+
+.alert__body {
+    flex: 1;
+}
+
+/* ===================================================================
+ * 加载状态
+ * =================================================================== */
+
+.loading-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-8);
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+}
+
+.loading-state__spinner {
+    width: var(--space-4);
+    height: var(--space-4);
+    border: 2px solid var(--color-neutral-300);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: redirect-spin 0.6s linear infinite;
+}
+
+/* ===================================================================
+ * 柱状图（CSS 实现）
+ * =================================================================== */
+
+.chart-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.chart {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-2);
+    height: 200px;
+    padding: var(--space-3) 0;
+    min-width: 400px;
+}
+
+.chart__item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: var(--space-12);
+}
+
+.chart__bar-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.chart__bar {
+    width: 60%;
+    min-height: var(--space-1);
+    background-color: var(--color-primary);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    transition: height 0.3s ease;
+    position: relative;
+}
+
+    .chart__bar:hover {
+        background-color: var(--color-primary-hover);
+    }
+
+.chart__bar-value {
+    position: absolute;
+    top: calc(-1 * var(--space-4));
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+
+.chart__label {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+}
+
+/* ===================================================================
+ * 树形结构（组织架构）
+ * =================================================================== */
+
+.tree-view {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.tree-node {
+    display: flex;
+    flex-direction: column;
+}
+
+.tree-node__header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+    .tree-node__header:hover {
+        background-color: var(--color-neutral-50);
+    }
+
+.tree-node__header--active {
+    background-color: rgba(37, 99, 235, 0.08);
+    color: var(--color-primary);
+}
+
+.tree-node__toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-4);
+    height: var(--space-4);
+    background: transparent;
+    border: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+    .tree-node__toggle--expanded {
+        transform: rotate(90deg);
+    }
+
+.tree-node__title {
+    flex: 1;
+    font-size: var(--text-sm);
+    color: var(--color-text-primary);
+}
+
+.tree-node__meta {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+.tree-node__actions {
+    display: inline-flex;
+    gap: var(--space-1);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.tree-node__header:hover .tree-node__actions {
+    opacity: 1;
+}
+
+.tree-node__children {
+    padding-left: var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+/* ===================================================================
+ * 标签页导航
+ * =================================================================== */
+
+.tab-bar {
+    display: flex;
+    gap: var(--space-1);
+    border-bottom: 1px solid var(--color-neutral-200);
+    margin-bottom: var(--space-4);
+    overflow-x: auto;
+}
+
+.tab-bar__item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+    white-space: nowrap;
+}
+
+    .tab-bar__item:hover {
+        color: var(--color-text-primary);
+    }
+
+.tab-bar__item--active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+}
+
+.tab-bar__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--space-4);
+    height: var(--space-4);
+    padding: 0 var(--space-1);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    color: #ffffff;
+    background-color: var(--color-error);
+    border-radius: var(--radius-sm);
+}
+
+/* ===================================================================
+ * 二维码展示
+ * =================================================================== */
+
+.qr-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-6);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-neutral-200);
+    border-radius: var(--radius-md);
+}
+
+.qr-display__image {
+    width: 240px;
+    height: 240px;
+    object-fit: contain;
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-neutral-200);
+    border-radius: var(--radius-sm);
+}
+
+.qr-display__countdown {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+}
+
+.qr-display__countdown-value {
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-primary);
+}
+
+/* ===================================================================
+ * 随机点名区域
+ * =================================================================== */
+
+.random-pick {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    padding: var(--space-8) var(--space-4);
+    background-color: var(--color-neutral-50);
+    border: 1px dashed var(--color-neutral-300);
+    border-radius: var(--radius-md);
+    text-align: center;
+}
+
+.random-pick__name {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-primary);
+    line-height: var(--line-height-heading);
+}
+
+.random-pick__id {
+    font-size: var(--text-base);
+    color: var(--color-text-secondary);
+}
+
+.random-pick__actions {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+}
+
+/* ===================================================================
+ * 周课表网格
+ * =================================================================== */
+
+.schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: var(--space-2);
+    overflow-x: auto;
+}
+
+.schedule-day {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 140px;
+}
+
+.schedule-day__header {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    background-color: var(--color-neutral-100);
+    border-radius: var(--radius-sm);
+    text-align: center;
+}
+
+.schedule-day__header--today {
+    background-color: var(--color-primary);
+    color: #ffffff;
+}
+
+.schedule-item {
+    padding: var(--space-2) var(--space-3);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-neutral-200);
+    border-left: 3px solid var(--color-primary);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+}
+
+.schedule-item__title {
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-1);
+}
+
+.schedule-item__meta {
+    color: var(--color-text-tertiary);
+    line-height: var(--line-height-base);
+}
+
+@media (max-width: 1023.98px) {
+    .schedule-grid {
+        grid-template-columns: 140px;
+        grid-auto-flow: column;
+        grid-auto-columns: 140px;
+    }
+}
+
+/* ===================================================================
+ * 课程卡片列表（教师仪表盘今日课程）
+ * =================================================================== */
+
+.course-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.course-card-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-neutral-200);
+    border-radius: var(--radius-sm);
+    transition: border-color 0.15s ease;
+}
+
+    .course-card-item:hover {
+        border-color: var(--color-primary);
+    }
+
+.course-card-item__section {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-12);
+    height: var(--space-12);
+    background-color: rgba(37, 99, 235, 0.1);
+    color: var(--color-primary);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    flex-shrink: 0;
+}
+
+.course-card-item__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.course-card-item__title {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-1);
+}
+
+.course-card-item__meta {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.course-card-item__meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.course-card-item__actions {
+    display: flex;
+    gap: var(--space-2);
+    flex-shrink: 0;
+}
+
+@media (max-width: 767.98px) {
+    .course-card-item {
+        flex-wrap: wrap;
+    }
+
+    .course-card-item__actions {
+        width: 100%;
+    }
+}
+
+/* ===================================================================
+ * 双栏布局（院系管理）
+ * =================================================================== */
+
+.split-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: var(--space-4);
+    align-items: start;
+}
+
+.split-layout__sidebar {
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-neutral-200);
+    border-radius: var(--radius-sm);
+    padding: var(--space-3);
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.split-layout__main {
+    min-width: 0;
+}
+
+@media (max-width: 1023.98px) {
+    .split-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===================================================================
+ * 文件上传区
+ * =================================================================== */
+
+.file-upload {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.file-upload__hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+.file-upload__input {
+    font-size: var(--text-sm);
+}
+
+/* ===================================================================
+ * 间距工具类
+ * =================================================================== */
+
+.mt-2 { margin-top: var(--space-2); }
+.mt-4 { margin-top: var(--space-4); }
+.mt-6 { margin-top: var(--space-6); }
+.mb-2 { margin-bottom: var(--space-2); }
+.mb-4 { margin-bottom: var(--space-4); }
+.mb-6 { margin-bottom: var(--space-6); }
+.gap-2 { gap: var(--space-2); }
+.gap-4 { gap: var(--space-4); }
+
+.text-secondary { color: var(--color-text-secondary); }
+.text-tertiary { color: var(--color-text-tertiary); }
+.text-sm { font-size: var(--text-sm); }
+.text-xs { font-size: var(--text-xs); }
+.text-lg { font-size: var(--text-lg); }
+.text-xl { font-size: var(--text-xl); }
+.font-semibold { font-weight: var(--font-weight-semibold); }
+.font-medium { font-weight: var(--font-weight-medium); }
+
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-1 { flex: 1; }
+
+/* ===================================================================
+ * 状态选择下拉（点名）
+ * =================================================================== */
+
+.status-select {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--color-text-primary);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-neutral-300);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+    .status-select:focus {
+        outline: 2px solid var(--color-primary);
+        outline-offset: -1px;
+    }
+
+/* ===================================================================
+ * 信息展示列表（详情页）
+ * =================================================================== */
+
+.info-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.info-list__item {
+    display: flex;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+}
+
+.info-list__label {
+    width: 100px;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+}
+
+.info-list__value {
+    color: var(--color-text-primary);
+    flex: 1;
+}
+
+/* ===================================================================
+ * 学生端：移动端优先样式
+ * =================================================================== */
+
+/* 快捷操作卡片网格（首页三快捷入口） */
+.student-quick-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+/* 单个快捷操作卡片：大尺寸触控目标，最小高度 80px */
+.student-quick-action {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-neutral-200);
+    border-radius: var(--radius-md);
+    min-height: 80px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+    text-align: left;
+    width: 100%;
+    border-left: 4px solid var(--color-primary);
+}
+
+    .student-quick-action:hover {
+        border-color: var(--color-primary);
+        background-color: var(--color-neutral-50);
+    }
+
+    .student-quick-action--primary {
+        border-left-color: var(--color-primary);
+    }
+
+    .student-quick-action--success {
+        border-left-color: var(--color-success);
+    }
+
+    .student-quick-action--warning {
+        border-left-color: var(--color-warning);
+    }
+
+    .student-quick-action--highlight {
+        background-color: rgba(37, 99, 235, 0.06);
+        border-color: var(--color-primary);
+        animation: student-pulse 2s ease-in-out infinite;
+    }
+
+@keyframes student-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.2); }
+    50% { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0); }
+}
+
+.student-quick-action__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-12);
+    height: var(--space-12);
+    border-radius: var(--radius-md);
+    background-color: rgba(37, 99, 235, 0.1);
+    color: var(--color-primary);
+    flex-shrink: 0;
+}
+
+.student-quick-action__icon--success {
+    background-color: rgba(22, 163, 74, 0.1);
+    color: var(--color-success);
+}
+
+.student-quick-action__icon--warning {
+    background-color: rgba(217, 119, 6, 0.1);
+    color: var(--color-warning);
+}
+
+.student-quick-action__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.student-quick-action__title {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-1);
+}
+
+.student-quick-action__hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+}
+
+.student-quick-action__badge {
+    flex-shrink: 0;
+}
+
+/* 签到码大输入框 */
+.student-checkin-input {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--text-lg);
+    letter-spacing: 2px;
+    text-align: center;
+    color: var(--color-text-primary);
+    background-color: var(--color-bg);
+    border: 2px solid var(--color-neutral-300);
+    border-radius: var(--radius-md);
+    transition: border-color 0.15s ease;
+    min-height: 56px;
+}
+
+    .student-checkin-input:focus {
+        outline: 2px solid var(--color-primary);
+        outline-offset: -1px;
+        border-color: var(--color-primary);
+    }
+
+    .student-checkin-input::placeholder {
+        color: var(--color-text-tertiary);
+        letter-spacing: normal;
+    }
+
+/* 签到结果卡片 */
+.student-checkin-result {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-md);
+    margin-top: var(--space-4);
+}
+
+.student-checkin-result--success {
+    background-color: rgba(22, 163, 74, 0.08);
+    border: 1px solid rgba(22, 163, 74, 0.2);
+    color: var(--color-success);
+}
+
+.student-checkin-result--error {
+    background-color: rgba(220, 38, 38, 0.08);
+    border: 1px solid rgba(220, 38, 38, 0.2);
+    color: var(--color-error);
+}
+
+.student-checkin-result__icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+}
+
+.student-checkin-result__body {
+    flex: 1;
+}
+
+.student-checkin-result__title {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--space-1);
+}
+
+.student-checkin-result__meta {
+    font-size: var(--text-sm);
+    opacity: 0.85;
+}
+
+/* 学生端统计网格（移动端单列，桌面端双列） */
+.student-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+@media (min-width: 768px) {
+    .student-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* 大数字统计卡片（出勤率） */
+.student-rate-card {
+    text-align: center;
+    padding: var(--space-4);
+}
+
+.student-rate-card__value {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-primary);
+    line-height: var(--line-height-heading);
+}
+
+.student-rate-card__label {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin-top: var(--space-1);
+}
+
+/* 课程出勤率进度条 */
+.student-progress {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3) 0;
+}
+
+.student-progress__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--text-sm);
+}
+
+.student-progress__name {
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
+}
+
+.student-progress__value {
+    color: var(--color-text-secondary);
+}
+
+.student-progress__track {
+    width: 100%;
+    height: var(--space-2);
+    background-color: var(--color-neutral-100);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.student-progress__fill {
+    height: 100%;
+    background-color: var(--color-primary);
+    border-radius: var(--radius-sm);
+    transition: width 0.3s ease;
+}
+
+.student-progress__fill--success {
+    background-color: var(--color-success);
+}
+
+.student-progress__fill--warning {
+    background-color: var(--color-warning);
+}
+
+.student-progress__fill--error {
+    background-color: var(--color-error);
+}
+
+/* 考勤记录条目 */
+.student-record-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--color-neutral-100);
+}
+
+    .student-record-item:last-child {
+        border-bottom: none;
+    }
+
+.student-record-item__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.student-record-item__title {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
+}
+
+.student-record-item__meta {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin-top: var(--space-1);
+}
+
+/* 请假记录卡片 */
+.student-leave-card {
+    padding: var(--space-3);
+    border: 1px solid var(--color-neutral-200);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--space-3);
+}
+
+.student-leave-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-2);
+}
+
+.student-leave-card__type {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+}
+
+.student-leave-card__time {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    margin-top: var(--space-1);
+}
+
+.student-leave-card__reason {
+    font-size: var(--text-sm);
+    color: var(--color-text-primary);
+    margin-top: var(--space-2);
+    line-height: var(--line-height-base);
+}
+
+.student-leave-card__remark {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin-top: var(--space-2);
+    padding: var(--space-2);
+    background-color: var(--color-neutral-50);
+    border-radius: var(--radius-sm);
+}
+
+/* 课表日切换 */
+.student-schedule-day-tabs {
+    display: flex;
+    gap: var(--space-1);
+    overflow-x: auto;
+    padding-bottom: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+.student-schedule-day-tab {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-neutral-200);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    white-space: nowrap;
+    min-width: var(--space-12);
+    transition: all 0.15s ease;
+}
+
+    .student-schedule-day-tab:hover {
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+    }
+
+    .student-schedule-day-tab--active {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: #ffffff;
+    }
+
+.student-schedule-day-tab__label {
+    font-size: var(--text-xs);
+    opacity: 0.8;
+}
+
+.student-schedule-day-tab__value {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+}
+
+/* 课表节次卡片 */
+.student-schedule-item {
+    padding: var(--space-3);
+    border: 1px solid var(--color-neutral-200);
+    border-left: 3px solid var(--color-primary);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--space-2);
+}
+
+.student-schedule-item__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-1);
+}
+
+.student-schedule-item__title {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+}
+
+.student-schedule-item__section {
+    font-size: var(--text-xs);
+    color: var(--color-primary);
+    font-weight: var(--font-weight-medium);
+}
+
+.student-schedule-item__meta {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.student-schedule-item__meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+/* 周次切换 */
+.student-week-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+.student-week-nav__label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+}
+
+/* 大尺寸提交按钮（移动端触控友好） */
+.student-btn-large {
+    width: 100%;
+    min-height: 48px;
+    font-size: var(--text-base);
+}
+
+/* 表单字段（移动端） */
+.student-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin-bottom: var(--space-3);
+}
+
+.student-form-field__label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
+}
+
+.student-form-field__label--required::after {
+    content: " *";
+    color: var(--color-error);
+}
+
+.student-form-field__input {
+    width: 100%;
+    padding: var(--space-3);
+    font-size: var(--text-sm);
+    line-height: var(--line-height-base);
+    color: var(--color-text-primary);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-neutral-300);
+    border-radius: var(--radius-sm);
+    transition: border-color 0.15s ease;
+    min-height: 44px;
+}
+
+    .student-form-field__input:focus {
+        outline: 2px solid var(--color-primary);
+        outline-offset: -1px;
+        border-color: var(--color-primary);
+    }
+
+    .student-form-field__input:disabled {
+        background-color: var(--color-neutral-100);
+        cursor: not-allowed;
+    }
+
+textarea.student-form-field__input {
+    min-height: 96px;
+    resize: vertical;
+}
+
+.student-form-field__error {
+    font-size: var(--text-xs);
+    color: var(--color-error);
+}
+
+.student-form-field__hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}

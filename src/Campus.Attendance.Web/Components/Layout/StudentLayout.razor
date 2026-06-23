@@ -1,0 +1,11 @@
+@* 学生区域布局：基于 MainLayout，附加 Student 角色守卫 *@
+@layout MainLayout
+@inherits LayoutComponentBase
+
+<AccessGuard Roles="Student">
+    @Body
+</AccessGuard>
+
+@code {
+    // 学生区域布局：嵌套于 MainLayout 之上，使用 AccessGuard 限制仅 Student 角色可访问
+}

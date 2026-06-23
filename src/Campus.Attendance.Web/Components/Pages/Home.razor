@@ -1,0 +1,38 @@
+@page "/"
+@inject NavigationManager NavigationManager
+@inject TokenService TokenService
+
+@* 根路径：根据登录角色重定向到对应首页 *@
+<PageTitle>跳转中…</PageTitle>
+
+<div class="redirect-loading">
+    <span class="redirect-loading__spinner" aria-hidden="true"></span>
+    <span>正在跳转…</span>
+</div>
+
+@code {
+    /// <summary>
+    /// 组件初始化时根据 Token 中的角色重定向到对应首页
+    /// 未登录则跳转到登录页
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        var userInfo = await TokenService.GetUserInfoAsync();
+        if (userInfo is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var targetUrl = userInfo.Role switch
+        {
+            "Admin" => "/admin/dashboard",
+            "Teacher" => "/teacher/dashboard",
+            "Counselor" => "/teacher/dashboard",
+            "Student" => "/student/home",
+            _ => "/login"
+        };
+
+        NavigationManager.NavigateTo(targetUrl, forceLoad: true);
+    }
+}

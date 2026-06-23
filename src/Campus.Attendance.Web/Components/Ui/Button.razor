@@ -1,0 +1,51 @@
+@* 按钮组件：Variant 控制样式，主按钮实心无渐变，悬停变暗 10%，禁止 rounded-full *@
+<button type="@Type"
+        class="ui-btn ui-btn--@Variant.ToString().ToLowerInvariant() @Class"
+        disabled="@Disabled"
+        onclick="@OnClick">
+    @if (!string.IsNullOrEmpty(Icon))
+    {
+        <span class="ui-btn__icon">
+            <Icon Name="@Icon" Size="16" />
+        </span>
+    }
+    @if (Loading)
+    {
+        <span class="ui-btn__spinner" aria-hidden="true"></span>
+    }
+    @ChildContent
+</button>
+
+@code {
+    /// <summary>按钮变体</summary>
+    [Parameter]
+    public ButtonVariant Variant { get; set; } = ButtonVariant.Primary;
+
+    /// <summary>按钮类型（button/submit/reset）</summary>
+    [Parameter]
+    public string Type { get; set; } = "button";
+
+    /// <summary>是否禁用</summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>是否显示加载状态</summary>
+    [Parameter]
+    public bool Loading { get; set; }
+
+    /// <summary>图标名称（Lucide 图标名）</summary>
+    [Parameter]
+    public string? Icon { get; set; }
+
+    /// <summary>自定义 CSS 类</summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>点击事件</summary>
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+
+    /// <summary>按钮内容</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

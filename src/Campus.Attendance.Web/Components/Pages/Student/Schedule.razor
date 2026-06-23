@@ -1,0 +1,190 @@
+@page "/student/schedule"
+@layout StudentLayout
+@attribute [Authorize(Roles = "Student")]
+@using Campus.Attendance.Models.Courses
+@inject IApiClient ApiClient
+@inject TokenService TokenService
+@inject NavigationManager NavigationManager
+@inject ILogger<Components.Pages.Student.Schedule> Logger
+
+<PageTitle>我的课表 - 考勤管理系统</PageTitle>
+
+<PageHeader Title="我的课表" Icon="calendar" Subtitle="查看周课表安排">
+    <Actions>
+        <Button Variant="ButtonVariant.Secondary" Icon="refresh-cw" OnClick="LoadDataAsync" Loading="_loading">刷新</Button>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert--error">
+        <span class="alert__icon"><Icon Name="alert-circle" Size="20" /></span>
+        <span class="alert__body">@_errorMessage</span>
+    </div>
+}
+
+@if (_loading && _weeklySchedule is null)
+{
+    <div class="loading-state">
+        <span class="loading-state__spinner"></span>
+        <span>加载中...</span>
+    </div>
+}
+else if (_weeklySchedule is not null)
+{
+    @* 周次切换 *@
+    <div class="student-week-nav">
+        <Button Variant="ButtonVariant.Outline" Icon="chevron-left" OnClick="PreviousWeek" Disabled="_week <= 1">上一周</Button>
+        <span class="student-week-nav__label">第 @_week 周</span>
+        <Button Variant="ButtonVariant.Outline" OnClick="NextWeek" Disabled="_week >= 20">
+            下一周
+            <Icon Name="chevron-right" Size="16" />
+        </Button>
+    </div>
+
+    @* 星期切换标签（移动端按天切换） *@
+    <div class="student-schedule-day-tabs">
+        @for (var day = 1; day <= 7; day++)
+        {
+            var dayCopy = day;
+            <button type="button"
+                    class="student-schedule-day-tab @(dayCopy == _selectedDay ? "student-schedule-day-tab--active" : "")"
+                    onclick="() => SelectDay(dayCopy)">
+                <span class="student-schedule-day-tab__label">@GetDayShortName(dayCopy)</span>
+                <span class="student-schedule-day-tab__value">@GetDayName(dayCopy)</span>
+            </button>
+        }
+    </div>
+
+    @* 当天课表列表 *@
+    <Card Title="@($"第{_week}周 - {GetDayName(_selectedDay)}课表")">
+        @{
+            var daySchedules = _weeklySchedule.Days?.GetValueOrDefault(_selectedDay) ?? new List<ScheduleResponseDto>();
+        }
+        @if (daySchedules.Count == 0)
+        {
+            <EmptyState Title="本日无课" Description="这一天没有排课记录" Icon="calendar-days" />
+        }
+        else
+        {
+            @foreach (var schedule in daySchedules.OrderBy(s => s.StartSection))
+            {
+                <div class="student-schedule-item">
+                    <div class="student-schedule-item__header">
+                        <span class="student-schedule-item__title">@schedule.CourseName</span>
+                        <span class="student-schedule-item__section">第@(schedule.StartSection)-@(schedule.EndSection)节</span>
+                    </div>
+                    <div class="student-schedule-item__meta">
+                        <span class="student-schedule-item__meta-item"><Icon Name="map-pin" Size="16" />@schedule.Classroom</span>
+                        <span class="student-schedule-item__meta-item"><Icon Name="user" Size="16" />@schedule.TeacherName</span>
+                        <span class="student-schedule-item__meta-item"><Icon Name="users" Size="16" />@schedule.ClassName</span>
+                    </div>
+                </div>
+            }
+        }
+    </Card>
+}
+
+@code {
+    private WeeklyScheduleDto? _weeklySchedule;
+    private int _week = 1;
+    private int _selectedDay = 1;
+    private bool _loading;
+    private string? _errorMessage;
+    private string _studentId = string.Empty;
+
+    /// <summary>
+    /// 页面初始化：获取当前学生学号，默认选中今天，加载本周课表
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        var userInfo = await TokenService.GetUserInfoAsync();
+        if (userInfo is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        _studentId = userInfo.UserId;
+
+        // 默认选中今天
+        var today = DateTime.UtcNow;
+        var dayOfWeek = (int)today.DayOfWeek;
+        _selectedDay = dayOfWeek == 0 ? 7 : dayOfWeek;
+
+        await LoadDataAsync();
+    }
+
+    /// <summary>加载指定周次的课表</summary>
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            _weeklySchedule = await ApiClient.GetAsync<WeeklyScheduleDto>($"api/schedules/by-student/{_studentId}?week={_week}");
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+            Logger.LogWarning(ex, "加载学生课表失败");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载数据失败，请稍后重试";
+            Logger.LogError(ex, "加载学生课表异常");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>切换到上一周</summary>
+    private async Task PreviousWeek()
+    {
+        if (_week <= 1) return;
+        _week--;
+        await LoadDataAsync();
+    }
+
+    /// <summary>切换到下一周</summary>
+    private async Task NextWeek()
+    {
+        if (_week >= 20) return;
+        _week++;
+        await LoadDataAsync();
+    }
+
+    /// <summary>选择某一天查看课表</summary>
+    private void SelectDay(int day)
+    {
+        _selectedDay = day;
+    }
+
+    /// <summary>获取星期几的全称</summary>
+    private static string GetDayName(int day) => day switch
+    {
+        1 => "周一",
+        2 => "周二",
+        3 => "周三",
+        4 => "周四",
+        5 => "周五",
+        6 => "周六",
+        7 => "周日",
+        _ => "未知"
+    };
+
+    /// <summary>获取星期几的简称（单字）</summary>
+    private static string GetDayShortName(int day) => day switch
+    {
+        1 => "一",
+        2 => "二",
+        3 => "三",
+        4 => "四",
+        5 => "五",
+        6 => "六",
+        7 => "日",
+        _ => "?"
+    };
+}

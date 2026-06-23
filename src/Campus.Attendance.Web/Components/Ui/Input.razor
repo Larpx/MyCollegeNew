@@ -1,0 +1,96 @@
+@* 输入框组件：圆角 var(--radius-sm)，焦点边框变色 + outline，禁止 glow *@
+<div class="ui-input-wrapper @Class">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="ui-input__label" for="@Id">@Label</label>
+    }
+    <div class="ui-input__field">
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <span class="ui-input__icon">
+                <Icon Name="@Icon" Size="16" />
+            </span>
+        }
+        <input id="@Id"
+               type="@Type"
+               class="ui-input"
+               placeholder="@Placeholder"
+               value="@Value"
+               disabled="@Disabled"
+               @oninput="OnInputChanged" />
+        @if (ShowPasswordToggle && Type == "password")
+        {
+            <button type="button"
+                    class="ui-input__toggle"
+                    onclick="@(async () => await TogglePasswordType())"
+                    aria-label="切换密码可见性">
+                <Icon Name="@(_isPasswordVisible ? "eye-off" : "eye")" Size="16" />
+            </button>
+        }
+    </div>
+    @if (!string.IsNullOrEmpty(Hint))
+    {
+        <span class="ui-input__hint">@Hint</span>
+    }
+</div>
+
+@code {
+    private bool _isPasswordVisible;
+
+    /// <summary>输入框 ID</summary>
+    [Parameter]
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+
+    /// <summary>标签文本</summary>
+    [Parameter]
+    public string? Label { get; set; }
+
+    /// <summary>占位符</summary>
+    [Parameter]
+    public string? Placeholder { get; set; }
+
+    /// <summary>输入类型（text/password/email 等）</summary>
+    [Parameter]
+    public string Type { get; set; } = "text";
+
+    /// <summary>当前值</summary>
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    /// <summary>值变更回调</summary>
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    /// <summary>是否禁用</summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>提示文本</summary>
+    [Parameter]
+    public string? Hint { get; set; }
+
+    /// <summary>图标名称</summary>
+    [Parameter]
+    public string? Icon { get; set; }
+
+    /// <summary>是否显示密码切换按钮（仅 password 类型生效）</summary>
+    [Parameter]
+    public bool ShowPasswordToggle { get; set; }
+
+    /// <summary>自定义 CSS 类</summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    private async Task OnInputChanged(ChangeEventArgs e)
+    {
+        Value = e.Value?.ToString() ?? string.Empty;
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private Task TogglePasswordType()
+    {
+        _isPasswordVisible = !_isPasswordVisible;
+        Type = _isPasswordVisible ? "text" : "password";
+        return Task.CompletedTask;
+    }
+}

@@ -1,0 +1,107 @@
+@* 表格组件：支持列定义、数据绑定、分页 *@
+@typeparam T
+
+<div class="ui-table-wrapper @Class">
+    <div class="ui-table-scroll">
+        <table class="ui-table">
+            <thead>
+                <tr>
+                    @foreach (var column in Columns)
+                    {
+                        <th style="@column.HeaderStyle" class="ui-table__th">@column.Title</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @if (Items is null || !Items.Any())
+                {
+                    <tr>
+                        <td colspan="@Columns.Count" class="ui-table__empty">
+                            @(EmptyText ?? "暂无数据")
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in Items)
+                    {
+                        <tr class="ui-table__row">
+                            @foreach (var column in Columns)
+                            {
+                                <td class="ui-table__td">
+                                    @column.Template?.Invoke(item)
+                                </td>
+                            }
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (ShowPagination && TotalCount > 0)
+    {
+        <Pagination PageIndex="@PageIndex"
+                    PageSize="@PageSize"
+                    TotalCount="@TotalCount"
+                    PageChanged="OnPageChanged" />
+    }
+</div>
+
+@code {
+    /// <summary>表格列定义</summary>
+    /// <typeparam name="TItem">行数据类型</typeparam>
+    public class Column<TItem>
+    {
+        /// <summary>列标题</summary>
+        public string Title { get; set; } = string.Empty;
+
+        /// <summary>列头样式</summary>
+        public string HeaderStyle { get; set; } = string.Empty;
+
+        /// <summary>单元格渲染模板</summary>
+        public RenderFragment<TItem>? Template { get; set; }
+    }
+
+    /// <summary>列定义集合</summary>
+    [Parameter]
+    [EditorRequired]
+    public List<Column<T>> Columns { get; set; } = new();
+
+    /// <summary>数据源</summary>
+    [Parameter]
+    public IEnumerable<T>? Items { get; set; }
+
+    /// <summary>是否显示分页</summary>
+    [Parameter]
+    public bool ShowPagination { get; set; }
+
+    /// <summary>当前页码（从 1 开始）</summary>
+    [Parameter]
+    public int PageIndex { get; set; } = 1;
+
+    /// <summary>每页大小</summary>
+    [Parameter]
+    public int PageSize { get; set; } = 10;
+
+    /// <summary>总记录数</summary>
+    [Parameter]
+    public int TotalCount { get; set; }
+
+    /// <summary>页码变更回调</summary>
+    [Parameter]
+    public EventCallback<int> PageChanged { get; set; }
+
+    /// <summary>空数据提示文本</summary>
+    [Parameter]
+    public string? EmptyText { get; set; }
+
+    /// <summary>自定义 CSS 类</summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    private async Task OnPageChanged(int newPageIndex)
+    {
+        PageIndex = newPageIndex;
+        await PageChanged.InvokeAsync(newPageIndex);
+    }
+}

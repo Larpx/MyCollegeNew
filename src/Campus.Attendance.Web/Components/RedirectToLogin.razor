@@ -1,0 +1,13 @@
+@* 未登录重定向到 /login 页面 *@
+@inject NavigationManager NavigationManager
+
+@code {
+    /// <summary>
+    /// 组件初始化时重定向到登录页
+    /// 使用 forceLoad 确保完全刷新，避免认证状态缓存
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        NavigationManager.NavigateTo("/login", forceLoad: true);
+    }
+}

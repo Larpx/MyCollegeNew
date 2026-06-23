@@ -1,0 +1,157 @@
+/* ===================================================================
+ * 主布局样式：顶部导航栏 + 侧边栏 + 主内容区
+ * 响应式：移动端抽屉式导航
+ * =================================================================== */
+
+.app-layout {
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--color-bg-alt);
+}
+
+/* ---------- 侧边栏 ---------- */
+.app-layout__sidebar {
+    width: var(--space-16);
+    flex-shrink: 0;
+    background-color: var(--color-bg);
+    border-right: 1px solid var(--color-neutral-200);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 100;
+}
+
+/* ---------- 主区域 ---------- */
+.app-layout__main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+/* ---------- 顶部导航栏 ---------- */
+.app-layout__header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 0 var(--space-6);
+    height: var(--space-12);
+    background-color: var(--color-bg);
+    border-bottom: 1px solid var(--color-neutral-200);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+.app-layout__menu-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-8);
+    height: var(--space-8);
+    background: transparent;
+    border: none;
+    color: var(--color-text-primary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+    .app-layout__menu-btn:hover {
+        background-color: var(--color-neutral-100);
+    }
+
+.app-layout__header-spacer {
+    flex: 1;
+}
+
+.app-layout__user {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.app-layout__user-name {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
+}
+
+.app-layout__logout {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    background: transparent;
+    border: 1px solid var(--color-neutral-300);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+    .app-layout__logout:hover {
+        color: var(--color-error);
+        border-color: var(--color-error);
+        background-color: rgba(220, 38, 38, 0.05);
+    }
+
+/* ---------- 主内容区 ---------- */
+.app-layout__content {
+    flex: 1;
+    padding: var(--space-6);
+    overflow-x: auto;
+}
+
+/* ---------- 遮罩层（移动端抽屉） ---------- */
+.app-layout__overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 90;
+}
+
+/* ===================================================================
+ * 响应式：移动端（<768px）抽屉式导航
+ * =================================================================== */
+@media (max-width: 767.98px) {
+    .app-layout__menu-btn {
+        display: inline-flex;
+    }
+
+    .app-layout__sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        box-shadow: var(--shadow-md);
+    }
+
+    .app-layout--drawer-open .app-layout__sidebar {
+        transform: translateX(0);
+    }
+
+    .app-layout--drawer-open .app-layout__overlay {
+        display: block;
+    }
+
+    .app-layout__content {
+        padding: var(--space-4);
+    }
+
+    .app-layout__user-name {
+        display: none;
+    }
+}
+
+/* ===================================================================
+ * 响应式：平板（768-1024px）
+ * =================================================================== */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+    .app-layout__sidebar {
+        width: 220px;
+    }
+}

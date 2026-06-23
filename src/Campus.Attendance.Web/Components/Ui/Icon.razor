@@ -1,0 +1,118 @@
+@using Microsoft.AspNetCore.Components
+
+@* Lucide 图标组件：内联 SVG 渲染，避免 JS 依赖，适配 Blazor Server *@
+@* 图标来源：https://lucide.dev 图标库 *@
+@*
+    参数：
+    - Name: 图标名称（如 home、users、log-out）
+    - Size: 图标尺寸（px），默认 20，内联场景建议 16
+*@
+
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="@Size"
+     height="@Size"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="2"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     class="@($"lucide lucide-{Name} {Class}")"
+     aria-hidden="true">
+    @foreach (var path in GetIconPaths(Name))
+    {
+        <path d="@path" />
+    }
+</svg>
+
+@code {
+    /// <summary>图标名称</summary>
+    [Parameter]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>图标尺寸（px），默认 20</summary>
+    [Parameter]
+    public int Size { get; set; } = 20;
+
+    /// <summary>自定义 CSS 类</summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>
+    /// 根据图标名获取 SVG path 列表（Lucide 图标库精选）
+    /// </summary>
+    /// <param name="name">图标名</param>
+    /// <returns>SVG path d 属性列表</returns>
+    private static IReadOnlyList<string> GetIconPaths(string name) => name switch
+    {
+        "home" => new[] { "m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z", "M9 22V12h6v10" },
+        "layout-dashboard" => new[] { "M3 3h7v7H3z", "M14 3h7v7h-7z", "M14 14h7v7h-7z", "M3 14h7v7H3z" },
+        "users" => new[] { "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "circle cx=9 cy=7 r=4", "M22 21v-2a4 4 0 0 0-3-3.87", "M16 3.13a4 4 0 0 1 0 7.75" },
+        "user" => new[] { "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2", "circle cx=12 cy=7 r=4" },
+        "graduation-cap" => new[] { "M22 10v6M2 10l10-5 10 5-10 5z", "M6 12v5c3 3 9 3 12 0v-5" },
+        "book-open" => new[] { "M12 7v14", "M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" },
+        "calendar" => new[] { "M8 2v4", "M16 2v4", "M3 10h18", "rect width=18 height=18 x=3 y=4 rx=2" },
+        "clock" => new[] { "circle cx=12 cy=12 r=10", "M12 6v6l4 2" },
+        "check-circle" => new[] { "path d=M22 11.08V12a10 10 0 1 1-5.93-9.14", "m9 11 3 3L22 4" },
+        "check" => new[] { "M20 6 9 17l-5-5" },
+        "x" => new[] { "M18 6 6 18", "m6 6 12 12" },
+        "x-circle" => new[] { "m15 9-6 6", "m9 9 6 6", "circle cx=12 cy=12 r=10" },
+        "log-out" => new[] { "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4", "m16 17 5-5-5-5", "M21 12H9" },
+        "log-in" => new[] { "M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4", "m10 17 5-5-5-5", "M15 12H3" },
+        "menu" => new[] { "M4 12h16", "M4 6h16", "M4 18h16" },
+        "search" => new[] { "circle cx=11 cy=11 r=8", "m21 21-4.3-4.3" },
+        "plus" => new[] { "M5 12h14", "M12 5v14" },
+        "edit" => new[] { "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7", "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" },
+        "trash" => new[] { "M3 6h18", "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" },
+        "eye" => new[] { "M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z", "circle cx=12 cy=12 r=3" },
+        "eye-off" => new[] { "M9.88 9.88a3 3 0 1 0 4.24 4.24", "M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68", "M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61", "m2 2 20 20" },
+        "qr-code" => new[] { "rect width=5 height=5 x=3 y=3 rx=1", "rect width=5 height=5 x=16 y=3 rx=1", "rect width=5 height=5 x=3 y=16 rx=1", "M16 16h2v2h-2z", "M21 16h2v2h-2z", "M16 21h2v2h-2z", "M21 21h2v2h-2z" },
+        "bar-chart" => new[] { "M12 20V10", "M18 20V4", "M6 20v-4" },
+        "trending-up" => new[] { "polyline points=22 7 13.5 15.5 8.5 10.5 2 17", "polyline points=16 7 22 7 22 13" },
+        "download" => new[] { "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", "M7 10l5 5 5-5", "M12 15V3" },
+        "upload" => new[] { "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", "M17 8l-5-5-5 5", "M12 3v12" },
+        "settings" => new[] { "path d=M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z", "circle cx=12 cy=12 r=3" },
+        "building" => new[] { "M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z", "M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2", "M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2", "M10 6h4", "M10 10h4", "M10 14h4", "M10 18h4" },
+        "school" => new[] { "M14 22v-4a2 2 0 0 0-4 0v4", "m18 10 4 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8l4-2", "path d=M18 5a2 2 0 1 0-4 0 2 2 0 0 0 4 0zM10 5a2 2 0 1 0-4 0 2 2 0 0 0 4 0z", "M6 10v7", "M18 10v7" },
+        "clipboard-list" => new[] { "rect width=8 height=4 x=8 y=2 rx=1 ry=1", "path d=M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2", "M12 11h4", "M12 16h4", "M8 11h.01", "M8 16h.01" },
+        "file-text" => new[] { "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z", "M14 2v4a2 2 0 0 0 2 2h4", "M10 9H8", "M16 13H8", "M16 17H8" },
+        "alert-circle" => new[] { "circle cx=12 cy=12 r=10", "M12 8v4", "M12 16h.01" },
+        "info" => new[] { "circle cx=12 cy=12 r=10", "M12 16v-4", "M12 8h.01" },
+        "chevron-left" => new[] { "m15 18-6-6 6-6" },
+        "chevron-right" => new[] { "m9 18 6-6-6-6" },
+        "chevron-down" => new[] { "m6 9 6 6 6-6" },
+        "chevron-up" => new[] { "m18 15-6-6-6 6" },
+        "arrow-left" => new[] { "m12 19-7-7 7-7", "M19 12H5" },
+        "arrow-right" => new[] { "M5 12h14", "m12 5 7 7-7 7" },
+        "lock" => new[] { "rect width=18 height=11 x=3 y=11 rx=2 ry=2", "M7 11V7a5 5 0 0 1 10 0v4" },
+        "mail" => new[] { "rect width=20 height=16 x=2 y=4 rx=2", "m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" },
+        "phone" => new[] { "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" },
+        "filter" => new[] { "M22 3H2l8 9.46V19l4 2v-8.54z" },
+        "more-horizontal" => new[] { "M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", "M19 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", "M5 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" },
+        "refresh-cw" => new[] { "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8", "M21 3v5h-5", "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16", "M8 16H3v5" },
+        "save" => new[] { "M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z", "M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7", "M7 3v4a1 1 0 0 0 1 1h7" },
+        "user-plus" => new[] { "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "circle cx=9 cy=7 r=4", "M19 8v6", "M22 11h-6" },
+        "award" => new[] { "m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526", "circle cx=12 cy=8 r=6" },
+        "map-pin" => new[] { "M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0", "circle cx=12 cy=10 r=3" },
+        "play" => new[] { "polygon points=6 3 20 12 6 21 6 3" },
+        "stop" => new[] { "rect width=16 height=16 x=4 y=4 rx=2" },
+        "pause" => new[] { "rect width=4 height=16 x=6 y=4", "rect width=4 height=16 x=14 y=4" },
+        "shuffle" => new[] { "M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22", "m18 2 4 4-4 4", "M2 6h1.9c1.5 0 2.9.9 3.6 2.2", "M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8", "m18 14 4 4-4 4" },
+        "check-square" => new[] { "polyline points=9 11 12 14 22 4", "path d=M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" },
+        "list" => new[] { "M8 6h13", "M8 12h13", "M8 18h13", "M3 6h.01", "M3 12h.01", "M3 18h.01" },
+        "grid" => new[] { "rect width=7 height=7 x=3 y=3 rx=1", "rect width=7 height=7 x=14 y=3 rx=1", "rect width=7 height=7 x=14 y=14 rx=1", "rect width=7 height=7 x=3 y=14 rx=1" },
+        "calendar-days" => new[] { "M8 2v4", "M16 2v4", "M3 10h18", "rect width=18 height=18 x=3 y=4 rx=2", "M3 18h18", "M8 14h.01", "M12 14h.01", "M16 14h.01", "M8 18h.01", "M12 18h.01", "M16 18h.01" },
+        "alert-triangle" => new[] { "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3", "M12 9v4", "M12 17h.01" },
+        "inbox" => new[] { "polyline points=22 12 16 12 14 15 10 15 8 12 2 12", "path d=M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" },
+        "send" => new[] { "M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z", "m21.854 2.147-10.94 10.939" },
+        "chevrons-down" => new[] { "m7 6 5 5 5-5", "m7 13 5 5 5-5" },
+        "chevrons-up" => new[] { "m17 11-5-5-5 5", "m17 18-5-5-5 5" },
+        "external-link" => new[] { "M15 3h6v6", "M10 14 21 3", "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" },
+        "user-check" => new[] { "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "circle cx=9 cy=7 r=4", "m16 11 2 2 4-4" },
+        "layers" => new[] { "m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z", "m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65", "m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" },
+        "hash" => new[] { "M4 9h16", "M4 15h16", "M10 3 8 21", "M16 3l-2 18" },
+        "percent" => new[] { "line x1=19 x2=5 y1=5 y2=19", "circle cx=6.5 cy=6.5 r=2.5", "circle cx=17.5 cy=17.5 r=2.5" },
+        "clock-alert" => new[] { "circle cx=12 cy=12 r=10", "M12 6v6l4 2", "M12 16h.01" },
+        _ => new[] { "M3 3h18v18H3z" }
+    };
+}
