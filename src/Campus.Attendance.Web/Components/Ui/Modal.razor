@@ -7,7 +7,7 @@
                 <h3 class="ui-modal__title">@Title</h3>
                 @if (ShowCloseButton)
                 {
-                    <button type="button" class="ui-modal__close" onclick="OnClose" aria-label="关闭">
+                    <button type="button" class="ui-modal__close" @onclick="OnClose" aria-label="关闭">
                         <Icon Name="x" Size="20" />
                     </button>
                 }

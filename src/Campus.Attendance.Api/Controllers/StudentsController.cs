@@ -4,6 +4,7 @@ using Campus.Attendance.Models.Users;
 using Campus.Attendance.Services.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
 
 namespace Campus.Attendance.Api.Controllers;
 
@@ -68,7 +69,7 @@ public class StudentsController : ControllerBase
         var dto = await _userService.GetStudentByIdAsync(id, cancellationToken);
         if (dto is null)
         {
-            return ApiResponse<StudentResponseDto>.Fail($"学生 {id} 不存在", 404);
+            return ApiResponse<StudentResponseDto>.Fail(Msg.Common.EntityNotFound($"学生 {id}"), 404);
         }
 
         return ApiResponse<StudentResponseDto>.Success(dto);
@@ -86,7 +87,7 @@ public class StudentsController : ControllerBase
     public async Task<ApiResponse<StudentResponseDto>> Create([FromBody] StudentCreateDto dto, CancellationToken cancellationToken)
     {
         var result = await _userService.CreateStudentAsync(dto, cancellationToken);
-        return ApiResponse<StudentResponseDto>.Success(result, "创建成功");
+        return ApiResponse<StudentResponseDto>.Success(result, Msg.Common.CreateSuccess);
     }
 
     /// <summary>
@@ -118,7 +119,7 @@ public class StudentsController : ControllerBase
     public async Task<ApiResponse<object>> Delete(string id, CancellationToken cancellationToken)
     {
         await _userService.DeleteStudentAsync(id, cancellationToken);
-        return ApiResponse<object>.Success(new { }, "删除成功");
+        return ApiResponse<object>.Success(new { }, Msg.Common.DeleteSuccess);
     }
 
     /// <summary>
@@ -134,11 +135,11 @@ public class StudentsController : ControllerBase
     {
         if (file is null || file.Length == 0)
         {
-            return ApiResponse<BatchImportResultDto>.Fail("请上传有效的 CSV 文件", 400);
+            return ApiResponse<BatchImportResultDto>.Fail(Msg.Common.InvalidCsvFile, 400);
         }
 
         await using var stream = file.OpenReadStream();
         var result = await _userService.BatchImportStudentsAsync(stream, cancellationToken);
-        return ApiResponse<BatchImportResultDto>.Success(result, "导入完成");
+        return ApiResponse<BatchImportResultDto>.Success(result, Msg.Common.ImportComplete);
     }
 }

@@ -3,6 +3,7 @@ using Campus.Attendance.Models.Organization;
 using Campus.Attendance.Services.Organization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
 
 namespace Campus.Attendance.Api.Controllers;
 
@@ -59,7 +60,7 @@ public class ClassesController : ControllerBase
         var dto = await _organizationService.GetClassByIdAsync(id, cancellationToken);
         if (dto is null)
         {
-            return ApiResponse<ClassResponseDto>.Fail($"班级 {id} 不存在", 404);
+            return ApiResponse<ClassResponseDto>.Fail(Msg.Common.EntityNotFound($"班级 {id}"), 404);
         }
 
         return ApiResponse<ClassResponseDto>.Success(dto);
@@ -97,7 +98,7 @@ public class ClassesController : ControllerBase
     public async Task<ApiResponse<ClassResponseDto>> Update(long id, [FromBody] ClassUpdateDto dto, CancellationToken cancellationToken)
     {
         var result = await _organizationService.UpdateClassAsync(id, dto, cancellationToken);
-        return ApiResponse<ClassResponseDto>.Success(result, "更新成功");
+        return ApiResponse<ClassResponseDto>.Success(result, Msg.Common.UpdateSuccess);
     }
 
     /// <summary>
@@ -113,6 +114,6 @@ public class ClassesController : ControllerBase
     public async Task<ApiResponse<object>> Delete(long id, CancellationToken cancellationToken)
     {
         await _organizationService.DeleteClassAsync(id, cancellationToken);
-        return ApiResponse<object>.Success(new { }, "删除成功");
+        return ApiResponse<object>.Success(new { }, Msg.Common.DeleteSuccess);
     }
 }

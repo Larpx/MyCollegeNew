@@ -144,6 +144,40 @@ public class LeaveServiceTests : IDisposable
     }
 
     /// <summary>
+    /// 重复审批已通过的请假申请应抛出 BusinessException
+    /// </summary>
+    [Fact]
+    public async Task ApproveLeaveAsync_AlreadyApproved_ThrowsBusinessException()
+    {
+        // Arrange
+        await SeedReferenceDataAsync();
+        var leaveId = await CreateLeaveAsync();
+        // 第一次审批通过
+        await _leaveService.ApproveLeaveAsync(leaveId, "T002", new LeaveReviewDto { ReviewRemark = "同意" });
+
+        // Act & Assert - 重复审批应抛出异常
+        var ex = await Assert.ThrowsAsync<BusinessException>(() =>
+            _leaveService.ApproveLeaveAsync(leaveId, "T002", new LeaveReviewDto { ReviewRemark = "再次审批" }));
+        Assert.Contains("已审批", ex.Message);
+    }
+
+    /// <summary>
+    /// 非归属辅导员审批请假申请应抛出 BusinessException
+    /// </summary>
+    [Fact]
+    public async Task ApproveLeaveAsync_WrongCounselor_ThrowsBusinessException()
+    {
+        // Arrange
+        await SeedReferenceDataAsync();
+        var leaveId = await CreateLeaveAsync();
+
+        // Act & Assert - T001 不是该请假的辅导员，应抛出异常
+        var ex = await Assert.ThrowsAsync<BusinessException>(() =>
+            _leaveService.ApproveLeaveAsync(leaveId, "T001", new LeaveReviewDto { ReviewRemark = "越权审批" }));
+        Assert.Contains("自己", ex.Message);
+    }
+
+    /// <summary>
     /// 释放测试上下文资源
     /// </summary>
     public void Dispose()

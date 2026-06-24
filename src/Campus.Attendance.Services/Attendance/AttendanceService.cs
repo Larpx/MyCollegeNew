@@ -16,6 +16,8 @@ using Microsoft.IdentityModel.Tokens;
 using QRCoder;
 using SqlSugar;
 
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
+
 namespace Campus.Attendance.Services.Attendance;
 
 /// <summary>
@@ -32,6 +34,8 @@ public class AttendanceService : IAttendanceService
     private readonly IDbContext _dbContext;
     private readonly IOptions<JwtConfig> _jwtConfig;
     private readonly ILogger<AttendanceService> _logger;
+    private readonly SymmetricSecurityKey _signingKey;
+    private static readonly JwtSecurityTokenHandler _tokenHandler = new();
 
     /// <summary>随机点名历史记录：sessionId -> 最近被点名学生学号列表（按时间顺序）</summary>
     private static readonly ConcurrentDictionary<long, List<string>> _randomPickHistory = new();
@@ -46,6 +50,7 @@ public class AttendanceService : IAttendanceService
     {
         _dbContext = dbContext;
         _jwtConfig = jwtConfig;
+        _signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfig.Value.SecretKey));
         _logger = logger;
     }
 
@@ -60,26 +65,26 @@ public class AttendanceService : IAttendanceService
         var course = await db.Queryable<Course>().FirstAsync(c => c.Id == dto.CourseId && !c.IsDeleted, cancellationToken);
         if (course is null)
         {
-            throw new BusinessException($"课程 {dto.CourseId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"课程 {dto.CourseId}"), 404);
         }
 
         if (course.TeacherId != teacherId)
         {
-            throw new BusinessException("仅可为自己负责的课程创建考勤会话", 403);
+            throw new BusinessException(Msg.Attendance.OnlyOwnCourse, 403);
         }
 
         // 校验班级存在
         var cls = await db.Queryable<Class>().FirstAsync(c => c.Id == dto.ClassId && !c.IsDeleted, cancellationToken);
         if (cls is null)
         {
-            throw new BusinessException($"班级 {dto.ClassId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"班级 {dto.ClassId}"), 404);
         }
 
         var startTime = dto.StartTime;
         var endTime = dto.EndTime ?? startTime.AddMinutes(DefaultSessionDurationMinutes);
         if (endTime <= startTime)
         {
-            throw new BusinessException("签到结束时间必须晚于开始时间", 400);
+            throw new BusinessException(Msg.Attendance.EndTimeMustAfterStart, 400);
         }
 
         var session = new AttendanceSession
@@ -238,7 +243,7 @@ public class AttendanceService : IAttendanceService
         var session = await GetSessionAndVerifyTeacherAsync(db, sessionId, teacherId, cancellationToken);
         if (session.Status == SessionStatus.Closed)
         {
-            throw new BusinessException("会话已关闭，无需重复操作", 400);
+            throw new BusinessException(Msg.Attendance.SessionAlreadyClosed, 400);
         }
 
         // 查询该班级所有未删除学生
@@ -263,7 +268,7 @@ public class AttendanceService : IAttendanceService
                 StudentName = s.Name,
                 Status = AttendanceStatus.Absent,
                 CheckInTime = null,
-                Remark = "会话关闭自动标记缺勤",
+                Remark = Msg.Attendance.AutoAbsentRemark,
                 CreateTime = DateTime.UtcNow
             })
             .ToList();
@@ -319,7 +324,7 @@ public class AttendanceService : IAttendanceService
         var session = await GetSessionAndVerifyTeacherAsync(db, sessionId, teacherId, cancellationToken);
         if (session.Status != SessionStatus.Active)
         {
-            throw new BusinessException("会话已关闭，无法生成二维码", 400);
+            throw new BusinessException(Msg.Attendance.SessionClosed, 400);
         }
 
         // 生成短期 JWT token（30 秒过期），以当前时间为签发起点
@@ -360,12 +365,12 @@ public class AttendanceService : IAttendanceService
             .FirstAsync(s => s.Id == sessionId && !s.IsDeleted, cancellationToken);
         if (session is null)
         {
-            throw new BusinessException("考勤会话不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound("考勤会话"), 404);
         }
 
         if (session.Status != SessionStatus.Active)
         {
-            throw new BusinessException("会话已关闭，无法签到", 400);
+            throw new BusinessException(Msg.Attendance.SessionClosedCheckIn, 400);
         }
 
         // 3. 校验学生属于该会话的班级
@@ -373,12 +378,12 @@ public class AttendanceService : IAttendanceService
             .FirstAsync(s => s.Id == studentId && !s.IsDeleted, cancellationToken);
         if (student is null)
         {
-            throw new BusinessException("学生不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound("学生"), 404);
         }
 
         if (student.ClassId != session.ClassId)
         {
-            throw new BusinessException("学生不属于该考勤班级", 403);
+            throw new BusinessException(Msg.Attendance.StudentNotInClass, 403);
         }
 
         // 4. 检查是否已签到（避免重复签到）
@@ -386,7 +391,7 @@ public class AttendanceService : IAttendanceService
             .AnyAsync(r => r.SessionId == sessionId && r.StudentId == studentId && !r.IsDeleted, cancellationToken);
         if (exists)
         {
-            throw new BusinessException("已签到，请勿重复签到", 400);
+            throw new BusinessException(Msg.Attendance.DuplicateCheckIn, 400);
         }
 
         // 5. 判定签到状态
@@ -446,7 +451,7 @@ public class AttendanceService : IAttendanceService
                 StudentName = s.Name,
                 Status = AttendanceStatus.Present,
                 CheckInTime = checkInTime,
-                Remark = "教师一键点名",
+                Remark = Msg.Attendance.ManualCheckInRemark,
                 CreateTime = DateTime.UtcNow
             })
             .ToList();
@@ -470,7 +475,7 @@ public class AttendanceService : IAttendanceService
             .FirstAsync(r => r.Id == recordId && !r.IsDeleted, cancellationToken);
         if (record is null)
         {
-            throw new BusinessException($"考勤记录 {recordId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"考勤记录 {recordId}"), 404);
         }
 
         // 校验记录所属会话属于该教师
@@ -478,12 +483,12 @@ public class AttendanceService : IAttendanceService
             .FirstAsync(s => s.Id == record.SessionId && !s.IsDeleted, cancellationToken);
         if (session is null)
         {
-            throw new BusinessException("考勤会话不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound("考勤会话"), 404);
         }
 
         if (session.TeacherId != teacherId)
         {
-            throw new BusinessException("仅可修改自己发起的考勤记录", 403);
+            throw new BusinessException(Msg.Attendance.OnlyOwnRecord, 403);
         }
 
         record.Status = status;
@@ -508,12 +513,12 @@ public class AttendanceService : IAttendanceService
             .FirstAsync(s => s.Id == studentId && !s.IsDeleted, cancellationToken);
         if (student is null)
         {
-            throw new BusinessException($"学生 {studentId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"学生 {studentId}"), 404);
         }
 
         if (student.ClassId != session.ClassId)
         {
-            throw new BusinessException("学生不属于该考勤班级", 403);
+            throw new BusinessException(Msg.Attendance.StudentNotInClass, 403);
         }
 
         // 检查是否已存在记录，若存在则更新，否则插入
@@ -524,7 +529,7 @@ public class AttendanceService : IAttendanceService
         {
             existing.Status = status;
             existing.CheckInTime = DateTime.UtcNow;
-            existing.Remark = "教师手动补签";
+            existing.Remark = Msg.Attendance.ManualCheckIn;
             existing.UpdateTime = DateTime.UtcNow;
             await db.Updateable(existing).ExecuteCommandAsync(cancellationToken);
             _logger.LogInformation("教师 {TeacherId} 为学生 {StudentId} 手动补签，更新记录 {RecordId}", teacherId, studentId, existing.Id);
@@ -538,7 +543,7 @@ public class AttendanceService : IAttendanceService
             StudentName = student.Name,
             Status = status,
             CheckInTime = DateTime.UtcNow,
-            Remark = "教师手动补签",
+            Remark = Msg.Attendance.ManualCheckIn,
             CreateTime = DateTime.UtcNow
         };
         var id = await db.Insertable(record).ExecuteReturnIdentityAsync(cancellationToken);
@@ -558,7 +563,7 @@ public class AttendanceService : IAttendanceService
         var cls = await db.Queryable<Class>().FirstAsync(c => c.Id == classId && !c.IsDeleted, cancellationToken);
         if (cls is null)
         {
-            throw new BusinessException($"班级 {classId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"班级 {classId}"), 404);
         }
 
         var students = await db.Queryable<Student>()
@@ -567,7 +572,7 @@ public class AttendanceService : IAttendanceService
 
         if (students.Count == 0)
         {
-            throw new BusinessException("班级中暂无学生", 400);
+            throw new BusinessException(Msg.Attendance.ClassNoStudents, 400);
         }
 
         // 若提供 sessionId，优先选择未被连续点名的学生
@@ -590,8 +595,7 @@ public class AttendanceService : IAttendanceService
         }
 
         // 随机抽取一名
-        var random = new Random();
-        var picked = candidates[random.Next(candidates.Count)];
+        var picked = candidates[Random.Shared.Next(candidates.Count)];
 
         return new RandomPickResult
         {
@@ -605,14 +609,12 @@ public class AttendanceService : IAttendanceService
     /// <summary>
     /// 标记随机点名结果（已回答/未回答），记录在内存历史中
     /// </summary>
-    public async Task MarkRandomPickResultAsync(long sessionId, string studentId, bool answered, CancellationToken cancellationToken = default)
+    public Task MarkRandomPickResultAsync(long sessionId, string studentId, bool answered, CancellationToken cancellationToken = default)
     {
-        await Task.CompletedTask;
-
         if (!answered)
         {
             // 未回答不记录历史，允许下次继续被点名
-            return;
+            return Task.CompletedTask;
         }
 
         // 已回答的学生加入历史，避免连续点名
@@ -628,6 +630,8 @@ public class AttendanceService : IAttendanceService
         }
 
         _logger.LogInformation("会话 {SessionId} 标记学生 {StudentId} 已回答", sessionId, studentId);
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -644,7 +648,7 @@ public class AttendanceService : IAttendanceService
 
         if (session.TeacherId != teacherId)
         {
-            throw new BusinessException("仅可操作自己发起的考勤会话", 403);
+            throw new BusinessException(Msg.Attendance.OnlyOwnSession, 403);
         }
 
         return session;
@@ -662,15 +666,15 @@ public class AttendanceService : IAttendanceService
 
         if (elapsed.TotalMinutes <= AttendanceConstants.PresentThresholdMinutes)
         {
-            return (AttendanceStatus.Present, "签到成功");
+            return (AttendanceStatus.Present, Msg.Attendance.CheckInSuccess);
         }
 
         if (elapsed.TotalMinutes <= AttendanceConstants.LateThresholdMinutes)
         {
-            return (AttendanceStatus.Late, "签到成功（迟到）");
+            return (AttendanceStatus.Late, Msg.Attendance.CheckInSuccessLate);
         }
 
-        return (AttendanceStatus.Absent, "签到成功（已超时，记为缺勤）");
+        return (AttendanceStatus.Absent, Msg.Attendance.CheckInSuccessTimeout);
     }
 
     /// <summary>
@@ -682,7 +686,7 @@ public class AttendanceService : IAttendanceService
     private string GenerateQrToken(long sessionId, DateTime issuedAt)
     {
         var config = _jwtConfig.Value;
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config.SecretKey));
+        var key = _signingKey;
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
@@ -699,7 +703,7 @@ public class AttendanceService : IAttendanceService
             expires: issuedAt.AddSeconds(AttendanceConstants.QrTokenExpireSeconds),
             signingCredentials: credentials);
 
-        return new JwtSecurityTokenHandler().WriteToken(token);
+        return _tokenHandler.WriteToken(token);
     }
 
     /// <summary>
@@ -713,12 +717,12 @@ public class AttendanceService : IAttendanceService
     {
         if (string.IsNullOrWhiteSpace(token))
         {
-            throw new BusinessException("签到令牌不能为空", 400);
+            throw new BusinessException(Msg.Attendance.QrTokenEmpty, 400);
         }
 
         var config = _jwtConfig.Value;
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config.SecretKey));
-        var tokenHandler = new JwtSecurityTokenHandler();
+        var key = _signingKey;
+        var tokenHandler = _tokenHandler;
 
         try
         {
@@ -741,7 +745,7 @@ public class AttendanceService : IAttendanceService
                 || !long.TryParse(sessionIdString, out var sessionId)
                 || purpose != AttendanceConstants.PurposeCheckIn)
             {
-                throw new BusinessException("签到令牌无效", 400);
+                throw new BusinessException(Msg.Attendance.QrTokenInvalid, 400);
             }
 
             if (sessionId != expectedSessionId)
@@ -758,7 +762,7 @@ public class AttendanceService : IAttendanceService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "二维码签到令牌校验失败");
-            throw new BusinessException("签到令牌已过期或无效", 400);
+            throw new BusinessException(Msg.Attendance.QrTokenExpired, 400);
         }
     }
 

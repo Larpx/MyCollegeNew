@@ -1,0 +1,57 @@
+﻿{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "API 服务",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-api",
+      "program": "${workspaceFolder}/src/Campus.Attendance.Api/bin/Debug/net10.0/Campus.Attendance.Api.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/Campus.Attendance.Api",
+      "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+        "uriFormat": "%s/swagger"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5144"
+      },
+      "sourceFileMap": {
+        "/Views": "${workspaceFolder}/src/Campus.Attendance.Api/Views"
+      }
+    },
+    {
+      "name": "Web 前端",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-web",
+      "program": "${workspaceFolder}/src/Campus.Attendance.Web/bin/Debug/net10.0/Campus.Attendance.Web.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/Campus.Attendance.Web",
+      "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5249"
+      }
+    },
+    {
+      "name": "单元测试",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-tests",
+      "program": "${workspaceFolder}/src/Campus.Attendance.Tests/bin/Debug/net10.0/Campus.Attendance.Tests.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/Campus.Attendance.Tests",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  ]
+}

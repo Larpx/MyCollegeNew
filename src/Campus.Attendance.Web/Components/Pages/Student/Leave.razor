@@ -39,7 +39,7 @@
     </button>
     <button type="button"
             class="tab-bar__item @(_activeTab == "history" ? "tab-bar__item--active" : "")"
-            onclick="() => SwitchTab("history")">
+            @onclick='() => SwitchTab("history")'>
         <Icon Name="list" Size="16" />
         <span>历史记录</span>
     </button>

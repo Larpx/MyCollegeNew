@@ -4,6 +4,7 @@ using Campus.Attendance.Models.Auth;
 using Campus.Attendance.Services.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
 
 namespace Campus.Attendance.Api.Controllers;
 
@@ -43,10 +44,10 @@ public class AuthController : ControllerBase
         var result = await _authService.LoginAsync(request, cancellationToken);
         if (result is null)
         {
-            return ApiResponse<LoginResult>.Fail("用户名或密码错误", 400);
+            return ApiResponse<LoginResult>.Fail(Msg.Common.InvalidCredentials, 400);
         }
 
-        return ApiResponse<LoginResult>.Success(result, "登录成功");
+        return ApiResponse<LoginResult>.Success(result, Msg.Common.LoginSuccess);
     }
 
     /// <summary>
@@ -59,7 +60,7 @@ public class AuthController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public ApiResponse<object> Logout()
     {
-        return ApiResponse<object>.Success(new { }, "登出成功");
+        return ApiResponse<object>.Success(new { }, Msg.Common.LogoutSuccess);
     }
 
     /// <summary>

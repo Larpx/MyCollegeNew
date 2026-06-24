@@ -25,6 +25,8 @@ public class TokenService : ITokenService
 
     private readonly JwtConfig _jwtConfig;
     private readonly ILogger<TokenService> _logger;
+    private readonly SymmetricSecurityKey _signingKey;
+    private static readonly JwtSecurityTokenHandler _tokenHandler = new();
 
     /// <summary>
     /// 构造函数，注入 JWT 配置与日志器
@@ -34,6 +36,7 @@ public class TokenService : ITokenService
     public TokenService(IOptions<JwtConfig> jwtConfig, ILogger<TokenService> logger)
     {
         _jwtConfig = jwtConfig.Value;
+        _signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtConfig.SecretKey));
         _logger = logger;
     }
 
@@ -46,7 +49,7 @@ public class TokenService : ITokenService
     /// <returns>已签名的 JWT 字符串</returns>
     public string GenerateToken(string userId, string userName, UserRole role)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtConfig.SecretKey));
+        var key = _signingKey;
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
@@ -66,7 +69,7 @@ public class TokenService : ITokenService
             expires: DateTime.UtcNow.AddMinutes(_jwtConfig.ExpireMinutes),
             signingCredentials: credentials);
 
-        var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+        var tokenString = _tokenHandler.WriteToken(token);
         _logger.LogInformation("为用户 {UserId} 生成 JWT 令牌", userId);
         return tokenString;
     }
@@ -83,8 +86,8 @@ public class TokenService : ITokenService
             return null;
         }
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtConfig.SecretKey));
-        var tokenHandler = new JwtSecurityTokenHandler();
+        var key = _signingKey;
+        var tokenHandler = _tokenHandler;
 
         try
         {

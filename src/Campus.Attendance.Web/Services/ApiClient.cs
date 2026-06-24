@@ -1,8 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
+using Campus.Attendance.Core.Constants;
 using Campus.Attendance.Core.Responses;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
+
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
 
 namespace Campus.Attendance.Web.Services;
 
@@ -38,7 +41,7 @@ public class ApiClient : IApiClient
     private readonly NavigationManager _navigationManager;
     private readonly ILogger<ApiClient> _logger;
 
-    // localStorage 中存储 Token 的键名
+    /// <summary>localStorage 中存储 Token 的键名</summary>
     private const string TokenKey = "campus_token";
 
     /// <summary>构造函数，依赖注入 HttpClient、JSRuntime、NavigationManager、Logger</summary>
@@ -93,167 +96,98 @@ public class ApiClient : IApiClient
     /// <inheritdoc />
     public async Task<byte[]> DownloadFileAsync(string url, CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-
-        // 附加 JWT Token
-        var token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", TokenKey);
-        if (!string.IsNullOrWhiteSpace(token))
-        {
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        }
-
-        HttpResponseMessage response;
-        try
-        {
-            response = await _httpClient.SendAsync(request, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "下载文件失败：{Url}", url);
-            throw new ApiException(HttpStatusCode.ServiceUnavailable, "网络异常，请稍后重试");
-        }
-
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", TokenKey);
-            _navigationManager.NavigateTo("/login", forceLoad: true);
-            throw new ApiException(HttpStatusCode.Unauthorized, "登录已过期，请重新登录");
-        }
-
-        if (response.StatusCode == HttpStatusCode.Forbidden)
-        {
-            throw new ApiException(HttpStatusCode.Forbidden, "无权限执行此操作");
-        }
-
+        using var request = await CreateAuthenticatedRequestAsync(HttpMethod.Get, url, cancellationToken);
+        var response = await SendRequestAsync(request, url, cancellationToken);
+        await HandleAuthErrors(response, url);
         if (!response.IsSuccessStatusCode)
         {
-            throw new ApiException(response.StatusCode, "下载失败");
+            throw new ApiException(response.StatusCode, Msg.Common.DownloadFailed);
         }
-
         return await response.Content.ReadAsByteArrayAsync(cancellationToken);
     }
 
     /// <summary>
     /// 以 multipart/form-data 方式发送请求并反序列化 ApiResponse
     /// </summary>
-    /// <typeparam name="T">业务数据类型</typeparam>
-    /// <param name="method">HTTP 方法</param>
-    /// <param name="url">相对地址</param>
-    /// <param name="content">表单内容</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>业务数据</returns>
     private async Task<T?> SendFormAsync<T>(HttpMethod method, string url, MultipartFormDataContent content, CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(method, url);
-
-        var token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", TokenKey);
-        if (!string.IsNullOrWhiteSpace(token))
-        {
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        }
-
+        using var request = await CreateAuthenticatedRequestAsync(method, url, cancellationToken);
         request.Content = content;
-
-        HttpResponseMessage response;
-        try
-        {
-            response = await _httpClient.SendAsync(request, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "调用后端 API 失败：{Method} {Url}", method, url);
-            throw new ApiException(HttpStatusCode.ServiceUnavailable, "网络异常，请稍后重试");
-        }
-
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", TokenKey);
-            _navigationManager.NavigateTo("/login", forceLoad: true);
-            throw new ApiException(HttpStatusCode.Unauthorized, "登录已过期，请重新登录");
-        }
-
-        if (response.StatusCode == HttpStatusCode.Forbidden)
-        {
-            throw new ApiException(HttpStatusCode.Forbidden, "无权限执行此操作");
-        }
-
-        ApiResponse<T>? apiResponse;
-        try
-        {
-            apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<T>>(cancellationToken: cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "反序列化响应失败：{Url}", url);
-            throw new ApiException(response.StatusCode, "响应格式错误");
-        }
-
-        if (apiResponse is null)
-        {
-            throw new ApiException(response.StatusCode, "响应为空");
-        }
-
-        if (apiResponse.Code < 200 || apiResponse.Code >= 300)
-        {
-            throw new ApiException(response.StatusCode, string.IsNullOrEmpty(apiResponse.Message) ? "请求失败" : apiResponse.Message);
-        }
-
-        return apiResponse.Data;
+        var response = await SendRequestAsync(request, url, cancellationToken);
+        await HandleAuthErrors(response, url);
+        return await DeserializeApiResponseAsync<T>(response, url, cancellationToken);
     }
 
     /// <summary>
     /// 统一发送请求：附加 Token、处理响应、反序列化 ApiResponse
     /// </summary>
-    /// <typeparam name="T">业务数据类型</typeparam>
-    /// <param name="method">HTTP 方法</param>
-    /// <param name="url">相对地址</param>
-    /// <param name="body">请求体</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>业务数据</returns>
     private async Task<T?> SendAsync<T>(HttpMethod method, string url, object? body, CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(method, url);
-
-        // 自动从 localStorage 读取 Token 并附加到 Authorization 头
-        var token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", TokenKey);
-        if (!string.IsNullOrWhiteSpace(token))
-        {
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        }
-
+        using var request = await CreateAuthenticatedRequestAsync(method, url, cancellationToken);
         if (body is not null)
         {
             request.Content = JsonContent.Create(body);
         }
+        var response = await SendRequestAsync(request, url, cancellationToken);
+        await HandleAuthErrors(response, url);
+        return await DeserializeApiResponseAsync<T>(response, url, cancellationToken);
+    }
 
-        HttpResponseMessage response;
+    /// <summary>
+    /// 创建已附加 JWT Token 的 HttpRequestMessage
+    /// </summary>
+    private async Task<HttpRequestMessage> CreateAuthenticatedRequestAsync(HttpMethod method, string url, CancellationToken cancellationToken)
+    {
+        var request = new HttpRequestMessage(method, url);
+        var token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", cancellationToken, TokenKey);
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+        return request;
+    }
+
+    /// <summary>
+    /// 发送 HTTP 请求并处理网络异常
+    /// </summary>
+    private async Task<HttpResponseMessage> SendRequestAsync(HttpRequestMessage request, string url, CancellationToken cancellationToken)
+    {
         try
         {
-            response = await _httpClient.SendAsync(request, cancellationToken);
+            return await _httpClient.SendAsync(request, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "调用后端 API 失败：{Method} {Url}", method, url);
-            throw new ApiException(HttpStatusCode.ServiceUnavailable, "网络异常，请稍后重试");
+            _logger.LogError(ex, "调用后端 API 失败：{Method} {Url}", request.Method, url);
+            throw new ApiException(HttpStatusCode.ServiceUnavailable, Msg.Common.NetworkError);
         }
+    }
 
-        // 401：清除 Token 并跳转登录页
+    /// <summary>
+    /// 处理 401/403 认证与授权错误
+    /// </summary>
+    private async Task HandleAuthErrors(HttpResponseMessage response, string url)
+    {
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
             await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", TokenKey);
             _logger.LogWarning("API 返回 401 未认证：{Url}", url);
             _navigationManager.NavigateTo("/login", forceLoad: true);
-            throw new ApiException(HttpStatusCode.Unauthorized, "登录已过期，请重新登录");
+            throw new ApiException(HttpStatusCode.Unauthorized, Msg.Common.TokenExpired);
         }
 
-        // 403：提示无权限
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {
             _logger.LogWarning("API 返回 403 无权限：{Url}", url);
-            throw new ApiException(HttpStatusCode.Forbidden, "无权限执行此操作");
+            throw new ApiException(HttpStatusCode.Forbidden, Msg.Common.NoPermission);
         }
+    }
 
-        // 反序列化 ApiResponse<T>
+    /// <summary>
+    /// 反序列化 ApiResponse 并校验业务状态码
+    /// </summary>
+    private async Task<T?> DeserializeApiResponseAsync<T>(HttpResponseMessage response, string url, CancellationToken cancellationToken)
+    {
         ApiResponse<T>? apiResponse;
         try
         {
@@ -262,18 +196,17 @@ public class ApiClient : IApiClient
         catch (Exception ex)
         {
             _logger.LogError(ex, "反序列化响应失败：{Url}", url);
-            throw new ApiException(response.StatusCode, "响应格式错误");
+            throw new ApiException(response.StatusCode, Msg.Common.ResponseFormatError);
         }
 
         if (apiResponse is null)
         {
-            throw new ApiException(response.StatusCode, "响应为空");
+            throw new ApiException(response.StatusCode, Msg.Common.ResponseEmpty);
         }
 
-        // 业务失败（Code 非 2xx）
         if (apiResponse.Code < 200 || apiResponse.Code >= 300)
         {
-            throw new ApiException(response.StatusCode, string.IsNullOrEmpty(apiResponse.Message) ? "请求失败" : apiResponse.Message);
+            throw new ApiException(response.StatusCode, string.IsNullOrEmpty(apiResponse.Message) ? Msg.Common.RequestFailed : apiResponse.Message);
         }
 
         return apiResponse.Data;

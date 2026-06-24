@@ -4,6 +4,7 @@ using Campus.Attendance.Models.Users;
 using Campus.Attendance.Services.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
 
 namespace Campus.Attendance.Api.Controllers;
 
@@ -66,7 +67,7 @@ public class TeachersController : ControllerBase
         var dto = await _userService.GetTeacherByIdAsync(id, cancellationToken);
         if (dto is null)
         {
-            return ApiResponse<TeacherResponseDto>.Fail($"教师 {id} 不存在", 404);
+            return ApiResponse<TeacherResponseDto>.Fail(Msg.Common.EntityNotFound($"教师 {id}"), 404);
         }
 
         return ApiResponse<TeacherResponseDto>.Success(dto);
@@ -84,7 +85,7 @@ public class TeachersController : ControllerBase
     public async Task<ApiResponse<TeacherResponseDto>> Create([FromBody] TeacherCreateDto dto, CancellationToken cancellationToken)
     {
         var result = await _userService.CreateTeacherAsync(dto, cancellationToken);
-        return ApiResponse<TeacherResponseDto>.Success(result, "创建成功");
+        return ApiResponse<TeacherResponseDto>.Success(result, Msg.Common.CreateSuccess);
     }
 
     /// <summary>
@@ -101,7 +102,7 @@ public class TeachersController : ControllerBase
     public async Task<ApiResponse<TeacherResponseDto>> Update(string id, [FromBody] TeacherUpdateDto dto, CancellationToken cancellationToken)
     {
         var result = await _userService.UpdateTeacherAsync(id, dto, cancellationToken);
-        return ApiResponse<TeacherResponseDto>.Success(result, "更新成功");
+        return ApiResponse<TeacherResponseDto>.Success(result, Msg.Common.UpdateSuccess);
     }
 
     /// <summary>
@@ -116,6 +117,6 @@ public class TeachersController : ControllerBase
     public async Task<ApiResponse<object>> Delete(string id, CancellationToken cancellationToken)
     {
         await _userService.DeleteTeacherAsync(id, cancellationToken);
-        return ApiResponse<object>.Success(new { }, "删除成功");
+        return ApiResponse<object>.Success(new { }, Msg.Common.DeleteSuccess);
     }
 }

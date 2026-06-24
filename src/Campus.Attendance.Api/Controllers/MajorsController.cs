@@ -3,6 +3,7 @@ using Campus.Attendance.Models.Organization;
 using Campus.Attendance.Services.Organization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
 
 namespace Campus.Attendance.Api.Controllers;
 
@@ -59,7 +60,7 @@ public class MajorsController : ControllerBase
         var dto = await _organizationService.GetMajorByIdAsync(id, cancellationToken);
         if (dto is null)
         {
-            return ApiResponse<MajorResponseDto>.Fail($"专业 {id} 不存在", 404);
+            return ApiResponse<MajorResponseDto>.Fail(Msg.Common.EntityNotFound($"专业 {id}"), 404);
         }
 
         return ApiResponse<MajorResponseDto>.Success(dto);
@@ -79,7 +80,7 @@ public class MajorsController : ControllerBase
     public async Task<ApiResponse<MajorResponseDto>> Create([FromBody] MajorCreateDto dto, CancellationToken cancellationToken)
     {
         var result = await _organizationService.CreateMajorAsync(dto, cancellationToken);
-        return ApiResponse<MajorResponseDto>.Success(result, "创建成功");
+        return ApiResponse<MajorResponseDto>.Success(result, Msg.Common.CreateSuccess);
     }
 
     /// <summary>
@@ -97,7 +98,7 @@ public class MajorsController : ControllerBase
     public async Task<ApiResponse<MajorResponseDto>> Update(long id, [FromBody] MajorUpdateDto dto, CancellationToken cancellationToken)
     {
         var result = await _organizationService.UpdateMajorAsync(id, dto, cancellationToken);
-        return ApiResponse<MajorResponseDto>.Success(result, "更新成功");
+        return ApiResponse<MajorResponseDto>.Success(result, Msg.Common.UpdateSuccess);
     }
 
     /// <summary>
@@ -113,7 +114,7 @@ public class MajorsController : ControllerBase
     public async Task<ApiResponse<object>> Delete(long id, CancellationToken cancellationToken)
     {
         await _organizationService.DeleteMajorAsync(id, cancellationToken);
-        return ApiResponse<object>.Success(new { }, "删除成功");
+        return ApiResponse<object>.Success(new { }, Msg.Common.DeleteSuccess);
     }
 
     /// <summary>

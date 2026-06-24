@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Campus.Attendance.Core.Configuration;
 using Campus.Attendance.Core.Entities;
 using Campus.Attendance.Core.Enums;
@@ -6,6 +7,8 @@ using Campus.Attendance.Core.Responses;
 using Campus.Attendance.Models.Leave;
 using Microsoft.Extensions.Logging;
 using SqlSugar;
+
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
 
 namespace Campus.Attendance.Services.Leave;
 
@@ -18,6 +21,27 @@ public class LeaveService : ILeaveService
     private readonly ILogger<LeaveService> _logger;
 
     /// <summary>
+    /// 请假记录多表联查的 Select 映射表达式，供所有查询方法复用
+    /// </summary>
+    private static readonly Expression<Func<LeaveRequest, Student, Teacher, LeaveResponseDto>> LeaveResponseSelector =
+        (l, s, t) => new LeaveResponseDto
+        {
+            Id = l.Id,
+            StudentId = l.StudentId,
+            StudentName = s.Name,
+            CounselorId = l.CounselorId,
+            CounselorName = t.Name,
+            StartTime = l.StartTime,
+            EndTime = l.EndTime,
+            LeaveType = l.LeaveType,
+            Reason = l.Reason,
+            Status = l.Status,
+            ReviewRemark = l.ReviewRemark,
+            ReviewTime = l.ReviewTime,
+            CreateTime = l.CreateTime
+        };
+
+    /// <summary>
     /// 构造函数，注入数据库上下文与日志器
     /// </summary>
     /// <param name="dbContext">数据库上下文</param>
@@ -26,6 +50,18 @@ public class LeaveService : ILeaveService
     {
         _dbContext = dbContext;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// 构建请假记录三表联查基础查询（LeaveRequest + Student + Teacher）
+    /// </summary>
+    /// <returns>包含 Join 配置的查询对象</returns>
+    private ISugarQueryable<LeaveRequest, Student, Teacher> BuildLeaveJoinQuery()
+    {
+        return _dbContext.Client.Queryable<LeaveRequest, Student, Teacher>((l, s, t) =>
+            new JoinQueryInfos(
+                JoinType.Left, l.StudentId == s.Id,
+                JoinType.Left, l.CounselorId == t.Id));
     }
 
     /// <summary>
@@ -40,13 +76,13 @@ public class LeaveService : ILeaveService
             .FirstAsync(s => s.Id == studentId && !s.IsDeleted, cancellationToken);
         if (student is null)
         {
-            throw new BusinessException($"学生 {studentId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"学生 {studentId}"), 404);
         }
 
         // 校验请假时间区间有效
         if (dto.EndTime <= dto.StartTime)
         {
-            throw new BusinessException("请假结束时间必须晚于开始时间", 400);
+            throw new BusinessException(Msg.Leave.LeaveEndTimeMustAfterStart, 400);
         }
 
         // 从学生所属班级获取辅导员 Id
@@ -54,12 +90,12 @@ public class LeaveService : ILeaveService
             .FirstAsync(c => c.Id == student.ClassId && !c.IsDeleted, cancellationToken);
         if (cls is null)
         {
-            throw new BusinessException("学生所属班级不存在", 404);
+            throw new BusinessException(Msg.Organization.StudentClassNotFound, 404);
         }
 
         if (string.IsNullOrEmpty(cls.CounselorId))
         {
-            throw new BusinessException("学生所属班级未配置辅导员", 400);
+            throw new BusinessException(Msg.Organization.ClassCounselorNotConfigured, 400);
         }
 
         var leave = new LeaveRequest
@@ -85,31 +121,12 @@ public class LeaveService : ILeaveService
     /// </summary>
     public async Task<PagedResult<LeaveResponseDto>> GetLeavesByStudentAsync(string studentId, int pageIndex, int pageSize, CancellationToken cancellationToken = default)
     {
-        var db = _dbContext.Client;
-        var query = db.Queryable<LeaveRequest, Student, Teacher>((l, s, t) =>
-                new JoinQueryInfos(
-                    JoinType.Left, l.StudentId == s.Id,
-                    JoinType.Left, l.CounselorId == t.Id))
+        var query = BuildLeaveJoinQuery()
             .Where((l, s, t) => l.StudentId == studentId && !l.IsDeleted);
 
         var total = await query.CountAsync();
         var rows = await query
-            .Select((l, s, t) => new LeaveResponseDto
-            {
-                Id = l.Id,
-                StudentId = l.StudentId,
-                StudentName = s.Name,
-                CounselorId = l.CounselorId,
-                CounselorName = t.Name,
-                StartTime = l.StartTime,
-                EndTime = l.EndTime,
-                LeaveType = l.LeaveType,
-                Reason = l.Reason,
-                Status = l.Status,
-                ReviewRemark = l.ReviewRemark,
-                ReviewTime = l.ReviewTime,
-                CreateTime = l.CreateTime
-            })
+            .Select(LeaveResponseSelector)
             .OrderBy(it => it.CreateTime, OrderByType.Desc)
             .Skip((pageIndex - 1) * pageSize)
             .Take(pageSize)
@@ -123,11 +140,7 @@ public class LeaveService : ILeaveService
     /// </summary>
     public async Task<PagedResult<LeaveResponseDto>> GetLeavesByCounselorAsync(string counselorId, LeaveStatus? status, int pageIndex, int pageSize, CancellationToken cancellationToken = default)
     {
-        var db = _dbContext.Client;
-        var query = db.Queryable<LeaveRequest, Student, Teacher>((l, s, t) =>
-                new JoinQueryInfos(
-                    JoinType.Left, l.StudentId == s.Id,
-                    JoinType.Left, l.CounselorId == t.Id))
+        var query = BuildLeaveJoinQuery()
             .Where((l, s, t) => l.CounselorId == counselorId && !l.IsDeleted);
 
         if (status.HasValue)
@@ -137,22 +150,7 @@ public class LeaveService : ILeaveService
 
         var total = await query.CountAsync();
         var rows = await query
-            .Select((l, s, t) => new LeaveResponseDto
-            {
-                Id = l.Id,
-                StudentId = l.StudentId,
-                StudentName = s.Name,
-                CounselorId = l.CounselorId,
-                CounselorName = t.Name,
-                StartTime = l.StartTime,
-                EndTime = l.EndTime,
-                LeaveType = l.LeaveType,
-                Reason = l.Reason,
-                Status = l.Status,
-                ReviewRemark = l.ReviewRemark,
-                ReviewTime = l.ReviewTime,
-                CreateTime = l.CreateTime
-            })
+            .Select(LeaveResponseSelector)
             .OrderBy(it => it.CreateTime, OrderByType.Desc)
             .Skip((pageIndex - 1) * pageSize)
             .Take(pageSize)
@@ -177,28 +175,9 @@ public class LeaveService : ILeaveService
     /// </summary>
     public async Task<LeaveResponseDto?> GetLeaveByIdAsync(long id, CancellationToken cancellationToken = default)
     {
-        var db = _dbContext.Client;
-        var dto = await db.Queryable<LeaveRequest, Student, Teacher>((l, s, t) =>
-                new JoinQueryInfos(
-                    JoinType.Left, l.StudentId == s.Id,
-                    JoinType.Left, l.CounselorId == t.Id))
+        var dto = await BuildLeaveJoinQuery()
             .Where((l, s, t) => l.Id == id && !l.IsDeleted)
-            .Select((l, s, t) => new LeaveResponseDto
-            {
-                Id = l.Id,
-                StudentId = l.StudentId,
-                StudentName = s.Name,
-                CounselorId = l.CounselorId,
-                CounselorName = t.Name,
-                StartTime = l.StartTime,
-                EndTime = l.EndTime,
-                LeaveType = l.LeaveType,
-                Reason = l.Reason,
-                Status = l.Status,
-                ReviewRemark = l.ReviewRemark,
-                ReviewTime = l.ReviewTime,
-                CreateTime = l.CreateTime
-            })
+            .Select(LeaveResponseSelector)
             .FirstAsync();
 
         return dto;
@@ -214,7 +193,7 @@ public class LeaveService : ILeaveService
 
         if (leave.Status != LeaveStatus.Pending)
         {
-            throw new BusinessException("请假申请已审批，无法重复操作", 400);
+            throw new BusinessException(Msg.Leave.LeaveAlreadyReviewed, 400);
         }
 
         var reviewTime = DateTime.UtcNow;
@@ -248,7 +227,7 @@ public class LeaveService : ILeaveService
 
         if (leave.Status != LeaveStatus.Pending)
         {
-            throw new BusinessException("请假申请已审批，无法重复操作", 400);
+            throw new BusinessException(Msg.Leave.LeaveAlreadyReviewed, 400);
         }
 
         var reviewTime = DateTime.UtcNow;
@@ -270,30 +249,11 @@ public class LeaveService : ILeaveService
     /// </summary>
     public async Task<List<LeaveResponseDto>> GetLeavesByClassAsync(long classId, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
     {
-        var db = _dbContext.Client;
         // 通过学生关联班级，查询请假区间与查询区间有交集的记录
-        var rows = await db.Queryable<LeaveRequest, Student, Teacher>((l, s, t) =>
-                new JoinQueryInfos(
-                    JoinType.Left, l.StudentId == s.Id,
-                    JoinType.Left, l.CounselorId == t.Id))
+        var rows = await BuildLeaveJoinQuery()
             .Where((l, s, t) => s.ClassId == classId && !l.IsDeleted && !s.IsDeleted
                 && l.StartTime <= endDate && l.EndTime >= startDate)
-            .Select((l, s, t) => new LeaveResponseDto
-            {
-                Id = l.Id,
-                StudentId = l.StudentId,
-                StudentName = s.Name,
-                CounselorId = l.CounselorId,
-                CounselorName = t.Name,
-                StartTime = l.StartTime,
-                EndTime = l.EndTime,
-                LeaveType = l.LeaveType,
-                Reason = l.Reason,
-                Status = l.Status,
-                ReviewRemark = l.ReviewRemark,
-                ReviewTime = l.ReviewTime,
-                CreateTime = l.CreateTime
-            })
+            .Select(LeaveResponseSelector)
             .OrderBy(it => it.StartTime, OrderByType.Desc)
             .ToListAsync();
 
@@ -309,12 +269,12 @@ public class LeaveService : ILeaveService
             .FirstAsync(l => l.Id == id && !l.IsDeleted, cancellationToken);
         if (leave is null)
         {
-            throw new BusinessException($"请假申请 {id} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"请假申请 {id}"), 404);
         }
 
         if (leave.CounselorId != counselorId)
         {
-            throw new BusinessException("仅可审批分配给自己的请假申请", 403);
+            throw new BusinessException(Msg.Leave.OnlyOwnLeave, 403);
         }
 
         return leave;
@@ -346,7 +306,7 @@ public class LeaveService : ILeaveService
         foreach (var record in records)
         {
             record.Status = AttendanceStatus.Leave;
-            record.Remark = "请假审批通过自动更新";
+            record.Remark = Msg.Attendance.LeaveApprovedRemark;
             record.UpdateTime = updateTime;
         }
 

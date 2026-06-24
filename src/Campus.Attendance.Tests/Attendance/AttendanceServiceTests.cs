@@ -1,6 +1,5 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using Campus.Attendance.Core.Constants;
 using Campus.Attendance.Core.Entities;
 using Campus.Attendance.Core.Enums;
@@ -13,7 +12,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using SqlSugar;
-using Xunit;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace Campus.Attendance.Tests.Attendance;
 
@@ -159,6 +160,131 @@ public class AttendanceServiceTests : IDisposable
             .FirstAsync(s => s.Id == result.StudentId);
         Assert.NotNull(student);
         Assert.Equal(1, student!.ClassId);
+    }
+
+    /// <summary>
+    /// 标记随机点名结果 - 已回答应返回 Task.CompletedTask 且不产生异步状态机开销
+    /// </summary>
+    [Fact]
+    public async Task MarkRandomPickResultAsync_AnsweredTrue_ReturnsCompletedTask()
+    {
+        // Arrange
+        await SeedReferenceDataAsync();
+
+        // Act
+        var task = _attendanceService.MarkRandomPickResultAsync(1, "S001", answered: true);
+
+        // Assert - 应返回已完成的 Task（非异步状态机生成）
+        Assert.True(task.IsCompleted);
+        Assert.Equal(Task.CompletedTask, task);
+        // 验证方法不包含异步状态机标记（同步返回 Task.CompletedTask）
+        var method = typeof(AttendanceService).GetMethod(nameof(AttendanceService.MarkRandomPickResultAsync));
+        Assert.NotNull(method);
+        var asyncAttr = method!.GetCustomAttribute<AsyncMethodBuilderAttribute>();
+        // 同步返回 Task 的方法不应有 AsyncStateMachine 属性
+        Assert.False(method.GetCustomAttributes<AsyncStateMachineAttribute>().Any(),
+            "MarkRandomPickResultAsync 不应包含 AsyncStateMachine 属性，应同步返回 Task.CompletedTask");
+
+        await task;
+    }
+
+    /// <summary>
+    /// 标记随机点名结果 - 未回答应返回 Task.CompletedTask
+    /// </summary>
+    [Fact]
+    public async Task MarkRandomPickResultAsync_AnsweredFalse_ReturnsCompletedTask()
+    {
+        // Arrange
+        await SeedReferenceDataAsync();
+
+        // Act
+        var task = _attendanceService.MarkRandomPickResultAsync(1, "S001", answered: false);
+
+        // Assert - 未回答也应返回已完成的 Task
+        Assert.True(task.IsCompleted);
+        Assert.Equal(Task.CompletedTask, task);
+
+        await task;
+    }
+
+    /// <summary>
+    /// 签到时间超过 15 分钟应返回 Absent
+    /// </summary>
+    [Fact]
+    public async Task CheckInAsync_After15Minutes_ReturnsAbsent()
+    {
+        // Arrange
+        await SeedReferenceDataAsync();
+        // 会话开始时间为 20 分钟前，超过迟到窗口
+        var sessionId = await CreateSessionAsync(DateTime.UtcNow.AddMinutes(-20));
+        var token = await GenerateValidQrTokenAsync(sessionId);
+
+        // Act
+        var result = await _attendanceService.CheckInAsync(sessionId, token, "S001");
+
+        // Assert
+        Assert.Equal(AttendanceStatus.Absent, result.Status);
+        Assert.Contains("缺勤", result.Message);
+    }
+
+    /// <summary>
+    /// 关闭会话应为未签到学生创建缺勤记录
+    /// </summary>
+    [Fact]
+    public async Task CloseSessionAsync_CreatesAbsentRecordsForUncheckedStudents()
+    {
+        // Arrange
+        await SeedReferenceDataAsync();
+        var sessionId = await CreateSessionAsync(DateTime.UtcNow);
+
+        // Act
+        await _attendanceService.CloseSessionAsync(sessionId, "T001");
+
+        // Assert - 班级中有 2 名学生，均未签到，应生成 2 条缺勤记录
+        var records = await _dbContext.Client.Queryable<AttendanceRecord>()
+            .Where(r => r.SessionId == sessionId)
+            .ToListAsync();
+        Assert.Equal(2, records.Count);
+        Assert.All(records, r => Assert.Equal(AttendanceStatus.Absent, r.Status));
+
+        // 验证会话状态已关闭
+        var session = await _dbContext.Client.Queryable<AttendanceSession>()
+            .FirstAsync(s => s.Id == sessionId);
+        Assert.Equal(SessionStatus.Closed, session.Status);
+    }
+
+    /// <summary>
+    /// 教师手动补签应创建新的考勤记录
+    /// </summary>
+    [Fact]
+    public async Task ManualCheckInAsync_NewRecord_CreatesAttendanceRecord()
+    {
+        // Arrange
+        await SeedReferenceDataAsync();
+        var sessionId = await CreateSessionAsync(DateTime.UtcNow);
+
+        // Act
+        var result = await _attendanceService.ManualCheckInAsync(sessionId, "S001", AttendanceStatus.Present, "T001");
+
+        // Assert
+        Assert.Equal("S001", result.StudentId);
+        Assert.Equal(AttendanceStatus.Present, result.Status);
+        Assert.Equal("手动补签", result.Remark);
+    }
+
+    /// <summary>
+    /// 不存在的班级随机点名应抛出 BusinessException
+    /// </summary>
+    [Fact]
+    public async Task RandomPickAsync_NonExistentClass_ThrowsBusinessException()
+    {
+        // Arrange
+        await SeedReferenceDataAsync();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<BusinessException>(() =>
+            _attendanceService.RandomPickAsync(999));
+        Assert.Contains("不存在", ex.Message);
     }
 
     /// <summary>

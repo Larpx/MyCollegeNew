@@ -3,6 +3,7 @@ using Campus.Attendance.Models.Courses;
 using Campus.Attendance.Services.Courses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
 
 namespace Campus.Attendance.Api.Controllers;
 
@@ -84,7 +85,7 @@ public class SchedulesController : ControllerBase
     public async Task<ApiResponse<ScheduleResponseDto>> Create([FromBody] ScheduleCreateDto dto, CancellationToken cancellationToken)
     {
         var result = await _scheduleService.CreateScheduleAsync(dto, cancellationToken);
-        return ApiResponse<ScheduleResponseDto>.Success(result, "创建成功");
+        return ApiResponse<ScheduleResponseDto>.Success(result, Msg.Common.CreateSuccess);
     }
 
     /// <summary>
@@ -118,7 +119,7 @@ public class SchedulesController : ControllerBase
     public async Task<ApiResponse<object>> Delete(long id, CancellationToken cancellationToken)
     {
         await _scheduleService.DeleteScheduleAsync(id, cancellationToken);
-        return ApiResponse<object>.Success(new { }, "删除成功");
+        return ApiResponse<object>.Success(new { }, Msg.Common.DeleteSuccess);
     }
 
     /// <summary>

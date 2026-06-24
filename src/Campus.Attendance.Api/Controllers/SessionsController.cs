@@ -6,6 +6,8 @@ using Campus.Attendance.Services.Attendance;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
+
 namespace Campus.Attendance.Api.Controllers;
 
 /// <summary>
@@ -44,7 +46,7 @@ public class SessionsController : ControllerBase
     public async Task<ApiResponse<SessionResponseDto>> Create([FromBody] SessionCreateDto dto, CancellationToken cancellationToken)
     {
         var result = await _attendanceService.CreateSessionAsync(dto, _currentUser.UserId, cancellationToken);
-        return ApiResponse<SessionResponseDto>.Success(result, "创建成功");
+        return ApiResponse<SessionResponseDto>.Success(result, Msg.Common.CreateSuccess);
     }
 
     /// <summary>
@@ -132,7 +134,7 @@ public class SessionsController : ControllerBase
     public async Task<ApiResponse<QrCodeResult>> GenerateQrCode(long id, CancellationToken cancellationToken)
     {
         var result = await _attendanceService.GenerateQrCodeAsync(id, _currentUser.UserId, cancellationToken);
-        return ApiResponse<QrCodeResult>.Success(result, "二维码生成成功");
+        return ApiResponse<QrCodeResult>.Success(result, Msg.Attendance.QrCodeGenerated);
     }
 
     /// <summary>
@@ -149,7 +151,7 @@ public class SessionsController : ControllerBase
     public async Task<ApiResponse<CheckInResult>> CheckIn(long id, [FromBody] CheckInRequestDto dto, CancellationToken cancellationToken)
     {
         var result = await _attendanceService.CheckInAsync(id, dto.Token, _currentUser.UserId, cancellationToken);
-        return ApiResponse<CheckInResult>.Success(result, "签到成功");
+        return ApiResponse<CheckInResult>.Success(result, Msg.Attendance.CheckInSuccess);
     }
 
     /// <summary>
@@ -165,7 +167,7 @@ public class SessionsController : ControllerBase
     public async Task<ApiResponse<object>> RollCallAll(long id, CancellationToken cancellationToken)
     {
         var count = await _attendanceService.RollCallAllPresentAsync(id, _currentUser.UserId, cancellationToken);
-        return ApiResponse<object>.Success(new { Count = count }, $"一键点名完成，共标记 {count} 名学生");
+        return ApiResponse<object>.Success(new { Count = count }, Msg.Attendance.RollCallComplete(count));
     }
 
     /// <summary>
@@ -183,7 +185,7 @@ public class SessionsController : ControllerBase
     public async Task<ApiResponse<object>> UpdateRecord(long recordId, [FromBody] UpdateRecordStatusDto dto, CancellationToken cancellationToken)
     {
         await _attendanceService.UpdateRecordStatusAsync(recordId, dto.Status, _currentUser.UserId, cancellationToken);
-        return ApiResponse<object>.Success(new { }, "修改成功");
+        return ApiResponse<object>.Success(new { }, Msg.Common.ChangeSuccess);
     }
 
     /// <summary>
@@ -201,7 +203,7 @@ public class SessionsController : ControllerBase
     public async Task<ApiResponse<AttendanceRecordResponseDto>> ManualCheckIn(long id, [FromBody] ManualCheckInDto dto, CancellationToken cancellationToken)
     {
         var result = await _attendanceService.ManualCheckInAsync(id, dto.StudentId, dto.Status, _currentUser.UserId, cancellationToken);
-        return ApiResponse<AttendanceRecordResponseDto>.Success(result, "补签成功");
+        return ApiResponse<AttendanceRecordResponseDto>.Success(result, Msg.Attendance.ManualCheckInSuccess);
     }
 
     /// <summary>
@@ -217,7 +219,7 @@ public class SessionsController : ControllerBase
     public async Task<ApiResponse<object>> Close(long id, CancellationToken cancellationToken)
     {
         await _attendanceService.CloseSessionAsync(id, _currentUser.UserId, cancellationToken);
-        return ApiResponse<object>.Success(new { }, "会话已关闭");
+        return ApiResponse<object>.Success(new { }, Msg.Attendance.SessionAlreadyClosed);
     }
 
     /// <summary>
@@ -250,6 +252,6 @@ public class SessionsController : ControllerBase
     public async Task<ApiResponse<object>> MarkRandomPick(long sessionId, [FromBody] MarkRandomPickDto dto, CancellationToken cancellationToken)
     {
         await _attendanceService.MarkRandomPickResultAsync(sessionId, dto.StudentId, dto.Answered, cancellationToken);
-        return ApiResponse<object>.Success(new { }, "标记成功");
+        return ApiResponse<object>.Success(new { }, Msg.Attendance.MarkSuccess);
     }
 }

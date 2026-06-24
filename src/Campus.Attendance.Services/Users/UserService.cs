@@ -9,6 +9,8 @@ using Campus.Attendance.Models.Users;
 using Microsoft.Extensions.Logging;
 using SqlSugar;
 
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
+
 namespace Campus.Attendance.Services.Users;
 
 /// <summary>
@@ -132,7 +134,7 @@ public class UserService : IUserService
         var exists = await db.Queryable<Student>().AnyAsync(s => s.Id == dto.Id);
         if (exists)
         {
-            throw new BusinessException($"学号 {dto.Id} 已存在", 400);
+            throw new BusinessException(Msg.User.StudentIdExists(dto.Id), 400);
         }
 
         var student = new Student
@@ -163,7 +165,7 @@ public class UserService : IUserService
         var student = await db.Queryable<Student>().FirstAsync(s => s.Id == id && !s.IsDeleted);
         if (student is null)
         {
-            throw new BusinessException($"学生 {id} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"学生 {id}"), 404);
         }
 
         student.Name = dto.Name;
@@ -191,7 +193,7 @@ public class UserService : IUserService
         var student = await db.Queryable<Student>().FirstAsync(s => s.Id == id && !s.IsDeleted);
         if (student is null)
         {
-            throw new BusinessException($"学生 {id} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"学生 {id}"), 404);
         }
 
         student.IsDeleted = true;
@@ -234,7 +236,7 @@ public class UserService : IUserService
                     result.Failures.Add(new BatchImportFailureItem
                     {
                         Row = lineNumber,
-                        Reason = $"字段数不足，期望 {CsvColumnCount} 个"
+                        Reason = Msg.User.CsvColumnInsufficient(CsvColumnCount)
                     });
                     continue;
                 }
@@ -253,7 +255,7 @@ public class UserService : IUserService
                     result.Failures.Add(new BatchImportFailureItem
                     {
                         Row = lineNumber,
-                        Reason = $"学号 {id} 已存在"
+                        Reason = Msg.User.StudentIdExists(id)
                     });
                     continue;
                 }
@@ -381,7 +383,7 @@ public class UserService : IUserService
         var exists = await db.Queryable<Teacher>().AnyAsync(t => t.Id == dto.Id);
         if (exists)
         {
-            throw new BusinessException($"工号 {dto.Id} 已存在", 400);
+            throw new BusinessException(Msg.User.TeacherIdExists(dto.Id), 400);
         }
 
         var teacher = new Teacher
@@ -410,7 +412,7 @@ public class UserService : IUserService
         var teacher = await db.Queryable<Teacher>().FirstAsync(t => t.Id == id && !t.IsDeleted);
         if (teacher is null)
         {
-            throw new BusinessException($"教师 {id} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"教师 {id}"), 404);
         }
 
         teacher.Name = dto.Name;
@@ -436,12 +438,10 @@ public class UserService : IUserService
         var teacher = await db.Queryable<Teacher>().FirstAsync(t => t.Id == id && !t.IsDeleted);
         if (teacher is null)
         {
-            throw new BusinessException($"教师 {id} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"教师 {id}"), 404);
         }
 
-        teacher.IsDeleted = true;
-        teacher.UpdateTime = DateTime.UtcNow;
-        await db.Updateable(teacher).ExecuteCommandAsync(cancellationToken);
+        await _dbContext.SoftDeleteAsync(teacher, cancellationToken);
         _logger.LogInformation("软删除教师 {TeacherId}", teacher.Id);
     }
 
@@ -452,7 +452,7 @@ public class UserService : IUserService
     {
         var db = _dbContext.Client;
         string? currentHash;
-        Action updateAction;
+        Func<Task> updateAction;
 
         switch (role)
         {
@@ -462,7 +462,7 @@ public class UserService : IUserService
                 var admin = await db.Queryable<SystemUser>().FirstAsync(u => u.Username == userId && !u.IsDeleted);
                 if (admin is null)
                 {
-                    throw new BusinessException("用户不存在", 404);
+                    throw new BusinessException(Msg.Auth.UserNotFound, 404);
                 }
 
                 currentHash = admin.Password;
@@ -470,7 +470,7 @@ public class UserService : IUserService
                 {
                     admin.Password = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
                     admin.UpdateTime = DateTime.UtcNow;
-                    db.Updateable(admin).UpdateColumns(it => new { it.Password, it.UpdateTime }).ExecuteCommand();
+                    return db.Updateable(admin).UpdateColumns(it => new { it.Password, it.UpdateTime }).ExecuteCommandAsync(cancellationToken);
                 };
                 break;
             }
@@ -481,7 +481,7 @@ public class UserService : IUserService
                 var teacher = await db.Queryable<Teacher>().FirstAsync(t => t.Id == userId && !t.IsDeleted);
                 if (teacher is null)
                 {
-                    throw new BusinessException("用户不存在", 404);
+                    throw new BusinessException(Msg.Auth.UserNotFound, 404);
                 }
 
                 currentHash = teacher.Password;
@@ -489,7 +489,7 @@ public class UserService : IUserService
                 {
                     teacher.Password = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
                     teacher.UpdateTime = DateTime.UtcNow;
-                    db.Updateable(teacher).UpdateColumns(it => new { it.Password, it.UpdateTime }).ExecuteCommand();
+                    return db.Updateable(teacher).UpdateColumns(it => new { it.Password, it.UpdateTime }).ExecuteCommandAsync(cancellationToken);
                 };
                 break;
             }
@@ -499,7 +499,7 @@ public class UserService : IUserService
                 var student = await db.Queryable<Student>().FirstAsync(s => s.Id == userId && !s.IsDeleted);
                 if (student is null)
                 {
-                    throw new BusinessException("用户不存在", 404);
+                    throw new BusinessException(Msg.Auth.UserNotFound, 404);
                 }
 
                 currentHash = student.Password;
@@ -507,21 +507,21 @@ public class UserService : IUserService
                 {
                     student.Password = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
                     student.UpdateTime = DateTime.UtcNow;
-                    db.Updateable(student).UpdateColumns(it => new { it.Password, it.UpdateTime }).ExecuteCommand();
+                    return db.Updateable(student).UpdateColumns(it => new { it.Password, it.UpdateTime }).ExecuteCommandAsync(cancellationToken);
                 };
                 break;
             }
 
             default:
-                throw new BusinessException("不支持的用户角色", 400);
+                throw new BusinessException(Msg.Auth.UnsupportedRole, 400);
         }
 
         if (!BCrypt.Net.BCrypt.Verify(dto.OldPassword, currentHash))
         {
-            throw new BusinessException("旧密码不正确", 400);
+            throw new BusinessException(Msg.Auth.OldPasswordIncorrect, 400);
         }
 
-        updateAction();
+        await updateAction();
         _logger.LogInformation("用户 {UserId} 修改密码成功", userId);
     }
 }

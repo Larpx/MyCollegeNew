@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Campus.Attendance.Core.Configuration;
 using Campus.Attendance.Core.Entities;
 using Campus.Attendance.Core.Exceptions;
@@ -5,6 +6,8 @@ using Campus.Attendance.Core.Responses;
 using Campus.Attendance.Models.Courses;
 using Microsoft.Extensions.Logging;
 using SqlSugar;
+
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
 
 namespace Campus.Attendance.Services.Courses;
 
@@ -15,6 +18,27 @@ public class ScheduleService : IScheduleService
 {
     private readonly IDbContext _dbContext;
     private readonly ILogger<ScheduleService> _logger;
+
+    /// <summary>
+    /// 课表多表联查的 Select 映射表达式，供所有查询方法复用
+    /// </summary>
+    private static readonly Expression<Func<CourseSchedule, Course, Class, Teacher, ScheduleResponseDto>> ScheduleResponseSelector =
+        (s, c, cls, t) => new ScheduleResponseDto
+        {
+            Id = s.Id,
+            CourseId = s.CourseId,
+            CourseName = c.Name,
+            ClassId = s.ClassId,
+            ClassName = cls.Name,
+            TeacherId = s.TeacherId,
+            TeacherName = t.Name,
+            DayOfWeek = s.DayOfWeek,
+            StartSection = s.StartSection,
+            EndSection = s.EndSection,
+            StartWeek = s.StartWeek,
+            EndWeek = s.EndWeek,
+            Classroom = s.Classroom
+        };
 
     /// <summary>
     /// 构造函数，注入数据库上下文与日志器
@@ -28,18 +52,26 @@ public class ScheduleService : IScheduleService
     }
 
     /// <summary>
+    /// 构建课表四表联查基础查询（CourseSchedule + Course + Class + Teacher）
+    /// </summary>
+    /// <returns>包含 Join 配置的查询对象</returns>
+    private ISugarQueryable<CourseSchedule, Course, Class, Teacher> BuildScheduleJoinQuery()
+    {
+        return _dbContext.Client.Queryable<CourseSchedule, Course, Class, Teacher>((s, c, cls, t) =>
+            new JoinQueryInfos(
+                JoinType.Left, s.CourseId == c.Id,
+                JoinType.Left, s.ClassId == cls.Id,
+                JoinType.Left, s.TeacherId == t.Id));
+    }
+
+    /// <summary>
     /// 分页查询课表，支持班级、教师、课程过滤
     /// </summary>
     public async Task<PagedResult<ScheduleResponseDto>> GetSchedulesAsync(
         int pageIndex, int pageSize, long? classId = null, string? teacherId = null, long? courseId = null,
         CancellationToken cancellationToken = default)
     {
-        var db = _dbContext.Client;
-        var query = db.Queryable<CourseSchedule, Course, Class, Teacher>((s, c, cls, t) =>
-                new JoinQueryInfos(
-                    JoinType.Left, s.CourseId == c.Id,
-                    JoinType.Left, s.ClassId == cls.Id,
-                    JoinType.Left, s.TeacherId == t.Id))
+        var query = BuildScheduleJoinQuery()
             .Where((s, c, cls, t) => !s.IsDeleted);
 
         if (classId.HasValue)
@@ -59,22 +91,7 @@ public class ScheduleService : IScheduleService
 
         var total = await query.CountAsync();
         var rows = await query
-            .Select((s, c, cls, t) => new ScheduleResponseDto
-            {
-                Id = s.Id,
-                CourseId = s.CourseId,
-                CourseName = c.Name,
-                ClassId = s.ClassId,
-                ClassName = cls.Name,
-                TeacherId = s.TeacherId,
-                TeacherName = t.Name,
-                DayOfWeek = s.DayOfWeek,
-                StartSection = s.StartSection,
-                EndSection = s.EndSection,
-                StartWeek = s.StartWeek,
-                EndWeek = s.EndWeek,
-                Classroom = s.Classroom
-            })
+            .Select(ScheduleResponseSelector)
             .OrderBy(s => s.Id)
             .Skip((pageIndex - 1) * pageSize)
             .Take(pageSize)
@@ -88,29 +105,9 @@ public class ScheduleService : IScheduleService
     /// </summary>
     public async Task<ScheduleResponseDto?> GetScheduleByIdAsync(long id, CancellationToken cancellationToken = default)
     {
-        var db = _dbContext.Client;
-        var dto = await db.Queryable<CourseSchedule, Course, Class, Teacher>((s, c, cls, t) =>
-                new JoinQueryInfos(
-                    JoinType.Left, s.CourseId == c.Id,
-                    JoinType.Left, s.ClassId == cls.Id,
-                    JoinType.Left, s.TeacherId == t.Id))
+        var dto = await BuildScheduleJoinQuery()
             .Where((s, c, cls, t) => s.Id == id && !s.IsDeleted)
-            .Select((s, c, cls, t) => new ScheduleResponseDto
-            {
-                Id = s.Id,
-                CourseId = s.CourseId,
-                CourseName = c.Name,
-                ClassId = s.ClassId,
-                ClassName = cls.Name,
-                TeacherId = s.TeacherId,
-                TeacherName = t.Name,
-                DayOfWeek = s.DayOfWeek,
-                StartSection = s.StartSection,
-                EndSection = s.EndSection,
-                StartWeek = s.StartWeek,
-                EndWeek = s.EndWeek,
-                Classroom = s.Classroom
-            })
+            .Select(ScheduleResponseSelector)
             .FirstAsync();
 
         return dto;
@@ -127,30 +124,30 @@ public class ScheduleService : IScheduleService
         var courseExists = await db.Queryable<Course>().AnyAsync(c => c.Id == dto.CourseId && !c.IsDeleted);
         if (!courseExists)
         {
-            throw new BusinessException($"课程 {dto.CourseId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"课程 {dto.CourseId}"), 404);
         }
 
         var classExists = await db.Queryable<Class>().AnyAsync(c => c.Id == dto.ClassId && !c.IsDeleted);
         if (!classExists)
         {
-            throw new BusinessException($"班级 {dto.ClassId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"班级 {dto.ClassId}"), 404);
         }
 
         var teacherExists = await db.Queryable<Teacher>().AnyAsync(t => t.Id == dto.TeacherId && !t.IsDeleted);
         if (!teacherExists)
         {
-            throw new BusinessException($"教师 {dto.TeacherId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"教师 {dto.TeacherId}"), 404);
         }
 
         // 校验节次与周次范围
         if (dto.StartSection > dto.EndSection)
         {
-            throw new BusinessException("起始节次不能大于结束节次", 400);
+            throw new BusinessException(Msg.Course.StartSectionAfterEnd, 400);
         }
 
         if (dto.StartWeek > dto.EndWeek)
         {
-            throw new BusinessException("起始周次不能大于结束周次", 400);
+            throw new BusinessException(Msg.Course.StartWeekAfterEnd, 400);
         }
 
         var schedule = new CourseSchedule
@@ -181,36 +178,36 @@ public class ScheduleService : IScheduleService
         var schedule = await db.Queryable<CourseSchedule>().FirstAsync(s => s.Id == id && !s.IsDeleted);
         if (schedule is null)
         {
-            throw new BusinessException($"课表 {id} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"课表 {id}"), 404);
         }
 
         // 校验关联实体存在
         var courseExists = await db.Queryable<Course>().AnyAsync(c => c.Id == dto.CourseId && !c.IsDeleted);
         if (!courseExists)
         {
-            throw new BusinessException($"课程 {dto.CourseId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"课程 {dto.CourseId}"), 404);
         }
 
         var classExists = await db.Queryable<Class>().AnyAsync(c => c.Id == dto.ClassId && !c.IsDeleted);
         if (!classExists)
         {
-            throw new BusinessException($"班级 {dto.ClassId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"班级 {dto.ClassId}"), 404);
         }
 
         var teacherExists = await db.Queryable<Teacher>().AnyAsync(t => t.Id == dto.TeacherId && !t.IsDeleted);
         if (!teacherExists)
         {
-            throw new BusinessException($"教师 {dto.TeacherId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"教师 {dto.TeacherId}"), 404);
         }
 
         if (dto.StartSection > dto.EndSection)
         {
-            throw new BusinessException("起始节次不能大于结束节次", 400);
+            throw new BusinessException(Msg.Course.StartSectionAfterEnd, 400);
         }
 
         if (dto.StartWeek > dto.EndWeek)
         {
-            throw new BusinessException("起始周次不能大于结束周次", 400);
+            throw new BusinessException(Msg.Course.StartWeekAfterEnd, 400);
         }
 
         schedule.CourseId = dto.CourseId;
@@ -238,12 +235,10 @@ public class ScheduleService : IScheduleService
         var schedule = await db.Queryable<CourseSchedule>().FirstAsync(s => s.Id == id && !s.IsDeleted);
         if (schedule is null)
         {
-            throw new BusinessException($"课表 {id} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"课表 {id}"), 404);
         }
 
-        schedule.IsDeleted = true;
-        schedule.UpdateTime = DateTime.UtcNow;
-        await db.Updateable(schedule).ExecuteCommandAsync(cancellationToken);
+        await _dbContext.SoftDeleteAsync(schedule, cancellationToken);
         _logger.LogInformation("软删除课表 {ScheduleId}", id);
     }
 
@@ -252,30 +247,10 @@ public class ScheduleService : IScheduleService
     /// </summary>
     public async Task<WeeklyScheduleDto> GetScheduleByTeacherAsync(string teacherId, int week, CancellationToken cancellationToken = default)
     {
-        var db = _dbContext.Client;
-        var schedules = await db.Queryable<CourseSchedule, Course, Class, Teacher>((s, c, cls, t) =>
-                new JoinQueryInfos(
-                    JoinType.Left, s.CourseId == c.Id,
-                    JoinType.Left, s.ClassId == cls.Id,
-                    JoinType.Left, s.TeacherId == t.Id))
+        var schedules = await BuildScheduleJoinQuery()
             .Where((s, c, cls, t) => !s.IsDeleted && s.TeacherId == teacherId
                 && s.StartWeek <= week && s.EndWeek >= week)
-            .Select((s, c, cls, t) => new ScheduleResponseDto
-            {
-                Id = s.Id,
-                CourseId = s.CourseId,
-                CourseName = c.Name,
-                ClassId = s.ClassId,
-                ClassName = cls.Name,
-                TeacherId = s.TeacherId,
-                TeacherName = t.Name,
-                DayOfWeek = s.DayOfWeek,
-                StartSection = s.StartSection,
-                EndSection = s.EndSection,
-                StartWeek = s.StartWeek,
-                EndWeek = s.EndWeek,
-                Classroom = s.Classroom
-            })
+            .Select(ScheduleResponseSelector)
             .OrderBy(s => s.DayOfWeek)
             .OrderBy(s => s.StartSection)
             .ToListAsync();
@@ -292,7 +267,7 @@ public class ScheduleService : IScheduleService
         var student = await db.Queryable<Student>().FirstAsync(s => s.Id == studentId && !s.IsDeleted);
         if (student is null)
         {
-            throw new BusinessException($"学生 {studentId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"学生 {studentId}"), 404);
         }
 
         return await GetScheduleByClassAsync((int)student.ClassId, week, cancellationToken);
@@ -303,30 +278,10 @@ public class ScheduleService : IScheduleService
     /// </summary>
     public async Task<WeeklyScheduleDto> GetScheduleByClassAsync(int classId, int week, CancellationToken cancellationToken = default)
     {
-        var db = _dbContext.Client;
-        var schedules = await db.Queryable<CourseSchedule, Course, Class, Teacher>((s, c, cls, t) =>
-                new JoinQueryInfos(
-                    JoinType.Left, s.CourseId == c.Id,
-                    JoinType.Left, s.ClassId == cls.Id,
-                    JoinType.Left, s.TeacherId == t.Id))
+        var schedules = await BuildScheduleJoinQuery()
             .Where((s, c, cls, t) => !s.IsDeleted && s.ClassId == classId
                 && s.StartWeek <= week && s.EndWeek >= week)
-            .Select((s, c, cls, t) => new ScheduleResponseDto
-            {
-                Id = s.Id,
-                CourseId = s.CourseId,
-                CourseName = c.Name,
-                ClassId = s.ClassId,
-                ClassName = cls.Name,
-                TeacherId = s.TeacherId,
-                TeacherName = t.Name,
-                DayOfWeek = s.DayOfWeek,
-                StartSection = s.StartSection,
-                EndSection = s.EndSection,
-                StartWeek = s.StartWeek,
-                EndWeek = s.EndWeek,
-                Classroom = s.Classroom
-            })
+            .Select(ScheduleResponseSelector)
             .OrderBy(s => s.DayOfWeek)
             .OrderBy(s => s.StartSection)
             .ToListAsync();

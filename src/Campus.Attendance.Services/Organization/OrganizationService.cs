@@ -5,6 +5,8 @@ using Campus.Attendance.Models.Organization;
 using Microsoft.Extensions.Logging;
 using SqlSugar;
 
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
+
 namespace Campus.Attendance.Services.Organization;
 
 /// <summary>
@@ -124,7 +126,7 @@ public class OrganizationService : IOrganizationService
         var department = await db.Queryable<Department>().FirstAsync(d => d.Id == id && !d.IsDeleted);
         if (department is null)
         {
-            throw new BusinessException($"院系 {id} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"院系 {id}"), 404);
         }
 
         department.Name = dto.Name;
@@ -144,18 +146,16 @@ public class OrganizationService : IOrganizationService
         var department = await db.Queryable<Department>().FirstAsync(d => d.Id == id && !d.IsDeleted);
         if (department is null)
         {
-            throw new BusinessException($"院系 {id} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"院系 {id}"), 404);
         }
 
         var hasMajors = await db.Queryable<Major>().AnyAsync(m => m.DepartmentId == id && !m.IsDeleted);
         if (hasMajors)
         {
-            throw new BusinessException($"院系 {id} 下存在专业，无法删除", 400);
+            throw new BusinessException(Msg.Organization.DepartmentHasMajors(id), 400);
         }
 
-        department.IsDeleted = true;
-        department.UpdateTime = DateTime.UtcNow;
-        await db.Updateable(department).ExecuteCommandAsync(cancellationToken);
+        await _dbContext.SoftDeleteAsync(department, cancellationToken);
         _logger.LogInformation("软删除院系 {DepartmentId}", id);
     }
 
@@ -238,7 +238,7 @@ public class OrganizationService : IOrganizationService
         var departmentExists = await db.Queryable<Department>().AnyAsync(d => d.Id == dto.DepartmentId && !d.IsDeleted);
         if (!departmentExists)
         {
-            throw new BusinessException($"院系 {dto.DepartmentId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"院系 {dto.DepartmentId}"), 404);
         }
 
         var major = new Major
@@ -262,13 +262,13 @@ public class OrganizationService : IOrganizationService
         var major = await db.Queryable<Major>().FirstAsync(m => m.Id == id && !m.IsDeleted);
         if (major is null)
         {
-            throw new BusinessException($"专业 {id} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"专业 {id}"), 404);
         }
 
         var departmentExists = await db.Queryable<Department>().AnyAsync(d => d.Id == dto.DepartmentId && !d.IsDeleted);
         if (!departmentExists)
         {
-            throw new BusinessException($"院系 {dto.DepartmentId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"院系 {dto.DepartmentId}"), 404);
         }
 
         major.Name = dto.Name;
@@ -289,18 +289,16 @@ public class OrganizationService : IOrganizationService
         var major = await db.Queryable<Major>().FirstAsync(m => m.Id == id && !m.IsDeleted);
         if (major is null)
         {
-            throw new BusinessException($"专业 {id} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"专业 {id}"), 404);
         }
 
         var hasClasses = await db.Queryable<Class>().AnyAsync(c => c.MajorId == id && !c.IsDeleted);
         if (hasClasses)
         {
-            throw new BusinessException($"专业 {id} 下存在班级，无法删除", 400);
+            throw new BusinessException(Msg.Organization.MajorHasClasses(id), 400);
         }
 
-        major.IsDeleted = true;
-        major.UpdateTime = DateTime.UtcNow;
-        await db.Updateable(major).ExecuteCommandAsync(cancellationToken);
+        await _dbContext.SoftDeleteAsync(major, cancellationToken);
         _logger.LogInformation("软删除专业 {MajorId}", id);
     }
 
@@ -393,13 +391,13 @@ public class OrganizationService : IOrganizationService
         var majorExists = await db.Queryable<Major>().AnyAsync(m => m.Id == dto.MajorId && !m.IsDeleted);
         if (!majorExists)
         {
-            throw new BusinessException($"专业 {dto.MajorId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"专业 {dto.MajorId}"), 404);
         }
 
         var counselorExists = await db.Queryable<Teacher>().AnyAsync(t => t.Id == dto.CounselorId && !t.IsDeleted);
         if (!counselorExists)
         {
-            throw new BusinessException($"辅导员 {dto.CounselorId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"辅导员 {dto.CounselorId}"), 404);
         }
 
         var entity = new Class
@@ -425,19 +423,19 @@ public class OrganizationService : IOrganizationService
         var entity = await db.Queryable<Class>().FirstAsync(c => c.Id == id && !c.IsDeleted);
         if (entity is null)
         {
-            throw new BusinessException($"班级 {id} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"班级 {id}"), 404);
         }
 
         var majorExists = await db.Queryable<Major>().AnyAsync(m => m.Id == dto.MajorId && !m.IsDeleted);
         if (!majorExists)
         {
-            throw new BusinessException($"专业 {dto.MajorId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"专业 {dto.MajorId}"), 404);
         }
 
         var counselorExists = await db.Queryable<Teacher>().AnyAsync(t => t.Id == dto.CounselorId && !t.IsDeleted);
         if (!counselorExists)
         {
-            throw new BusinessException($"辅导员 {dto.CounselorId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"辅导员 {dto.CounselorId}"), 404);
         }
 
         entity.Name = dto.Name;
@@ -460,12 +458,10 @@ public class OrganizationService : IOrganizationService
         var entity = await db.Queryable<Class>().FirstAsync(c => c.Id == id && !c.IsDeleted);
         if (entity is null)
         {
-            throw new BusinessException($"班级 {id} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"班级 {id}"), 404);
         }
 
-        entity.IsDeleted = true;
-        entity.UpdateTime = DateTime.UtcNow;
-        await db.Updateable(entity).ExecuteCommandAsync(cancellationToken);
+        await _dbContext.SoftDeleteAsync(entity, cancellationToken);
         _logger.LogInformation("软删除班级 {ClassId}", id);
     }
 

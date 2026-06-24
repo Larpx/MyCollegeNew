@@ -81,7 +81,7 @@ else if (_statistics is not null)
             @foreach (var course in _statistics.CourseStatistics)
             {
                 var fillClass = course.AttendanceRate >= 90 ? "student-progress__fill--success"
-                    : course.AttendanceRate >= 75 ? "student-progress__fill"
+                    : course.AttendanceRate >= 75 ? "student-progress__fill--warning"
                     : "student-progress__fill--error";
                 <div class="student-progress">
                     <div class="student-progress__header">

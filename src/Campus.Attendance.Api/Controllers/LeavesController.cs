@@ -5,6 +5,7 @@ using Campus.Attendance.Models.Leave;
 using Campus.Attendance.Services.Leave;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
 
 namespace Campus.Attendance.Api.Controllers;
 
@@ -43,7 +44,7 @@ public class LeavesController : ControllerBase
     public async Task<ApiResponse<LeaveResponseDto>> Create([FromBody] LeaveCreateDto dto, CancellationToken cancellationToken)
     {
         var result = await _leaveService.CreateLeaveAsync(dto, _currentUser.UserId, cancellationToken);
-        return ApiResponse<LeaveResponseDto>.Success(result, "请假申请已提交");
+        return ApiResponse<LeaveResponseDto>.Success(result, Msg.Leave.LeaveSubmitted);
     }
 
     /// <summary>
@@ -114,7 +115,7 @@ public class LeavesController : ControllerBase
         var dto = await _leaveService.GetLeaveByIdAsync(id, cancellationToken);
         if (dto is null)
         {
-            return ApiResponse<LeaveResponseDto>.Fail($"请假申请 {id} 不存在", 404);
+            return ApiResponse<LeaveResponseDto>.Fail(Msg.Common.EntityNotFound($"请假申请 {id}"), 404);
         }
 
         return ApiResponse<LeaveResponseDto>.Success(dto);
@@ -153,7 +154,7 @@ public class LeavesController : ControllerBase
     public async Task<ApiResponse<LeaveResponseDto>> Reject(long id, [FromBody] LeaveReviewDto dto, CancellationToken cancellationToken)
     {
         var result = await _leaveService.RejectLeaveAsync(id, _currentUser.UserId, dto, cancellationToken);
-        return ApiResponse<LeaveResponseDto>.Success(result, "已驳回");
+        return ApiResponse<LeaveResponseDto>.Success(result, Msg.Leave.RejectSuccess);
     }
 
     /// <summary>

@@ -210,6 +210,102 @@ public class UserServiceTests : IDisposable
     }
 
     /// <summary>
+    /// 教师修改密码使用正确旧密码应更新密码
+    /// </summary>
+    [Fact]
+    public async Task ChangePasswordAsync_TeacherWithCorrectOldPassword_UpdatesPassword()
+    {
+        // Arrange
+        await SeedReferenceDataAsync();
+        var teacher = new Teacher
+        {
+            Id = "T010",
+            Name = "测试教师",
+            Password = BCrypt.Net.BCrypt.HashPassword("123456"),
+            Gender = "男",
+            DepartmentId = 1,
+            Role = TeacherRole.Teacher,
+            CreateTime = DateTime.UtcNow
+        };
+        await _dbContext.Client.Insertable(teacher).ExecuteCommandAsync();
+
+        var dto = new PasswordChangeDto
+        {
+            OldPassword = "123456",
+            NewPassword = "newteacherpass"
+        };
+
+        // Act
+        await _userService.ChangePasswordAsync("T010", UserRole.Teacher, dto);
+
+        // Assert
+        var updated = await _dbContext.Client.Queryable<Teacher>().FirstAsync(t => t.Id == "T010");
+        Assert.NotNull(updated);
+        Assert.True(BCrypt.Net.BCrypt.Verify("newteacherpass", updated!.Password));
+    }
+
+    /// <summary>
+    /// 管理员修改密码使用正确旧密码应更新密码
+    /// </summary>
+    [Fact]
+    public async Task ChangePasswordAsync_AdminWithCorrectOldPassword_UpdatesPassword()
+    {
+        // Arrange
+        var admin = new SystemUser
+        {
+            Username = "testadmin",
+            Password = BCrypt.Net.BCrypt.HashPassword("admin123"),
+            Role = UserRole.Admin,
+            RealName = "测试管理员",
+            CreateTime = DateTime.UtcNow
+        };
+        await _dbContext.Client.Insertable(admin).ExecuteCommandAsync();
+
+        var dto = new PasswordChangeDto
+        {
+            OldPassword = "admin123",
+            NewPassword = "newadminpass"
+        };
+
+        // Act
+        await _userService.ChangePasswordAsync("testadmin", UserRole.Admin, dto);
+
+        // Assert
+        var updated = await _dbContext.Client.Queryable<SystemUser>().FirstAsync(u => u.Username == "testadmin");
+        Assert.NotNull(updated);
+        Assert.True(BCrypt.Net.BCrypt.Verify("newadminpass", updated!.Password));
+    }
+
+    /// <summary>
+    /// 软删除教师应将 IsDeleted 标记为 true
+    /// </summary>
+    [Fact]
+    public async Task DeleteTeacherAsync_ExistingId_SetsIsDeletedTrue()
+    {
+        // Arrange
+        await SeedReferenceDataAsync();
+        var teacher = new Teacher
+        {
+            Id = "T020",
+            Name = "待删除教师",
+            Password = BCrypt.Net.BCrypt.HashPassword("123456"),
+            Gender = "女",
+            DepartmentId = 1,
+            Role = TeacherRole.Teacher,
+            CreateTime = DateTime.UtcNow
+        };
+        await _dbContext.Client.Insertable(teacher).ExecuteCommandAsync();
+
+        // Act
+        await _userService.DeleteTeacherAsync("T020");
+
+        // Assert
+        var deleted = await _dbContext.Client.Queryable<Teacher>().FirstAsync(t => t.Id == "T020");
+        Assert.NotNull(deleted);
+        Assert.True(deleted!.IsDeleted);
+    }
+
+    /// <summary>
     /// 释放测试上下文资源
     /// </summary>
     public void Dispose()

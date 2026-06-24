@@ -4,6 +4,7 @@ using Campus.Attendance.Models.Statistics;
 using Campus.Attendance.Services.Statistics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
 
 namespace Campus.Attendance.Api.Controllers;
 
@@ -132,7 +133,7 @@ public class StatisticsController : ControllerBase
         // 学生只能查询自己的统计
         if (_currentUser.Role == Core.Enums.UserRole.Student && _currentUser.UserId != studentId)
         {
-            return ApiResponse<StudentStatisticsDto>.Fail("仅可查询自己的考勤统计", 403);
+            return ApiResponse<StudentStatisticsDto>.Fail(Msg.Statistics.OnlyOwnStatistics, 403);
         }
 
         var result = await _statisticsService.GetStudentStatisticsAsync(studentId, cancellationToken);
@@ -154,7 +155,7 @@ public class StatisticsController : ControllerBase
         if ((_currentUser.Role == Core.Enums.UserRole.Teacher || _currentUser.Role == Core.Enums.UserRole.Counselor)
             && _currentUser.UserId != teacherId)
         {
-            return ApiResponse<TeacherStatisticsDto>.Fail("仅可查询自己的考勤统计", 403);
+            return ApiResponse<TeacherStatisticsDto>.Fail(Msg.Statistics.OnlyOwnStatistics, 403);
         }
 
         var result = await _statisticsService.GetTeacherStatisticsAsync(teacherId, cancellationToken);

@@ -3,6 +3,7 @@ using Campus.Attendance.Models.Courses;
 using Campus.Attendance.Services.Courses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
 
 namespace Campus.Attendance.Api.Controllers;
 
@@ -62,7 +63,7 @@ public class CoursesController : ControllerBase
         var dto = await _courseService.GetCourseByIdAsync(id, cancellationToken);
         if (dto is null)
         {
-            return ApiResponse<CourseResponseDto>.Fail($"课程 {id} 不存在", 404);
+            return ApiResponse<CourseResponseDto>.Fail(Msg.Common.EntityNotFound($"课程 {id}"), 404);
         }
 
         return ApiResponse<CourseResponseDto>.Success(dto);
@@ -82,7 +83,7 @@ public class CoursesController : ControllerBase
     public async Task<ApiResponse<CourseResponseDto>> Create([FromBody] CourseCreateDto dto, CancellationToken cancellationToken)
     {
         var result = await _courseService.CreateCourseAsync(dto, cancellationToken);
-        return ApiResponse<CourseResponseDto>.Success(result, "创建成功");
+        return ApiResponse<CourseResponseDto>.Success(result, Msg.Common.CreateSuccess);
     }
 
     /// <summary>
@@ -100,7 +101,7 @@ public class CoursesController : ControllerBase
     public async Task<ApiResponse<CourseResponseDto>> Update(long id, [FromBody] CourseUpdateDto dto, CancellationToken cancellationToken)
     {
         var result = await _courseService.UpdateCourseAsync(id, dto, cancellationToken);
-        return ApiResponse<CourseResponseDto>.Success(result, "更新成功");
+        return ApiResponse<CourseResponseDto>.Success(result, Msg.Common.UpdateSuccess);
     }
 
     /// <summary>
@@ -116,7 +117,7 @@ public class CoursesController : ControllerBase
     public async Task<ApiResponse<object>> Delete(long id, CancellationToken cancellationToken)
     {
         await _courseService.DeleteCourseAsync(id, cancellationToken);
-        return ApiResponse<object>.Success(new { }, "删除成功");
+        return ApiResponse<object>.Success(new { }, Msg.Common.DeleteSuccess);
     }
 
     /// <summary>

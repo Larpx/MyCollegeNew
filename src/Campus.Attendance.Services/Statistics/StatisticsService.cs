@@ -7,6 +7,8 @@ using ClosedXML.Excel;
 using Microsoft.Extensions.Logging;
 using SqlSugar;
 
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
+
 namespace Campus.Attendance.Services.Statistics;
 
 /// <summary>
@@ -134,7 +136,7 @@ public class StatisticsService : IStatisticsService
         var db = _dbContext.Client;
         if (endDate < startDate)
         {
-            throw new BusinessException("结束日期不能早于开始日期", 400);
+            throw new BusinessException(Msg.Statistics.EndDateBeforeStart, 400);
         }
 
         // 查询区间内所有考勤记录，按会话开始日期分组
@@ -173,7 +175,7 @@ public class StatisticsService : IStatisticsService
         var cls = await db.Queryable<Class>().FirstAsync(c => c.Id == classId && !c.IsDeleted, cancellationToken);
         if (cls is null)
         {
-            throw new BusinessException($"班级 {classId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"班级 {classId}"), 404);
         }
 
         // 查询该班级的会话数与考勤记录统计
@@ -232,7 +234,7 @@ public class StatisticsService : IStatisticsService
         var course = await db.Queryable<Course>().FirstAsync(c => c.Id == courseId && !c.IsDeleted, cancellationToken);
         if (course is null)
         {
-            throw new BusinessException($"课程 {courseId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"课程 {courseId}"), 404);
         }
 
         var sessionQuery = db.Queryable<AttendanceSession>()
@@ -291,7 +293,7 @@ public class StatisticsService : IStatisticsService
         var student = await db.Queryable<Student>().FirstAsync(s => s.Id == studentId && !s.IsDeleted, cancellationToken);
         if (student is null)
         {
-            throw new BusinessException($"学生 {studentId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"学生 {studentId}"), 404);
         }
 
         // 总体统计
@@ -361,7 +363,7 @@ public class StatisticsService : IStatisticsService
         var teacher = await db.Queryable<Teacher>().FirstAsync(t => t.Id == teacherId && !t.IsDeleted, cancellationToken);
         if (teacher is null)
         {
-            throw new BusinessException($"教师 {teacherId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"教师 {teacherId}"), 404);
         }
 
         var totalCourses = await db.Queryable<Course>()
@@ -423,7 +425,7 @@ public class StatisticsService : IStatisticsService
 
         if (session is null)
         {
-            throw new BusinessException($"考勤会话 {sessionId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"考勤会话 {sessionId}"), 404);
         }
 
         var records = await db.Queryable<AttendanceRecord>()
@@ -463,7 +465,7 @@ public class StatisticsService : IStatisticsService
             worksheet.Cell(row, 1).Value = i + 1;
             worksheet.Cell(row, 2).Value = r.StudentId;
             worksheet.Cell(row, 3).Value = r.StudentName;
-            worksheet.Cell(row, 4).Value = GetStatusDisplayName(r.Status);
+            worksheet.Cell(row, 4).Value = r.Status.GetDisplayName();
             worksheet.Cell(row, 5).Value = r.CheckInTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "-";
             worksheet.Cell(row, 6).Value = r.Remark ?? string.Empty;
 
@@ -490,7 +492,7 @@ public class StatisticsService : IStatisticsService
         var cls = await db.Queryable<Class>().FirstAsync(c => c.Id == classId && !c.IsDeleted, cancellationToken);
         if (cls is null)
         {
-            throw new BusinessException($"班级 {classId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"班级 {classId}"), 404);
         }
 
         // 查询区间内该班级所有学生的考勤汇总
@@ -571,7 +573,7 @@ public class StatisticsService : IStatisticsService
         var cls = await db.Queryable<Class>().FirstAsync(c => c.Id == classId && !c.IsDeleted, cancellationToken);
         if (cls is null)
         {
-            throw new BusinessException($"班级 {classId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"班级 {classId}"), 404);
         }
 
         var students = await db.Queryable<Student>()
@@ -674,17 +676,4 @@ public class StatisticsService : IStatisticsService
         return CalculateRate(present + late, total);
     }
 
-    /// <summary>
-    /// 获取考勤状态的中文显示名称
-    /// </summary>
-    /// <param name="status">考勤状态</param>
-    /// <returns>中文名称</returns>
-    private static string GetStatusDisplayName(AttendanceStatus status) => status switch
-    {
-        AttendanceStatus.Present => "正常",
-        AttendanceStatus.Late => "迟到",
-        AttendanceStatus.Absent => "缺勤",
-        AttendanceStatus.Leave => "请假",
-        _ => status.ToString()
-    };
 }

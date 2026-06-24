@@ -4,6 +4,7 @@ using Campus.Attendance.Models.Users;
 using Campus.Attendance.Services.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
 
 namespace Campus.Attendance.Api.Controllers;
 
@@ -42,6 +43,6 @@ public class ProfileController : ControllerBase
     public async Task<ApiResponse<object>> ChangePassword([FromBody] PasswordChangeDto dto, CancellationToken cancellationToken)
     {
         await _userService.ChangePasswordAsync(_currentUser.UserId, _currentUser.Role, dto, cancellationToken);
-        return ApiResponse<object>.Success(new { }, "密码修改成功");
+        return ApiResponse<object>.Success(new { }, Msg.Common.PasswordChangeSuccess);
     }
 }

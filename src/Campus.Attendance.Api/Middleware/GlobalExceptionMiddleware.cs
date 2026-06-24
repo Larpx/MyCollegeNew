@@ -1,9 +1,12 @@
 using System.Net;
 using System.Text.Json;
+using Campus.Attendance.Core.Constants;
 using Campus.Attendance.Core.Exceptions;
 using Campus.Attendance.Core.Responses;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
 
 namespace Campus.Attendance.Api.Middleware;
 
@@ -46,7 +49,7 @@ public class GlobalExceptionMiddleware
         {
             // 系统异常禁止暴露 ex.Message，仅记录到日志，统一返回通用提示
             _logger.LogError(ex, "未处理异常: {Message}", ex.Message);
-            await WriteResponseAsync(context, (int)HttpStatusCode.InternalServerError, "服务器内部错误");
+            await WriteResponseAsync(context, (int)HttpStatusCode.InternalServerError, Msg.Common.ServerError);
         }
     }
 

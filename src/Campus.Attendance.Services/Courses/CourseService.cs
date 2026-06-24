@@ -6,6 +6,8 @@ using Campus.Attendance.Models.Courses;
 using Microsoft.Extensions.Logging;
 using SqlSugar;
 
+using Msg = Campus.Attendance.Core.Constants.MessageConstants;
+
 namespace Campus.Attendance.Services.Courses;
 
 /// <summary>
@@ -100,7 +102,7 @@ public class CourseService : ICourseService
         var teacherExists = await db.Queryable<Teacher>().AnyAsync(t => t.Id == dto.TeacherId && !t.IsDeleted);
         if (!teacherExists)
         {
-            throw new BusinessException($"教师 {dto.TeacherId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"教师 {dto.TeacherId}"), 404);
         }
 
         var course = new Course
@@ -126,13 +128,13 @@ public class CourseService : ICourseService
         var course = await db.Queryable<Course>().FirstAsync(c => c.Id == id && !c.IsDeleted);
         if (course is null)
         {
-            throw new BusinessException($"课程 {id} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"课程 {id}"), 404);
         }
 
         var teacherExists = await db.Queryable<Teacher>().AnyAsync(t => t.Id == dto.TeacherId && !t.IsDeleted);
         if (!teacherExists)
         {
-            throw new BusinessException($"教师 {dto.TeacherId} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"教师 {dto.TeacherId}"), 404);
         }
 
         course.Name = dto.Name;
@@ -155,12 +157,10 @@ public class CourseService : ICourseService
         var course = await db.Queryable<Course>().FirstAsync(c => c.Id == id && !c.IsDeleted);
         if (course is null)
         {
-            throw new BusinessException($"课程 {id} 不存在", 404);
+            throw new BusinessException(Msg.Common.EntityNotFound($"课程 {id}"), 404);
         }
 
-        course.IsDeleted = true;
-        course.UpdateTime = DateTime.UtcNow;
-        await db.Updateable(course).ExecuteCommandAsync(cancellationToken);
+        await _dbContext.SoftDeleteAsync(course, cancellationToken);
         _logger.LogInformation("软删除课程 {CourseId}", id);
     }
 

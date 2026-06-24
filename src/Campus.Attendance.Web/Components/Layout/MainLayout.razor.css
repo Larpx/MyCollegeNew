@@ -11,7 +11,7 @@
 
 /* ---------- 侧边栏 ---------- */
 .app-layout__sidebar {
-    width: var(--space-16);
+    width: 240px;
     flex-shrink: 0;
     background-color: var(--color-bg);
     border-right: 1px solid var(--color-neutral-200);

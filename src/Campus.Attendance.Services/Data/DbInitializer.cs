@@ -36,7 +36,7 @@ public class DbInitializer
         _logger.LogInformation("开始执行 CodeFirst 自动建表");
 
         // CodeFirst.InitTables 为同步 API（SqlSugar 未提供异步版本），启动时一次性执行
-        await Task.Run(() => db.CodeFirst.InitTables(
+        db.CodeFirst.InitTables(
             typeof(Department),
             typeof(Major),
             typeof(Class),
@@ -48,7 +48,7 @@ public class DbInitializer
             typeof(AttendanceRecord),
             typeof(LeaveRequest),
             typeof(SystemUser),
-            typeof(AuditLog)), cancellationToken);
+            typeof(AuditLog));
 
         _logger.LogInformation("CodeFirst 自动建表完成");
     }
