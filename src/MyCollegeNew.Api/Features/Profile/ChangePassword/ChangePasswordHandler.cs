@@ -8,8 +8,8 @@ using Microsoft.Extensions.Logging;
 
 using Msg = Larpx.PersonalTools.MyCollegeNew.Shared.Constants.MessageConstants;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Profile.ChangePassword;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Profile.ChangePassword
+{
 /// <summary>
 /// 修改密码处理器，需校验旧密码
 /// </summary>
@@ -108,4 +108,5 @@ public class ChangePasswordHandler : IRequestHandler<ChangePasswordCommand, ApiR
         _logger.LogInformation("用户 {UserId} 修改密码成功", command.UserId);
         return ApiResponse<object>.Success( "密码修改成功");
     }
+}
 }

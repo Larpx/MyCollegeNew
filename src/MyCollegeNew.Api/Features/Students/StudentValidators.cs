@@ -1,8 +1,8 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users;
 using FluentValidation;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Students;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Students
+{
 /// <summary>
 /// 学生相关请求校验器
 /// </summary>
@@ -41,4 +41,5 @@ public class UpdateStudentValidator : AbstractValidator<UpdateStudentCommand>
         RuleFor(x => x.Dto.ClassId).GreaterThan(0).WithMessage("班级ID无效");
         RuleFor(x => x.Dto.Grade).GreaterThan(0).WithMessage("年级无效");
     }
+}
 }

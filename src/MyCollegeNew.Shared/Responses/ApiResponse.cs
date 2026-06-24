@@ -1,5 +1,5 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
-
+﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Responses
+{
 /// <summary>
 /// 统一 API 响应包装类
 /// </summary>
@@ -47,4 +47,5 @@ public class PagedResult<T>
     /// <summary>构造分页结果</summary>
     public static PagedResult<T> Create(List<T> items, long total, int pageIndex, int pageSize)
         => new() { Items = items, Total = total, PageIndex = pageIndex, PageSize = pageSize };
+}
 }

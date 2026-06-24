@@ -1,7 +1,7 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Tests.Extensions;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Tests.Extensions
+{
 /// <summary>
 /// AttendanceStatusExtensions 单元测试，覆盖所有枚举值的中文显示名称映射及默认分支
 /// </summary>
@@ -86,4 +86,5 @@ public class AttendanceStatusExtensionsTests
         // Assert
         Assert.Equal("99", displayName);
     }
+}
 }

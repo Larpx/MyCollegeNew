@@ -1,7 +1,7 @@
 ﻿using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
+{
 /// <summary>
 /// 班级实体，隶属于专业，由辅导员管理
 /// </summary>
@@ -27,4 +27,5 @@ public class Class : EntityBase
     /// <summary>辅导员工号（关联 Teacher.Id）</summary>
     [SugarColumn(Length = 32, ColumnDescription = "辅导员工号")]
     public string CounselorId { get; set; } = string.Empty;
+}
 }

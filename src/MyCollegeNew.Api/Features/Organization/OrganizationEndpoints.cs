@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Organization;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Organization
+{
 /// <summary>
 /// 组织架构端点映射
 /// </summary>
@@ -152,4 +152,5 @@ public static class OrganizationEndpoints
 
         return group;
     }
+}
 }

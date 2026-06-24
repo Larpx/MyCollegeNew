@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses
+{
 /// <summary>课程创建 DTO</summary>
 public class CourseCreateDto
 {
@@ -138,4 +138,5 @@ public class WeeklyScheduleDto
 {
     public int Week { get; set; }
     public Dictionary<int, List<ScheduleResponseDto>> Days { get; set; } = new();
+}
 }

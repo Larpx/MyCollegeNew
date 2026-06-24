@@ -1,11 +1,11 @@
-using Larpx.PersonalTools.MyCollegeNew.Web.Components;
+﻿using Larpx.PersonalTools.MyCollegeNew.Web.Components;
 using Larpx.PersonalTools.MyCollegeNew.Web.Services;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using Microsoft.AspNetCore.Components.Authorization;
 using Serilog;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Web;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Web
+{
 /// <summary>
 /// 应用程序主入口
 /// </summary>
@@ -75,4 +75,5 @@ public class Program
 
         app.Run();
     }
+}
 }

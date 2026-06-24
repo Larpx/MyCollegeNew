@@ -1,5 +1,5 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Constants;
-
+﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Constants
+{
 /// <summary>
 /// 考勤业务常量定义
 /// </summary>
@@ -25,4 +25,5 @@ public static class AttendanceConstants
 
     /// <summary>随机点名最近回答记录的内存缓存上限</summary>
     public const int RandomPickHistoryLimit = 50;
+}
 }

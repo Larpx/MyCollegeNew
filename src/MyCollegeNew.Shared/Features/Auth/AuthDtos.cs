@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Auth;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Auth
+{
 /// <summary>
 /// 登录请求 DTO
 /// </summary>
@@ -35,4 +35,5 @@ public class LoginResult
 
     /// <summary>用户角色</summary>
     public string Role { get; set; } = string.Empty;
+}
 }

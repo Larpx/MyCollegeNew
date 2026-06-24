@@ -1,5 +1,5 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Web.Components.Ui;
-
+﻿namespace Larpx.PersonalTools.MyCollegeNew.Web.Components.Ui
+{
 /// <summary>
 /// 按钮变体枚举，控制按钮样式
 /// </summary>
@@ -37,4 +37,5 @@ public enum BadgeVariant
 
     /// <summary>主色（蓝色）</summary>
     Primary
+}
 }

@@ -1,5 +1,5 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Security;
-
+﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Security
+{
 /// <summary>
 /// JWT 配置类
 /// </summary>
@@ -16,4 +16,5 @@ public class JwtConfig
 
     /// <summary>令牌过期时间（分钟）</summary>
     public int ExpireMinutes { get; set; } = 120;
+}
 }

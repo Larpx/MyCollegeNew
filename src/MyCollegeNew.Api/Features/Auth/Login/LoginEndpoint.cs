@@ -6,8 +6,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Login;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Login
+{
 /// <summary>
 /// 登录端点映射
 /// </summary>
@@ -31,4 +31,5 @@ public static class LoginEndpoint
 
         return group;
     }
+}
 }

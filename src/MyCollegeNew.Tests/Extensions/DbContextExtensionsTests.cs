@@ -2,8 +2,8 @@
 using Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
 using Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Tests.Extensions;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Tests.Extensions
+{
 /// <summary>
 /// DbContextExtensions 单元测试，覆盖 SoftDeleteAsync 扩展方法
 /// </summary>
@@ -106,4 +106,5 @@ public class DbContextExtensionsTests : IDisposable
         _dbContext.Dispose();
         GC.SuppressFinalize(this);
     }
+}
 }

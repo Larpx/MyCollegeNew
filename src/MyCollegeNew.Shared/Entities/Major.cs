@@ -1,7 +1,7 @@
 ﻿using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
+{
 /// <summary>
 /// 专业实体，隶属于院系
 /// </summary>
@@ -19,4 +19,5 @@ public class Major : EntityBase
     /// <summary>所属院系 Id</summary>
     [SugarColumn(ColumnDescription = "所属院系 Id")]
     public long DepartmentId { get; set; }
+}
 }

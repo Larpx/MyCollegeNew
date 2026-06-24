@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Organization;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Organization
+{
 /// <summary>院系创建 DTO</summary>
 public class DepartmentCreateDto
 {
@@ -120,4 +120,5 @@ public class MajorTreeNodeDto
 {
     public MajorResponseDto Major { get; set; } = new();
     public List<ClassResponseDto> Classes { get; set; } = new();
+}
 }

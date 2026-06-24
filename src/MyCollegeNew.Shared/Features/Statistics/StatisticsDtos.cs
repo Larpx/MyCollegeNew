@@ -1,5 +1,5 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Statistics;
-
+﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Statistics
+{
 /// <summary>全局统计概览 DTO</summary>
 public class OverviewStatisticsDto
 {
@@ -73,4 +73,5 @@ public class TeacherStatisticsDto
     public long TotalCourses { get; set; }
     public long TotalSessions { get; set; }
     public double AverageAttendanceRate { get; set; }
+}
 }

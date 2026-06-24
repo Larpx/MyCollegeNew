@@ -1,8 +1,8 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Attendance;
 using FluentValidation;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
+{
 /// <summary>创建会话校验器</summary>
 public class CreateSessionValidator : AbstractValidator<CreateSessionCommand>
 {
@@ -33,4 +33,5 @@ public class ManualCheckInValidator : AbstractValidator<ManualCheckInCommand>
     {
         RuleFor(x => x.StudentId).NotEmpty().WithMessage("学生学号不能为空");
     }
+}
 }

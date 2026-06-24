@@ -2,8 +2,8 @@
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
 using MediatR;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Statistics;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Statistics
+{
 /// <summary>全局统计</summary>
 public record GetOverviewQuery : IRequest<ApiResponse<OverviewStatisticsDto>>;
 
@@ -33,3 +33,4 @@ public record ExportClassAttendanceQuery(long ClassId, DateTime StartDate, DateT
 
 /// <summary>导出班级学生名单</summary>
 public record ExportStudentListQuery(long ClassId) : IRequest<IResult>;
+}

@@ -11,8 +11,8 @@ using SqlSugar;
 
 using Msg = Larpx.PersonalTools.MyCollegeNew.Shared.Constants.MessageConstants;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave
+{
 /// <summary>
 /// 请假审批处理器
 /// </summary>
@@ -259,4 +259,5 @@ public class LeaveHandlers :
         await db.Updateable(records).UpdateColumns(it => new { it.Status, it.Remark, it.UpdateTime }).ExecuteCommandAsync(cancellationToken);
         _logger.LogInformation("学生 {StudentId} 请假审批通过，联动更新 {Count} 条考勤记录为 Leave", studentId, records.Count);
     }
+}
 }

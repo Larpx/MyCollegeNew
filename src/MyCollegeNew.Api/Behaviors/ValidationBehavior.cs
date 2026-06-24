@@ -3,8 +3,8 @@ using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Behaviors;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Behaviors
+{
 /// <summary>
 /// MediatR 管线行为：在 Handler 执行前自动触发 FluentValidation 校验，校验失败抛出 ValidationException
 /// </summary>
@@ -62,4 +62,5 @@ public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TReques
 
         return await next();
     }
+}
 }

@@ -1,8 +1,8 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Organization;
 using FluentValidation;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Organization;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Organization
+{
 /// <summary>创建院系校验器</summary>
 public class CreateDepartmentValidator : AbstractValidator<CreateDepartmentCommand>
 {
@@ -69,4 +69,5 @@ public class UpdateClassValidator : AbstractValidator<UpdateClassCommand>
         RuleFor(x => x.Dto.CounselorId).NotEmpty().WithMessage("辅导员不能为空");
         RuleFor(x => x.Dto.Grade).GreaterThan(0).WithMessage("年级无效");
     }
+}
 }

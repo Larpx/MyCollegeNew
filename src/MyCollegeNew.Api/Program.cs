@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Larpx.PersonalTools.MyCollegeNew.Api.Behaviors;
 using Larpx.PersonalTools.MyCollegeNew.Api.Exceptions;
 using Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance;
@@ -23,8 +23,8 @@ using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Serilog;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api
+{
 /// <summary>
 /// 应用程序主入口
 /// </summary>
@@ -210,4 +210,5 @@ public class Program
 
         await app.RunAsync();
     }
+}
 }

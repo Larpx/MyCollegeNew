@@ -7,8 +7,8 @@ using Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Tests.Organization;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Tests.Organization
+{
 /// <summary>
 /// OrganizationHandlers 单元测试，使用 SQLite 内存数据库隔离测试
 /// </summary>
@@ -192,4 +192,5 @@ public class OrganizationServiceTests : IDisposable
         };
         return await _dbContext.Client.Insertable(cls).ExecuteReturnIdentityAsync();
     }
+}
 }

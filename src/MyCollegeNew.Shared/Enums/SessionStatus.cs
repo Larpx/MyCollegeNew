@@ -1,5 +1,5 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
-
+﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Enums
+{
 /// <summary>
 /// 考勤会话状态枚举
 /// </summary>
@@ -9,4 +9,5 @@ public enum SessionStatus
     Active,
     /// <summary>已关闭</summary>
     Closed
+}
 }

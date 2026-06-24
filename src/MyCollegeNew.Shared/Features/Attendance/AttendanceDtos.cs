@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Attendance;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Attendance
+{
 /// <summary>
 /// 考勤会话创建 DTO
 /// </summary>
@@ -132,4 +132,5 @@ public class MarkRandomPickDto
     [Required(ErrorMessage = "学生学号不能为空")]
     public string StudentId { get; set; } = string.Empty;
     public bool Answered { get; set; }
+}
 }

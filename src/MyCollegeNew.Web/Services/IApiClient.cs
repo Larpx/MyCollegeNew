@@ -1,7 +1,7 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Web.Services;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Web.Services
+{
 /// <summary>
 /// API 客户端接口，封装 HttpClient 调用后端 API 的统一入口
 /// 自动附加 JWT Token、反序列化 ApiResponse&lt;T&gt; 并处理 401/403
@@ -57,4 +57,5 @@ public interface IApiClient
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>文件字节数组；若响应失败则抛出 ApiException</returns>
     Task<byte[]> DownloadFileAsync(string url, CancellationToken cancellationToken = default);
+}
 }

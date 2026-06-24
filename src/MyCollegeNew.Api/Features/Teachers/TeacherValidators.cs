@@ -1,8 +1,8 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users;
 using FluentValidation;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers
+{
 /// <summary>
 /// 创建教师校验器
 /// </summary>
@@ -35,4 +35,5 @@ public class UpdateTeacherValidator : AbstractValidator<UpdateTeacherCommand>
         RuleFor(x => x.Dto.Gender).NotEmpty().WithMessage("性别不能为空");
         RuleFor(x => x.Dto.DepartmentId).GreaterThan(0).WithMessage("院系ID无效");
     }
+}
 }

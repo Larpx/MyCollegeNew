@@ -2,8 +2,8 @@
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
 using MediatR;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Organization;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Organization
+{
 /// <summary>查询所有院系</summary>
 public record GetDepartmentsQuery : IRequest<ApiResponse<List<DepartmentResponseDto>>>;
 
@@ -51,3 +51,4 @@ public record DeleteClassCommand(long Id) : IRequest<ApiResponse<object>>;
 
 /// <summary>查询组织树</summary>
 public record GetOrganizationTreeQuery : IRequest<ApiResponse<List<OrganizationTreeNodeDto>>>;
+}

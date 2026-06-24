@@ -17,8 +17,8 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Tests.Attendance;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Tests.Attendance
+{
 /// <summary>
 /// AttendanceHandlers 单元测试，覆盖签到状态判定、重复签到、过期令牌、一键点名、随机点名等场景
 /// </summary>
@@ -425,4 +425,5 @@ public class AttendanceHandlersTests : IDisposable
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+}
 }

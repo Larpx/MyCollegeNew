@@ -8,8 +8,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
+{
 /// <summary>
 /// 考勤会话端点映射
 /// </summary>
@@ -128,4 +128,5 @@ public static class AttendanceEndpoints
 
         return group;
     }
+}
 }

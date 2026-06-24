@@ -11,8 +11,8 @@ using SqlSugar;
 
 using Msg = Larpx.PersonalTools.MyCollegeNew.Shared.Constants.MessageConstants;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Students;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Students
+{
 /// <summary>
 /// 学生相关查询与命令处理器
 /// </summary>
@@ -268,4 +268,5 @@ public class StudentHandlers :
         _logger.LogInformation("CSV 批量导入完成：成功 {Success}，失败 {Failed}", result.SuccessCount, result.FailedCount);
         return ApiResponse<BatchImportResultDto>.Success(result);
     }
+}
 }

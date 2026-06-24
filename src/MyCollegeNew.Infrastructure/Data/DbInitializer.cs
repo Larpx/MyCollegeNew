@@ -4,8 +4,8 @@ using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using Microsoft.Extensions.Logging;
 using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data
+{
 /// <summary>
 /// 数据库初始化器，负责 CodeFirst 自动建表与种子数据播种
 /// </summary>
@@ -270,4 +270,5 @@ public class DbInitializer
         await db.Insertable(course).ExecuteCommandAsync();
         _logger.LogInformation("已播种示例课程「高等数学」");
     }
+}
 }

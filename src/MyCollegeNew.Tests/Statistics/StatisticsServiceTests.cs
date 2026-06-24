@@ -9,8 +9,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Tests.Statistics;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Tests.Statistics
+{
 /// <summary>
 /// StatisticsHandlers 单元测试，覆盖全局统计计数、学生维度统计、院系排名等场景
 /// </summary>
@@ -247,4 +247,5 @@ public class StatisticsServiceTests : IDisposable
             CreateTime = DateTime.UtcNow
         }).ExecuteCommandAsync();
     }
+}
 }

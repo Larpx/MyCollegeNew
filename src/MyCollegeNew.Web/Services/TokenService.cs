@@ -2,8 +2,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Web.Services;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Web.Services
+{
 /// <summary>
 /// 前端 Token 服务：使用 HttpOnly Cookie 管理 JWT，禁止将 Token 存入 localStorage
 /// 内部缓存机制兼容 Blazor InteractiveServer 模式（HttpContext 不可用时的降级策略）
@@ -130,3 +130,4 @@ public class TokenService
 /// <param name="UserName">用户名/真实姓名</param>
 /// <param name="Role">角色（Admin/Teacher/Counselor/Student）</param>
 public record UserInfo(string UserId, string UserName, string Role);
+}

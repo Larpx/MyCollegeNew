@@ -1,8 +1,8 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users;
 using FluentValidation;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Profile.ChangePassword;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Profile.ChangePassword
+{
 /// <summary>
 /// 修改密码请求校验器
 /// </summary>
@@ -21,4 +21,5 @@ public class ChangePasswordValidator : AbstractValidator<ChangePasswordCommand>
             .MinimumLength(6).WithMessage("新密码长度不能少于6位")
             .NotEqual(x => x.Dto.OldPassword).WithMessage("新密码不能与旧密码相同");
     }
+}
 }

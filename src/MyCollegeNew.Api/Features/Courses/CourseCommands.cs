@@ -3,8 +3,8 @@ using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
 using MediatR;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
+{
 /// <summary>分页查询课程</summary>
 public record GetCoursesQuery : PagedQuery, IRequest<ApiResponse<PagedResult<CourseResponseDto>>>
 {
@@ -63,3 +63,4 @@ public record GetScheduleByStudentQuery(string StudentId, int Week) : IRequest<A
 
 /// <summary>按班级查询周课表</summary>
 public record GetScheduleByClassQuery(int ClassId, int Week) : IRequest<ApiResponse<WeeklyScheduleDto>>;
+}

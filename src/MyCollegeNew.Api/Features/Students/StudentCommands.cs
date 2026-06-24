@@ -3,8 +3,8 @@ using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
 using MediatR;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Students;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Students
+{
 /// <summary>分页查询学生列表</summary>
 public record GetStudentsQuery : PagedQuery, IRequest<ApiResponse<PagedResult<StudentResponseDto>>>
 {
@@ -35,3 +35,4 @@ public record DeleteStudentCommand(string Id) : IRequest<ApiResponse<object>>;
 
 /// <summary>批量导入学生</summary>
 public record BatchImportStudentsCommand(Stream CsvStream) : IRequest<ApiResponse<BatchImportResultDto>>;
+}

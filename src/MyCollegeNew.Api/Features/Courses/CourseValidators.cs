@@ -1,8 +1,8 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses;
 using FluentValidation;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
+{
 /// <summary>创建课程校验器</summary>
 public class CreateCourseValidator : AbstractValidator<CreateCourseCommand>
 {
@@ -59,4 +59,5 @@ public class UpdateScheduleValidator : AbstractValidator<UpdateScheduleCommand>
         RuleFor(x => x.Dto.StartWeek).GreaterThan(0).WithMessage("开始周次无效");
         RuleFor(x => x.Dto.EndWeek).GreaterThanOrEqualTo(x => x.Dto.StartWeek).WithMessage("结束周次不能小于开始周次");
     }
+}
 }

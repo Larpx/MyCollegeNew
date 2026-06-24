@@ -1,8 +1,8 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
+{
 /// <summary>
 /// 操作日志实体，记录用户关键操作用于审计追溯，日志为不可变记录，仅含创建时间
 /// </summary>
@@ -36,4 +36,5 @@ public class AuditLog
     /// <summary>操作时间（UTC）</summary>
     [SugarColumn(IsOnlyIgnoreUpdate = true, ColumnDescription = "操作时间")]
     public DateTime CreateTime { get; set; } = DateTime.UtcNow;
+}
 }

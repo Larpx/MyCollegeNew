@@ -7,8 +7,8 @@ using Microsoft.AspNetCore.Components;
 
 using Msg = Larpx.PersonalTools.MyCollegeNew.Shared.Constants.MessageConstants;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Web.Services;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Web.Services
+{
 /// <summary>
 /// API 客户端自定义异常，承载后端 ApiResponse 的提示信息与状态码
 /// </summary>
@@ -208,4 +208,5 @@ public class ApiClient : IApiClient
 
         return apiResponse.Data;
     }
+}
 }

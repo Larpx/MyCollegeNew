@@ -1,8 +1,8 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
+{
 /// <summary>
 /// 考勤会话实体，由教师发起的一次签到活动，包含二维码 token 与时间窗口
 /// </summary>
@@ -44,4 +44,5 @@ public class AttendanceSession : EntityBase
     /// <summary>二维码签名 token（短期有效，用于扫码签到校验）</summary>
     [SugarColumn(Length = 256, IsNullable = true, ColumnDescription = "二维码 token")]
     public string? QrToken { get; set; }
+}
 }

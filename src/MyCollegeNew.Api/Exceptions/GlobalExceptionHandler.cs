@@ -9,8 +9,8 @@ using Microsoft.Extensions.Logging;
 
 using Msg = Larpx.PersonalTools.MyCollegeNew.Shared.Constants.MessageConstants;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Exceptions;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Exceptions
+{
 /// <summary>
 /// 全局异常处理器，实现 IExceptionHandler 接口，捕获所有未处理异常并统一返回 ApiResponse 结构
 /// </summary>
@@ -82,4 +82,5 @@ public class GlobalExceptionHandler : IExceptionHandler
         });
         await context.Response.WriteAsync(json);
     }
+}
 }

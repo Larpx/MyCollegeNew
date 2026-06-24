@@ -1,5 +1,5 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Exceptions;
-
+﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Exceptions
+{
 /// <summary>
 /// 校验异常，包含所有校验失败信息
 /// </summary>
@@ -16,4 +16,5 @@ public class ValidationException : BusinessException
     {
         Errors = errors;
     }
+}
 }

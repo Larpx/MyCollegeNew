@@ -1,8 +1,8 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
+{
 /// <summary>
 /// 系统用户实体，用于管理员登录系统后台
 /// </summary>
@@ -28,4 +28,5 @@ public class SystemUser : EntityBase
     /// <summary>真实姓名</summary>
     [SugarColumn(Length = 32, ColumnDescription = "真实姓名")]
     public string RealName { get; set; } = string.Empty;
+}
 }

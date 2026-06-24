@@ -1,7 +1,7 @@
 ﻿using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Configuration
+{
 /// <summary>
 /// 数据库提供程序类型枚举
 /// </summary>
@@ -23,4 +23,5 @@ public class DbConfig
 
     /// <summary>数据库连接字符串</summary>
     public string ConnectionString { get; set; } = string.Empty;
+}
 }

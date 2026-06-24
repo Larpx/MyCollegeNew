@@ -1,8 +1,8 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
+{
 /// <summary>
 /// 教师实体，主键为工号（非自增），区分任课教师与辅导员角色
 /// </summary>
@@ -40,4 +40,5 @@ public class Teacher : EntityBase
     /// <summary>备注</summary>
     [SugarColumn(Length = 256, IsNullable = true, ColumnDescription = "备注")]
     public string? Remark { get; set; }
+}
 }

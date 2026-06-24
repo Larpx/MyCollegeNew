@@ -8,8 +8,8 @@ using SqlSugar;
 
 using Msg = Larpx.PersonalTools.MyCollegeNew.Shared.Constants.MessageConstants;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Organization;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Organization
+{
 /// <summary>
 /// 组织架构相关处理器
 /// </summary>
@@ -486,4 +486,5 @@ public class OrganizationHandlers :
 
         return ApiResponse<List<OrganizationTreeNodeDto>>.Success(tree);
     }
+}
 }

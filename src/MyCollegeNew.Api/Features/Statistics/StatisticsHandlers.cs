@@ -11,8 +11,8 @@ using SqlSugar;
 
 using Msg = Larpx.PersonalTools.MyCollegeNew.Shared.Constants.MessageConstants;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Statistics;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Statistics
+{
 /// <summary>
 /// 考勤统计与报表处理器
 /// </summary>
@@ -527,4 +527,5 @@ public class StatisticsHandlers :
 
         return CalculateRate(stat?.PresentCount ?? 0 + (stat?.LateCount ?? 0), stat?.Total ?? 0);
     }
+}
 }

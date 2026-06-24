@@ -10,8 +10,8 @@ using SqlSugar;
 
 using Msg = Larpx.PersonalTools.MyCollegeNew.Shared.Constants.MessageConstants;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
+{
 /// <summary>
 /// 课程与课表处理器
 /// </summary>
@@ -391,4 +391,5 @@ public class CourseHandlers :
 
         return new WeeklyScheduleDto { Week = week, Days = days };
     }
+}
 }

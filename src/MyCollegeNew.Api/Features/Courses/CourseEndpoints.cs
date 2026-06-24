@@ -6,8 +6,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
+{
 /// <summary>
 /// 课程与课表端点映射
 /// </summary>
@@ -136,4 +136,5 @@ public static class CourseEndpoints
 
         return group;
     }
+}
 }

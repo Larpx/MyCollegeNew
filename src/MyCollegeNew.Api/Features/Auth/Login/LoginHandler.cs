@@ -7,8 +7,8 @@ using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Login;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Login
+{
 /// <summary>
 /// 登录处理器：依次按管理员/教师/学生身份校验密码，校验通过后颁发 JWT 令牌
 /// </summary>
@@ -100,4 +100,5 @@ public class LoginHandler : IRequestHandler<LoginCommand, ApiResponse<LoginResul
             Role = role.ToString()
         };
     }
+}
 }

@@ -1,5 +1,5 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
-
+﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Enums
+{
 /// <summary>
 /// 系统用户角色枚举
 /// </summary>
@@ -13,4 +13,5 @@ public enum UserRole
     Counselor,
     /// <summary>学生</summary>
     Student
+}
 }

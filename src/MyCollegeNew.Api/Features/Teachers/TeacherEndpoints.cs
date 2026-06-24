@@ -6,8 +6,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers
+{
 /// <summary>
 /// 教师端点映射
 /// </summary>
@@ -71,4 +71,5 @@ public static class TeacherEndpoints
 
         return group;
     }
+}
 }

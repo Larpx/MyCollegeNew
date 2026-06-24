@@ -9,8 +9,8 @@ using SqlSugar;
 
 using Msg = Larpx.PersonalTools.MyCollegeNew.Shared.Constants.MessageConstants;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers
+{
 /// <summary>
 /// 教师相关查询与命令处理器
 /// </summary>
@@ -170,4 +170,5 @@ public class TeacherHandlers :
 
         return ApiResponse<object>.Success( "删除成功");
     }
+}
 }

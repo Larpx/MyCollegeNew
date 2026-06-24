@@ -1,8 +1,8 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
+{
 /// <summary>
 /// 请假申请实体，由学生提交，辅导员审批
 /// </summary>
@@ -48,4 +48,5 @@ public class LeaveRequest : EntityBase
     /// <summary>审批时间（UTC），未审批时为空</summary>
     [SugarColumn(IsNullable = true, ColumnDescription = "审批时间")]
     public DateTime? ReviewTime { get; set; }
+}
 }

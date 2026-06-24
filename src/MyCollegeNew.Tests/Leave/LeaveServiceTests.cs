@@ -8,8 +8,8 @@ using Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Tests.Leave;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Tests.Leave
+{
 /// <summary>
 /// LeaveHandlers 单元测试，覆盖请假申请、审批通过/驳回、审批后考勤记录联动更新、待审批数量统计等场景
 /// </summary>
@@ -301,4 +301,5 @@ public class LeaveHandlersTests : IDisposable
 
         return sessionId;
     }
+}
 }

@@ -1,5 +1,5 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
-
+﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Enums
+{
 /// <summary>
 /// AttendanceStatus 枚举扩展方法，提供考勤状态的中文显示名称映射
 /// </summary>
@@ -16,4 +16,5 @@ public static class AttendanceStatusExtensions
         AttendanceStatus.Leave => "请假",
         _ => status.ToString()
     };
+}
 }

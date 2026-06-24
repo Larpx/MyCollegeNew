@@ -1,7 +1,7 @@
 ﻿using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
+{
 /// <summary>
 /// 实体基类，统一包含创建时间、更新时间与软删除标记，供业务实体继承
 /// </summary>
@@ -18,4 +18,5 @@ public abstract class EntityBase
     /// <summary>软删除标记，true 表示已逻辑删除</summary>
     [SugarColumn(ColumnDescription = "是否删除")]
     public bool IsDeleted { get; set; }
+}
 }

@@ -5,8 +5,8 @@ using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Attendance;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
 using MediatR;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
+{
 /// <summary>创建考勤会话</summary>
 public record CreateSessionCommand(SessionCreateDto Dto, string TeacherId) : IRequest<ApiResponse<SessionResponseDto>>;
 
@@ -55,3 +55,4 @@ public record RandomPickQuery(long ClassId, long? SessionId) : IRequest<ApiRespo
 
 /// <summary>标记随机点名结果</summary>
 public record MarkRandomPickCommand(long SessionId, string StudentId, bool Answered) : IRequest<ApiResponse<object>>;
+}

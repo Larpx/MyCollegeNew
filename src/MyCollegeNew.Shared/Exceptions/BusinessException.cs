@@ -1,5 +1,5 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Exceptions;
-
+﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Exceptions
+{
 /// <summary>
 /// 业务异常，用于在业务流程中显式抛出可预期的错误
 /// </summary>
@@ -15,4 +15,5 @@ public class BusinessException : Exception
     {
         Code = code;
     }
+}
 }

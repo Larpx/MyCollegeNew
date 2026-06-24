@@ -1,7 +1,7 @@
 ﻿using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
+{
 /// <summary>
 /// 院系实体，组织架构顶层
 /// </summary>
@@ -15,4 +15,5 @@ public class Department : EntityBase
     /// <summary>院系名称</summary>
     [SugarColumn(Length = 64, ColumnDescription = "院系名称")]
     public string Name { get; set; } = string.Empty;
+}
 }

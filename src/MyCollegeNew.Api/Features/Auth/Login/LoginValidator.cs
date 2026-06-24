@@ -1,8 +1,8 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Auth;
 using FluentValidation;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Login;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Login
+{
 /// <summary>
 /// 登录请求校验器
 /// </summary>
@@ -19,4 +19,5 @@ public class LoginValidator : AbstractValidator<LoginCommand>
         RuleFor(x => x.Request.Password)
             .NotEmpty().WithMessage("密码不能为空");
     }
+}
 }

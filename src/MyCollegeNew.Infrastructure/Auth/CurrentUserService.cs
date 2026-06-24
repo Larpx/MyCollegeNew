@@ -4,8 +4,8 @@ using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Auth;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Auth
+{
 /// <summary>
 /// 当前用户上下文实现，从 HttpContext 的 JWT Claims 中解析用户身份信息
 /// </summary>
@@ -71,4 +71,5 @@ public class CurrentUserService : ICurrentUser
 
         return value;
     }
+}
 }

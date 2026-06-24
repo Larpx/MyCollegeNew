@@ -1,7 +1,7 @@
 ﻿using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
+{
 /// <summary>
 /// 课表实体，描述某课程在某班级的周次与节次安排
 /// </summary>
@@ -47,4 +47,5 @@ public class CourseSchedule : EntityBase
     /// <summary>教室</summary>
     [SugarColumn(Length = 64, ColumnDescription = "教室")]
     public string Classroom { get; set; } = string.Empty;
+}
 }

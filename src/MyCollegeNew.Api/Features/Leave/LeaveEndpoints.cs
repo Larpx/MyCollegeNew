@@ -8,8 +8,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave
+{
 /// <summary>
 /// 请假端点映射
 /// </summary>
@@ -89,4 +89,5 @@ public static class LeaveEndpoints
 
         return group;
     }
+}
 }

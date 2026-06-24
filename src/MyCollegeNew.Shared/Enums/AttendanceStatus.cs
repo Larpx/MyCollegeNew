@@ -1,5 +1,5 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
-
+﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Enums
+{
 /// <summary>
 /// 考勤状态枚举，标识学生单次考勤的出勤结果
 /// </summary>
@@ -13,4 +13,5 @@ public enum AttendanceStatus
     Absent,
     /// <summary>请假（经审批通过）</summary>
     Leave
+}
 }

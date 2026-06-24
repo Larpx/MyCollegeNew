@@ -1,5 +1,5 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
-
+﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Enums
+{
 /// <summary>
 /// 请假审批状态枚举
 /// </summary>
@@ -11,4 +11,5 @@ public enum LeaveStatus
     Approved,
     /// <summary>已驳回</summary>
     Rejected
+}
 }

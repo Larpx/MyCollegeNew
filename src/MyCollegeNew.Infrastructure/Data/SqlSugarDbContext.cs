@@ -3,8 +3,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data
+{
 /// <summary>
 /// SqlSugar 数据库上下文实现，根据 DbConfig.ProviderType 动态创建 SQLite 或 MySQL 连接
 /// </summary>
@@ -53,4 +53,5 @@ public sealed class SqlSugarDbContext : IDbContext
         ProviderType.MySQL => DbType.MySql,
         _ => throw new ArgumentOutOfRangeException(nameof(providerType), providerType, "未知的数据库提供程序类型")
     };
+}
 }

@@ -9,8 +9,8 @@ using Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Tests.Auth;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Tests.Auth
+{
 /// <summary>
 /// LoginHandler 单元测试，使用 SQLite 内存数据库隔离测试
 /// </summary>
@@ -167,4 +167,5 @@ public class LoginHandlerTests : IDisposable
         };
         await _dbContext.Client.Insertable(student).ExecuteCommandAsync();
     }
+}
 }

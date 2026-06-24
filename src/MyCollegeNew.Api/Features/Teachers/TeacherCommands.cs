@@ -5,8 +5,8 @@ using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
 using MediatR;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers
+{
 /// <summary>分页查询教师列表</summary>
 public record GetTeachersQuery : PagedQuery, IRequest<ApiResponse<PagedResult<TeacherResponseDto>>>
 {
@@ -31,3 +31,4 @@ public record UpdateTeacherCommand(string Id, TeacherUpdateDto Dto) : IRequest<A
 
 /// <summary>删除教师</summary>
 public record DeleteTeacherCommand(string Id) : IRequest<ApiResponse<object>>;
+}

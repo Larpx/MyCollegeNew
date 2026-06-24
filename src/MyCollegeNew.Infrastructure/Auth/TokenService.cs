@@ -7,8 +7,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Auth;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Auth
+{
 /// <summary>
 /// JWT 令牌服务实现，使用 HMACSHA256 对称签名生成与校验访问令牌
 /// </summary>
@@ -125,4 +125,5 @@ public class TokenService : ITokenService
             return null;
         }
     }
+}
 }

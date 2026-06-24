@@ -2,8 +2,8 @@
 using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using Microsoft.AspNetCore.Components.Authorization;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Web.Services;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Web.Services
+{
 /// <summary>
 /// 自定义认证状态提供器：从 HttpOnly Cookie 中的 JWT 解析用户信息
 /// 用于 Blazor Server 的 AuthorizeView 与 AuthorizeRouteView
@@ -89,4 +89,5 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
         var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(anonymous)));
     }
+}
 }

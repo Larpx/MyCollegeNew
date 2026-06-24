@@ -1,5 +1,5 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
-
+﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Enums
+{
 /// <summary>
 /// 请假类型枚举
 /// </summary>
@@ -13,4 +13,5 @@ public enum LeaveType
     Official,
     /// <summary>其他</summary>
     Other
+}
 }

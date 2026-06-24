@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Leave;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Leave
+{
 /// <summary>请假创建 DTO</summary>
 public class LeaveCreateDto
 {
@@ -43,4 +43,5 @@ public class LeaveResponseDto
     public string? ReviewRemark { get; set; }
     public DateTime? ReviewTime { get; set; }
     public DateTime CreateTime { get; set; }
+}
 }

@@ -5,8 +5,8 @@ using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Leave;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
 using MediatR;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave
+{
 /// <summary>学生提交请假</summary>
 public record CreateLeaveCommand(LeaveCreateDto Dto, string StudentId) : IRequest<ApiResponse<LeaveResponseDto>>;
 
@@ -41,3 +41,4 @@ public record RejectLeaveCommand(long Id, string CounselorId, LeaveReviewDto Dto
 
 /// <summary>按班级查询请假记录</summary>
 public record GetLeavesByClassQuery(long ClassId, DateTime StartDate, DateTime EndDate) : IRequest<ApiResponse<List<LeaveResponseDto>>>;
+}

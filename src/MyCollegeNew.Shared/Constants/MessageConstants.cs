@@ -1,5 +1,5 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Constants;
-
+﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Constants
+{
 /// <summary>
 /// 消息常量集中定义
 /// </summary>
@@ -109,4 +109,5 @@ public static class MessageConstants
         public const string EndDateBeforeStart = "结束日期不能早于开始日期";
         public const string OnlyOwnStatistics = "仅可查询自己的考勤统计";
     }
+}
 }

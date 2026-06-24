@@ -19,8 +19,8 @@ using SqlSugar;
 
 using Msg = Larpx.PersonalTools.MyCollegeNew.Shared.Constants.MessageConstants;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
+{
 /// <summary>
 /// 考勤会话与签到处理器
 /// </summary>
@@ -601,4 +601,5 @@ public class AttendanceHandlers :
         StudentName = record.StudentName, Status = record.Status,
         CheckInTime = record.CheckInTime, Remark = record.Remark
     };
+}
 }

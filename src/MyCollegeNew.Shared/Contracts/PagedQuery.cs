@@ -1,5 +1,5 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Contracts;
-
+﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Contracts
+{
 /// <summary>
 /// 分页查询基类
 /// </summary>
@@ -10,4 +10,5 @@ public abstract record PagedQuery
 
     /// <summary>每页大小</summary>
     public int PageSize { get; set; } = 10;
+}
 }

@@ -1,7 +1,7 @@
 ﻿using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
+{
 /// <summary>
 /// 课程实体，由任课教师开设，关联班级形成课表
 /// </summary>
@@ -27,4 +27,5 @@ public class Course : EntityBase
     /// <summary>备注</summary>
     [SugarColumn(Length = 256, IsNullable = true, ColumnDescription = "备注")]
     public string? Remark { get; set; }
+}
 }

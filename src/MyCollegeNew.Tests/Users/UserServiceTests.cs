@@ -8,8 +8,8 @@ using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
 using Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Tests.Users;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Tests.Users
+{
 /// <summary>
 /// StudentHandlers 与 ChangePasswordHandler 单元测试，使用 SQLite 内存数据库隔离测试
 /// </summary>
@@ -361,4 +361,5 @@ public class UserServiceTests : IDisposable
             CreateTime = DateTime.UtcNow
         }).ExecuteCommandAsync();
     }
+}
 }

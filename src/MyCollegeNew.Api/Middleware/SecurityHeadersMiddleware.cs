@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Middleware;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Middleware
+{
 /// <summary>
 /// 安全头中间件，统一添加 X-Content-Type-Options、X-Frame-Options、X-XSS-Protection 等安全响应头
 /// </summary>
@@ -30,4 +30,5 @@ public class SecurityHeadersMiddleware
 
         await _next(context);
     }
+}
 }

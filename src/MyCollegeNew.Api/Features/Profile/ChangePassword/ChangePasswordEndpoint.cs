@@ -6,8 +6,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Profile.ChangePassword;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Profile.ChangePassword
+{
 /// <summary>
 /// 修改密码端点映射
 /// </summary>
@@ -32,4 +32,5 @@ public static class ChangePasswordEndpoint
 
         return group;
     }
+}
 }

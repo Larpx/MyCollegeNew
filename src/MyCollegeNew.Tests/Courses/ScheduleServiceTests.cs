@@ -6,8 +6,8 @@ using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
 using Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Tests.Courses;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Tests.Courses
+{
 /// <summary>
 /// CourseHandlers 课表部分单元测试，使用 SQLite 内存数据库隔离测试
 /// </summary>
@@ -237,4 +237,5 @@ public class ScheduleServiceTests : IDisposable
         };
         return await _dbContext.Client.Insertable(course).ExecuteReturnIdentityAsync();
     }
+}
 }

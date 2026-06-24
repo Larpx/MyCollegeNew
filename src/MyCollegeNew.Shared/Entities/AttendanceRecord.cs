@@ -1,8 +1,8 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
+{
 /// <summary>
 /// 考勤记录实体，记录学生在某次考勤会话中的出勤结果
 /// </summary>
@@ -36,4 +36,5 @@ public class AttendanceRecord : EntityBase
     /// <summary>备注</summary>
     [SugarColumn(Length = 256, IsNullable = true, ColumnDescription = "备注")]
     public string? Remark { get; set; }
+}
 }

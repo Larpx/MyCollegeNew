@@ -6,8 +6,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Statistics;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Statistics
+{
 /// <summary>
 /// 统计端点映射
 /// </summary>
@@ -98,4 +98,5 @@ public static class StatisticsEndpoints
 
         return group;
     }
+}
 }

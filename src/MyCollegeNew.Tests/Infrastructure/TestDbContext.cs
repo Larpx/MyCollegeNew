@@ -4,8 +4,8 @@ using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using Microsoft.Extensions.Options;
 using SqlSugar;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure
+{
 /// <summary>
 /// 测试用数据库上下文，使用 SQLite 临时文件数据库，手动建表以绕过 BIGINT AUTOINCREMENT 限制
 /// </summary>
@@ -253,4 +253,5 @@ public static class TestJwtConfigFactory
             SecretKey = TestSecretKey,
             ExpireMinutes = 60
         });
+}
 }

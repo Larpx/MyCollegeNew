@@ -1,7 +1,7 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Security;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Security
+{
 /// <summary>
 /// 当前登录用户上下文接口
 /// </summary>
@@ -18,4 +18,5 @@ public interface ICurrentUser
 
     /// <summary>是否已认证</summary>
     bool IsAuthenticated { get; }
+}
 }

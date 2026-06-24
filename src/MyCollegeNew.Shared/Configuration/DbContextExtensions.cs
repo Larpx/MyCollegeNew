@@ -1,7 +1,7 @@
 ﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Configuration
+{
 /// <summary>
 /// IDbContext 扩展方法，提供通用的实体操作快捷方式
 /// </summary>
@@ -16,4 +16,5 @@ public static class DbContextExtensions
         entity.UpdateTime = DateTime.UtcNow;
         await dbContext.Client.UpdateableByObject(entity).ExecuteCommandAsync();
     }
+}
 }

@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 
-namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users;
-
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
+{
 /// <summary>
 /// 学生创建 DTO
 /// </summary>
@@ -184,4 +184,5 @@ public class BatchImportFailureItem
 {
     public int Row { get; set; }
     public string Reason { get; set; } = string.Empty;
+}
 }
