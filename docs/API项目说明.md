@@ -1,4 +1,4 @@
-# Campus.Attendance.Api
+# API 项目说明
 
 API 入口项目，基于 **Minimal APIs + 垂直切片架构 (VSA)** 提供 RESTful HTTP 接口。
 

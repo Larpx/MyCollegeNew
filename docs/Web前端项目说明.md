@@ -1,4 +1,4 @@
-# Campus.Attendance.Web
+# Web 前端项目说明
 
 Web 前端项目，基于 **Blazor Web App**，采用**静态 SSR 默认渲染 + 高交互组件 InteractiveServer** 的模式，通过 HttpClient 调用后端 API。
 
