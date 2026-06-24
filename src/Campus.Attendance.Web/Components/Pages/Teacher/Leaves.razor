@@ -1,8 +1,9 @@
 @page "/teacher/leaves"
 @layout TeacherLayout
 @attribute [Authorize(Roles = "Counselor")]
-@using Campus.Attendance.Core.Enums
-@using Campus.Attendance.Models.Leave
+@rendermode InteractiveServer
+@using Campus.Attendance.Shared.Enums
+@using Campus.Attendance.Shared.Features.Leave
 @inject IApiClient ApiClient
 @inject ILogger<Components.Pages.Teacher.Leaves> Logger
 

@@ -1,7 +1,8 @@
 @page "/student/profile"
 @layout StudentLayout
 @attribute [Authorize(Roles = "Student")]
-@using Campus.Attendance.Models.Users
+@rendermode InteractiveServer
+@using Campus.Attendance.Shared.Features.Users
 @inject IApiClient ApiClient
 @inject TokenService TokenService
 @inject NavigationManager NavigationManager
@@ -127,9 +128,9 @@
     /// <summary>
     /// 页面初始化：获取当前学生信息
     /// </summary>
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        var userInfo = await TokenService.GetUserInfoAsync();
+        var userInfo = TokenService.GetUserInfo();
         if (userInfo is null)
         {
             NavigationManager.NavigateTo("/login", forceLoad: true);

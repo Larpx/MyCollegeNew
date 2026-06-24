@@ -1,9 +1,10 @@
 @page "/admin/teachers"
 @layout AdminLayout
 @attribute [Authorize]
-@using Campus.Attendance.Core.Enums
-@using Campus.Attendance.Models.Organization
-@using Campus.Attendance.Models.Users
+@rendermode InteractiveServer
+@using Campus.Attendance.Shared.Enums
+@using Campus.Attendance.Shared.Features.Organization
+@using Campus.Attendance.Shared.Features.Users
 @inject IApiClient ApiClient
 @inject ILogger<Components.Pages.Admin.Teachers> Logger
 

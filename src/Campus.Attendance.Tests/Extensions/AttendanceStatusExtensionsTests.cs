@@ -1,5 +1,4 @@
-using Campus.Attendance.Core.Enums;
-using Xunit;
+using Campus.Attendance.Shared.Enums;
 
 namespace Campus.Attendance.Tests.Extensions;
 

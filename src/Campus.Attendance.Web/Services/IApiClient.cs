@@ -1,4 +1,4 @@
-using Campus.Attendance.Core.Responses;
+using Campus.Attendance.Shared.Responses;
 
 namespace Campus.Attendance.Web.Services;
 

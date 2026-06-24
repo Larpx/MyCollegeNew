@@ -1,10 +1,11 @@
 @page "/teacher/dashboard"
 @layout TeacherLayout
 @attribute [Authorize]
-@using Campus.Attendance.Core.Enums
-@using Campus.Attendance.Models.Attendance
-@using Campus.Attendance.Models.Courses
-@using Campus.Attendance.Models.Statistics
+@rendermode InteractiveServer
+@using Campus.Attendance.Shared.Enums
+@using Campus.Attendance.Shared.Features.Attendance
+@using Campus.Attendance.Shared.Features.Courses
+@using Campus.Attendance.Shared.Features.Statistics
 @inject IApiClient ApiClient
 @inject TokenService TokenService
 @inject NavigationManager NavigationManager
@@ -164,7 +165,7 @@ else
     /// <summary>页面初始化：获取用户信息并加载数据</summary>
     protected override async Task OnInitializedAsync()
     {
-        var userInfo = await TokenService.GetUserInfoAsync();
+        var userInfo = TokenService.GetUserInfo();
         if (userInfo is null)
         {
             NavigationManager.NavigateTo("/login", forceLoad: true);

@@ -1,29 +1,28 @@
-using Campus.Attendance.Core.Entities;
-using Campus.Attendance.Core.Enums;
-using Campus.Attendance.Core.Exceptions;
-using Campus.Attendance.Models.Courses;
-using Campus.Attendance.Services.Courses;
+using Campus.Attendance.Api.Features.Courses;
+using Campus.Attendance.Shared.Entities;
+using Campus.Attendance.Shared.Enums;
+using Campus.Attendance.Shared.Features.Courses;
+using Campus.Attendance.Shared.Responses;
 using Campus.Attendance.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
 
 namespace Campus.Attendance.Tests.Courses;
 
 /// <summary>
-/// ScheduleService 单元测试，使用 SQLite 内存数据库隔离测试
+/// CourseHandlers 课表部分单元测试，使用 SQLite 内存数据库隔离测试
 /// </summary>
 public class ScheduleServiceTests : IDisposable
 {
     private readonly TestDbContext _dbContext;
-    private readonly ScheduleService _scheduleService;
+    private readonly CourseHandlers _courseHandlers;
 
     /// <summary>
-    /// 构造函数，初始化测试上下文与 ScheduleService 实例
+    /// 构造函数，初始化测试上下文与 CourseHandlers 实例
     /// </summary>
     public ScheduleServiceTests()
     {
         _dbContext = new TestDbContext();
-        _scheduleService = new ScheduleService(_dbContext, NullLogger<ScheduleService>.Instance);
+        _courseHandlers = new CourseHandlers(_dbContext, NullLogger<CourseHandlers>.Instance);
     }
 
     /// <summary>
@@ -51,25 +50,27 @@ public class ScheduleServiceTests : IDisposable
         };
 
         // Act
-        var result = await _scheduleService.CreateScheduleAsync(dto);
+        var result = await _courseHandlers.Handle(new CreateScheduleCommand(dto), CancellationToken.None);
 
         // Assert
-        Assert.True(result.Id > 0);
-        Assert.Equal(courseId, result.CourseId);
-        Assert.Equal("高等数学", result.CourseName);
-        Assert.Equal(classId, result.ClassId);
-        Assert.Equal("软工2201", result.ClassName);
-        Assert.Equal(teacherId, result.TeacherId);
-        Assert.Equal("张老师", result.TeacherName);
-        Assert.Equal(1, result.DayOfWeek);
-        Assert.Equal("A101", result.Classroom);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.True(result.Data!.Id > 0);
+        Assert.Equal(courseId, result.Data.CourseId);
+        Assert.Equal("高等数学", result.Data.CourseName);
+        Assert.Equal(classId, result.Data.ClassId);
+        Assert.Equal("软工2201", result.Data.ClassName);
+        Assert.Equal(teacherId, result.Data.TeacherId);
+        Assert.Equal("张老师", result.Data.TeacherName);
+        Assert.Equal(1, result.Data.DayOfWeek);
+        Assert.Equal("A101", result.Data.Classroom);
     }
 
     /// <summary>
-    /// 创建课表使用起始节次大于结束节次应抛出 BusinessException
+    /// 创建课表使用起始节次大于结束节次应返回失败响应
     /// </summary>
     [Fact]
-    public async Task CreateScheduleAsync_StartSectionGreaterThanEnd_ThrowsBusinessException()
+    public async Task CreateScheduleAsync_StartSectionGreaterThanEnd_ReturnsFail()
     {
         // Arrange
         var classId = await SeedReferenceDataAsync();
@@ -88,9 +89,12 @@ public class ScheduleServiceTests : IDisposable
             Classroom = "A101"
         };
 
-        // Act & Assert
-        var ex = await Assert.ThrowsAsync<BusinessException>(() => _scheduleService.CreateScheduleAsync(dto));
-        Assert.Contains("节次", ex.Message);
+        // Act
+        var result = await _courseHandlers.Handle(new CreateScheduleCommand(dto), CancellationToken.None);
+
+        // Assert
+        Assert.Equal(400, result.Code);
+        Assert.Contains("节次", result.Message);
     }
 
     /// <summary>
@@ -105,29 +109,31 @@ public class ScheduleServiceTests : IDisposable
         var courseId = await SeedCourseAsync("高等数学", "T001");
 
         // 创建两条课表：周一第 1-2 节、周三第 3-4 节，均在第 1-16 周
-        await _scheduleService.CreateScheduleAsync(new ScheduleCreateDto
+        await _courseHandlers.Handle(new CreateScheduleCommand(new ScheduleCreateDto
         {
             CourseId = courseId, ClassId = classId, TeacherId = "T001",
             DayOfWeek = 1, StartSection = 1, EndSection = 2,
             StartWeek = 1, EndWeek = 16, Classroom = "A101"
-        });
-        await _scheduleService.CreateScheduleAsync(new ScheduleCreateDto
+        }), CancellationToken.None);
+        await _courseHandlers.Handle(new CreateScheduleCommand(new ScheduleCreateDto
         {
             CourseId = courseId, ClassId = classId, TeacherId = "T001",
             DayOfWeek = 3, StartSection = 3, EndSection = 4,
             StartWeek = 1, EndWeek = 16, Classroom = "A102"
-        });
+        }), CancellationToken.None);
 
         // Act
-        var result = await _scheduleService.GetScheduleByTeacherAsync("T001", week: 5);
+        var result = await _courseHandlers.Handle(new GetScheduleByTeacherQuery("T001", Week: 5), CancellationToken.None);
 
         // Assert
-        Assert.Equal(5, result.Week);
-        Assert.Equal(2, result.Days.Count);
-        Assert.True(result.Days.ContainsKey(1));
-        Assert.True(result.Days.ContainsKey(3));
-        Assert.Single(result.Days[1]);
-        Assert.Single(result.Days[3]);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.Equal(5, result.Data!.Week);
+        Assert.Equal(2, result.Data.Days.Count);
+        Assert.True(result.Data.Days.ContainsKey(1));
+        Assert.True(result.Data.Days.ContainsKey(3));
+        Assert.Single(result.Data.Days[1]);
+        Assert.Single(result.Data.Days[3]);
     }
 
     /// <summary>
@@ -140,19 +146,21 @@ public class ScheduleServiceTests : IDisposable
         var classId = await SeedReferenceDataAsync();
         await SeedTeacherAsync("T001", "张老师");
         var courseId = await SeedCourseAsync("高等数学", "T001");
-        await _scheduleService.CreateScheduleAsync(new ScheduleCreateDto
+        await _courseHandlers.Handle(new CreateScheduleCommand(new ScheduleCreateDto
         {
             CourseId = courseId, ClassId = classId, TeacherId = "T001",
             DayOfWeek = 1, StartSection = 1, EndSection = 2,
             StartWeek = 1, EndWeek = 16, Classroom = "A101"
-        });
+        }), CancellationToken.None);
 
         // Act：查询第 20 周（超出 1-16 周范围）
-        var result = await _scheduleService.GetScheduleByTeacherAsync("T001", week: 20);
+        var result = await _courseHandlers.Handle(new GetScheduleByTeacherQuery("T001", Week: 20), CancellationToken.None);
 
         // Assert
-        Assert.Equal(20, result.Week);
-        Assert.Empty(result.Days);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.Equal(20, result.Data!.Week);
+        Assert.Empty(result.Data.Days);
     }
 
     /// <summary>

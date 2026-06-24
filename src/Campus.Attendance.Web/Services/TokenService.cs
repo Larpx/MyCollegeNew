@@ -1,56 +1,99 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using Microsoft.JSInterop;
+using Microsoft.AspNetCore.Http;
 
 namespace Campus.Attendance.Web.Services;
 
 /// <summary>
-/// 前端 Token 服务：负责在 localStorage 中存取 JWT Token，并解析用户信息
+/// 前端 Token 服务：使用 HttpOnly Cookie 管理 JWT，禁止将 Token 存入 localStorage
+/// 内部缓存机制兼容 Blazor InteractiveServer 模式（HttpContext 不可用时的降级策略）
 /// </summary>
 public class TokenService
 {
-    private readonly IJSRuntime _jsRuntime;
+    private const string TokenCookieName = "campus_attendance_token";
+
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<TokenService> _logger;
 
-    // localStorage 中存储 Token 的键名
-    private const string TokenKey = "campus_token";
+    /// <summary>交互模式下 HttpContext 不可用时的内存缓存</summary>
+    private string? _cachedToken;
 
     /// <summary>构造函数</summary>
-    /// <param name="jsRuntime">JS 运行时</param>
+    /// <param name="httpContextAccessor">HTTP 上下文访问器</param>
     /// <param name="logger">日志记录器</param>
-    public TokenService(IJSRuntime jsRuntime, ILogger<TokenService> logger)
+    public TokenService(IHttpContextAccessor httpContextAccessor, ILogger<TokenService> logger)
     {
-        _jsRuntime = jsRuntime;
+        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
     }
 
-    /// <summary>从 localStorage 读取 Token</summary>
-    /// <returns>Token 字符串；不存在则返回 null</returns>
-    public async Task<string?> GetTokenAsync()
-    {
-        return await _jsRuntime.InvokeAsync<string>("localStorage.getItem", TokenKey);
-    }
-
-    /// <summary>存储 Token 到 localStorage</summary>
+    /// <summary>将 JWT 写入 HttpOnly Cookie 并缓存</summary>
     /// <param name="token">JWT Token</param>
-    public async Task SetTokenAsync(string token)
+    public void SetToken(string token)
     {
-        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", TokenKey, token);
+        _cachedToken = token;
+
+        var httpContext = _httpContextAccessor.HttpContext;
+        if (httpContext is not null)
+        {
+            var options = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTimeOffset.UtcNow.AddHours(2),
+                Path = "/"
+            };
+            httpContext.Response.Cookies.Append(TokenCookieName, token, options);
+        }
     }
 
-    /// <summary>清除 localStorage 中的 Token</summary>
-    public async Task RemoveTokenAsync()
+    /// <summary>从 HttpOnly Cookie 读取 JWT；Cookie 不可用时降级到内存缓存</summary>
+    /// <returns>Token 字符串；不存在则返回 null</returns>
+    public string? GetToken()
     {
-        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", TokenKey);
+        // 优先从 HttpContext 读取（SSR 模式）
+        var httpContext = _httpContextAccessor.HttpContext;
+        if (httpContext is not null)
+        {
+            var cookieToken = httpContext.Request.Cookies[TokenCookieName];
+            if (!string.IsNullOrEmpty(cookieToken))
+            {
+                _cachedToken = cookieToken;
+                return cookieToken;
+            }
+        }
+
+        // 降级到内存缓存（InteractiveServer 模式）
+        return _cachedToken;
+    }
+
+    /// <summary>删除 HttpOnly Cookie 中的 JWT 并清除缓存</summary>
+    public void RemoveToken()
+    {
+        _cachedToken = null;
+
+        var httpContext = _httpContextAccessor.HttpContext;
+        if (httpContext is not null)
+        {
+            var options = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Path = "/"
+            };
+            httpContext.Response.Cookies.Delete(TokenCookieName, options);
+        }
     }
 
     /// <summary>
     /// 解析 Token 返回用户信息（UserId、UserName、Role）
     /// </summary>
-    /// <returns>用户信息元组；Token 无效时返回 null</returns>
-    public async Task<UserInfo?> GetUserInfoAsync()
+    /// <returns>用户信息；Token 无效时返回 null</returns>
+    public UserInfo? GetUserInfo()
     {
-        var token = await GetTokenAsync();
+        var token = GetToken();
         if (string.IsNullOrWhiteSpace(token))
         {
             return null;

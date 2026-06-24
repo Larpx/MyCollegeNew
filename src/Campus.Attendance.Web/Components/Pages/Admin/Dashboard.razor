@@ -1,7 +1,8 @@
 @page "/admin/dashboard"
 @layout AdminLayout
 @attribute [Authorize]
-@using Campus.Attendance.Models.Statistics
+@rendermode InteractiveServer
+@using Campus.Attendance.Shared.Features.Statistics
 @inject IApiClient ApiClient
 @inject ILogger<Components.Pages.Admin.Dashboard> Logger
 

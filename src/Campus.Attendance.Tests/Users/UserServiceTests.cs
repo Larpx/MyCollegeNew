@@ -1,30 +1,32 @@
 using System.Text;
-using Campus.Attendance.Core.Entities;
-using Campus.Attendance.Core.Enums;
-using Campus.Attendance.Core.Exceptions;
-using Campus.Attendance.Models.Users;
-using Campus.Attendance.Services.Users;
+using Campus.Attendance.Api.Features.Profile.ChangePassword;
+using Campus.Attendance.Api.Features.Students;
+using Campus.Attendance.Shared.Entities;
+using Campus.Attendance.Shared.Enums;
+using Campus.Attendance.Shared.Features.Users;
+using Campus.Attendance.Shared.Responses;
 using Campus.Attendance.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
 
 namespace Campus.Attendance.Tests.Users;
 
 /// <summary>
-/// UserService 单元测试，使用 SQLite 内存数据库隔离测试
+/// StudentHandlers 与 ChangePasswordHandler 单元测试，使用 SQLite 内存数据库隔离测试
 /// </summary>
 public class UserServiceTests : IDisposable
 {
     private readonly TestDbContext _dbContext;
-    private readonly UserService _userService;
+    private readonly StudentHandlers _studentHandlers;
+    private readonly ChangePasswordHandler _changePasswordHandler;
 
     /// <summary>
-    /// 构造函数，初始化测试上下文与 UserService 实例
+    /// 构造函数，初始化测试上下文与 Handler 实例
     /// </summary>
     public UserServiceTests()
     {
         _dbContext = new TestDbContext();
-        _userService = new UserService(_dbContext, NullLogger<UserService>.Instance);
+        _studentHandlers = new StudentHandlers(_dbContext, NullLogger<StudentHandlers>.Instance);
+        _changePasswordHandler = new ChangePasswordHandler(_dbContext, NullLogger<ChangePasswordHandler>.Instance);
     }
 
     /// <summary>
@@ -48,22 +50,24 @@ public class UserServiceTests : IDisposable
         };
 
         // Act
-        var result = await _userService.CreateStudentAsync(dto);
+        var result = await _studentHandlers.Handle(new CreateStudentCommand(dto), CancellationToken.None);
 
         // Assert
-        Assert.Equal("20220102", result.Id);
-        Assert.Equal("张三", result.Name);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.Equal("20220102", result.Data!.Id);
+        Assert.Equal("张三", result.Data.Name);
     }
 
     /// <summary>
-    /// 创建学生使用重复学号应抛出 BusinessException
+    /// 创建学生使用重复学号应返回失败响应
     /// </summary>
     [Fact]
-    public async Task CreateStudentAsync_DuplicateId_ThrowsBusinessException()
+    public async Task CreateStudentAsync_DuplicateId_ReturnsFail()
     {
         // Arrange
         await SeedReferenceDataAsync();
-        await _userService.CreateStudentAsync(new StudentCreateDto
+        await _studentHandlers.Handle(new CreateStudentCommand(new StudentCreateDto
         {
             Id = "20220103",
             Name = "李四",
@@ -73,7 +77,7 @@ public class UserServiceTests : IDisposable
             MajorId = 1,
             ClassId = 1,
             Grade = 2022
-        });
+        }), CancellationToken.None);
 
         var dto = new StudentCreateDto
         {
@@ -87,9 +91,12 @@ public class UserServiceTests : IDisposable
             Grade = 2022
         };
 
-        // Act & Assert
-        var ex = await Assert.ThrowsAsync<BusinessException>(() => _userService.CreateStudentAsync(dto));
-        Assert.Contains("已存在", ex.Message);
+        // Act
+        var result = await _studentHandlers.Handle(new CreateStudentCommand(dto), CancellationToken.None);
+
+        // Assert
+        Assert.Equal(400, result.Code);
+        Assert.Contains("已存在", result.Message);
     }
 
     /// <summary>
@@ -100,7 +107,7 @@ public class UserServiceTests : IDisposable
     {
         // Arrange
         await SeedReferenceDataAsync();
-        await _userService.CreateStudentAsync(new StudentCreateDto
+        await _studentHandlers.Handle(new CreateStudentCommand(new StudentCreateDto
         {
             Id = "20220104",
             Name = "王五",
@@ -110,12 +117,13 @@ public class UserServiceTests : IDisposable
             MajorId = 1,
             ClassId = 1,
             Grade = 2022
-        });
+        }), CancellationToken.None);
 
         // Act
-        await _userService.DeleteStudentAsync("20220104");
+        var result = await _studentHandlers.Handle(new DeleteStudentCommand("20220104"), CancellationToken.None);
 
         // Assert
+        Assert.Equal(200, result.Code);
         var student = await _dbContext.Client.Queryable<Student>().FirstAsync(s => s.Id == "20220104");
         Assert.NotNull(student);
         Assert.True(student!.IsDeleted);
@@ -135,11 +143,13 @@ public class UserServiceTests : IDisposable
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
 
         // Act
-        var result = await _userService.BatchImportStudentsAsync(stream);
+        var result = await _studentHandlers.Handle(new BatchImportStudentsCommand(stream), CancellationToken.None);
 
         // Assert
-        Assert.Equal(2, result.SuccessCount);
-        Assert.Equal(0, result.FailedCount);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.Equal(2, result.Data!.SuccessCount);
+        Assert.Equal(0, result.Data.FailedCount);
     }
 
     /// <summary>
@@ -150,7 +160,7 @@ public class UserServiceTests : IDisposable
     {
         // Arrange
         await SeedReferenceDataAsync();
-        await _userService.CreateStudentAsync(new StudentCreateDto
+        await _studentHandlers.Handle(new CreateStudentCommand(new StudentCreateDto
         {
             Id = "20220107",
             Name = "孙八",
@@ -160,7 +170,7 @@ public class UserServiceTests : IDisposable
             MajorId = 1,
             ClassId = 1,
             Grade = 2022
-        });
+        }), CancellationToken.None);
 
         var dto = new PasswordChangeDto
         {
@@ -169,23 +179,24 @@ public class UserServiceTests : IDisposable
         };
 
         // Act
-        await _userService.ChangePasswordAsync("20220107", UserRole.Student, dto);
+        var result = await _changePasswordHandler.Handle(new ChangePasswordCommand(dto, "20220107", UserRole.Student), CancellationToken.None);
 
         // Assert
+        Assert.Equal(200, result.Code);
         var student = await _dbContext.Client.Queryable<Student>().FirstAsync(s => s.Id == "20220107");
         Assert.NotNull(student);
         Assert.True(BCrypt.Net.BCrypt.Verify("newpass123", student!.Password));
     }
 
     /// <summary>
-    /// 修改密码使用错误旧密码应抛出 BusinessException
+    /// 修改密码使用错误旧密码应返回失败响应
     /// </summary>
     [Fact]
-    public async Task ChangePasswordAsync_WrongOldPassword_ThrowsBusinessException()
+    public async Task ChangePasswordAsync_WrongOldPassword_ReturnsFail()
     {
         // Arrange
         await SeedReferenceDataAsync();
-        await _userService.CreateStudentAsync(new StudentCreateDto
+        await _studentHandlers.Handle(new CreateStudentCommand(new StudentCreateDto
         {
             Id = "20220108",
             Name = "周九",
@@ -195,7 +206,7 @@ public class UserServiceTests : IDisposable
             MajorId = 1,
             ClassId = 1,
             Grade = 2022
-        });
+        }), CancellationToken.None);
 
         var dto = new PasswordChangeDto
         {
@@ -203,10 +214,12 @@ public class UserServiceTests : IDisposable
             NewPassword = "newpass123"
         };
 
-        // Act & Assert
-        var ex = await Assert.ThrowsAsync<BusinessException>(() =>
-            _userService.ChangePasswordAsync("20220108", UserRole.Student, dto));
-        Assert.Contains("旧密码", ex.Message);
+        // Act
+        var result = await _changePasswordHandler.Handle(new ChangePasswordCommand(dto, "20220108", UserRole.Student), CancellationToken.None);
+
+        // Assert
+        Assert.Equal(400, result.Code);
+        Assert.Contains("旧密码", result.Message);
     }
 
     /// <summary>
@@ -236,9 +249,10 @@ public class UserServiceTests : IDisposable
         };
 
         // Act
-        await _userService.ChangePasswordAsync("T010", UserRole.Teacher, dto);
+        var result = await _changePasswordHandler.Handle(new ChangePasswordCommand(dto, "T010", UserRole.Teacher), CancellationToken.None);
 
         // Assert
+        Assert.Equal(200, result.Code);
         var updated = await _dbContext.Client.Queryable<Teacher>().FirstAsync(t => t.Id == "T010");
         Assert.NotNull(updated);
         Assert.True(BCrypt.Net.BCrypt.Verify("newteacherpass", updated!.Password));
@@ -268,9 +282,10 @@ public class UserServiceTests : IDisposable
         };
 
         // Act
-        await _userService.ChangePasswordAsync("testadmin", UserRole.Admin, dto);
+        var result = await _changePasswordHandler.Handle(new ChangePasswordCommand(dto, "testadmin", UserRole.Admin), CancellationToken.None);
 
         // Assert
+        Assert.Equal(200, result.Code);
         var updated = await _dbContext.Client.Queryable<SystemUser>().FirstAsync(u => u.Username == "testadmin");
         Assert.NotNull(updated);
         Assert.True(BCrypt.Net.BCrypt.Verify("newadminpass", updated!.Password));
@@ -297,9 +312,11 @@ public class UserServiceTests : IDisposable
         await _dbContext.Client.Insertable(teacher).ExecuteCommandAsync();
 
         // Act
-        await _userService.DeleteTeacherAsync("T020");
+        var result = await new Campus.Attendance.Api.Features.Teachers.TeacherHandlers(_dbContext, NullLogger<Campus.Attendance.Api.Features.Teachers.TeacherHandlers>.Instance)
+            .Handle(new Campus.Attendance.Api.Features.Teachers.DeleteTeacherCommand("T020"), CancellationToken.None);
 
         // Assert
+        Assert.Equal(200, result.Code);
         var deleted = await _dbContext.Client.Queryable<Teacher>().FirstAsync(t => t.Id == "T020");
         Assert.NotNull(deleted);
         Assert.True(deleted!.IsDeleted);

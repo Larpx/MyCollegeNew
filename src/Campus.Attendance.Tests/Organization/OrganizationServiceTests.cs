@@ -1,29 +1,29 @@
-using Campus.Attendance.Core.Entities;
-using Campus.Attendance.Core.Enums;
-using Campus.Attendance.Core.Exceptions;
-using Campus.Attendance.Models.Organization;
-using Campus.Attendance.Services.Organization;
+using Campus.Attendance.Api.Features.Organization;
+using Campus.Attendance.Shared.Entities;
+using Campus.Attendance.Shared.Enums;
+using Campus.Attendance.Shared.Features.Organization;
+using Campus.Attendance.Shared.Responses;
 using Campus.Attendance.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
+using SqlSugar;
 
 namespace Campus.Attendance.Tests.Organization;
 
 /// <summary>
-/// OrganizationService 单元测试，使用 SQLite 内存数据库隔离测试
+/// OrganizationHandlers 单元测试，使用 SQLite 内存数据库隔离测试
 /// </summary>
 public class OrganizationServiceTests : IDisposable
 {
     private readonly TestDbContext _dbContext;
-    private readonly OrganizationService _organizationService;
+    private readonly OrganizationHandlers _organizationHandlers;
 
     /// <summary>
-    /// 构造函数，初始化测试上下文与 OrganizationService 实例
+    /// 构造函数，初始化测试上下文与 OrganizationHandlers 实例
     /// </summary>
     public OrganizationServiceTests()
     {
         _dbContext = new TestDbContext();
-        _organizationService = new OrganizationService(_dbContext, NullLogger<OrganizationService>.Instance);
+        _organizationHandlers = new OrganizationHandlers(_dbContext, NullLogger<OrganizationHandlers>.Instance);
     }
 
     /// <summary>
@@ -36,29 +36,33 @@ public class OrganizationServiceTests : IDisposable
         var dto = new DepartmentCreateDto { Name = "计算机学院" };
 
         // Act
-        var result = await _organizationService.CreateDepartmentAsync(dto);
+        var result = await _organizationHandlers.Handle(new CreateDepartmentCommand(dto), CancellationToken.None);
 
         // Assert
-        Assert.True(result.Id > 0);
-        Assert.Equal("计算机学院", result.Name);
-        Assert.Equal(0, result.MajorCount);
-        Assert.Equal(0, result.StudentCount);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.True(result.Data!.Id > 0);
+        Assert.Equal("计算机学院", result.Data.Name);
+        Assert.Equal(0, result.Data.MajorCount);
+        Assert.Equal(0, result.Data.StudentCount);
     }
 
     /// <summary>
-    /// 删除存在关联专业的院系应抛出 BusinessException
+    /// 删除存在关联专业的院系应返回失败响应
     /// </summary>
     [Fact]
-    public async Task DeleteDepartmentAsync_WithMajors_ThrowsBusinessException()
+    public async Task DeleteDepartmentAsync_WithMajors_ReturnsFail()
     {
         // Arrange
         var departmentId = await CreateDepartmentAsync("计算机学院");
         await CreateMajorAsync("软件工程", departmentId);
 
-        // Act & Assert
-        var ex = await Assert.ThrowsAsync<BusinessException>(() =>
-            _organizationService.DeleteDepartmentAsync(departmentId));
-        Assert.Contains("专业", ex.Message);
+        // Act
+        var result = await _organizationHandlers.Handle(new DeleteDepartmentCommand(departmentId), CancellationToken.None);
+
+        // Assert
+        Assert.Equal(400, result.Code);
+        Assert.Contains("专业", result.Message);
     }
 
     /// <summary>
@@ -73,11 +77,13 @@ public class OrganizationServiceTests : IDisposable
         await CreateClassAsync("软工2201", majorId);
 
         // Act
-        var tree = await _organizationService.GetOrganizationTreeAsync();
+        var result = await _organizationHandlers.Handle(new GetOrganizationTreeQuery(), CancellationToken.None);
 
         // Assert
-        Assert.Single(tree);
-        var node = tree[0];
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.Single(result.Data!);
+        var node = result.Data![0];
         Assert.Equal("计算机学院", node.Department.Name);
         Assert.Equal(1, node.Department.MajorCount);
         Assert.Single(node.Majors);
@@ -97,30 +103,34 @@ public class OrganizationServiceTests : IDisposable
         var dto = new MajorCreateDto { Name = "软件工程", DepartmentId = departmentId };
 
         // Act
-        var result = await _organizationService.CreateMajorAsync(dto);
+        var result = await _organizationHandlers.Handle(new CreateMajorCommand(dto), CancellationToken.None);
 
         // Assert
-        Assert.True(result.Id > 0);
-        Assert.Equal("软件工程", result.Name);
-        Assert.Equal(departmentId, result.DepartmentId);
-        Assert.Equal("计算机学院", result.DepartmentName);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.True(result.Data!.Id > 0);
+        Assert.Equal("软件工程", result.Data.Name);
+        Assert.Equal(departmentId, result.Data.DepartmentId);
+        Assert.Equal("计算机学院", result.Data.DepartmentName);
     }
 
     /// <summary>
-    /// 删除存在关联班级的专业应抛出 BusinessException
+    /// 删除存在关联班级的专业应返回失败响应
     /// </summary>
     [Fact]
-    public async Task DeleteMajorAsync_WithClasses_ThrowsBusinessException()
+    public async Task DeleteMajorAsync_WithClasses_ReturnsFail()
     {
         // Arrange
         var departmentId = await CreateDepartmentAsync("计算机学院");
         var majorId = await CreateMajorAsync("软件工程", departmentId);
         await CreateClassAsync("软工2201", majorId);
 
-        // Act & Assert
-        var ex = await Assert.ThrowsAsync<BusinessException>(() =>
-            _organizationService.DeleteMajorAsync(majorId));
-        Assert.Contains("班级", ex.Message);
+        // Act
+        var result = await _organizationHandlers.Handle(new DeleteMajorCommand(majorId), CancellationToken.None);
+
+        // Assert
+        Assert.Equal(400, result.Code);
+        Assert.Contains("班级", result.Message);
     }
 
     /// <summary>

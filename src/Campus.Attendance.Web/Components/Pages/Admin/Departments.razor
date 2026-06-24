@@ -1,8 +1,9 @@
 @page "/admin/departments"
 @layout AdminLayout
 @attribute [Authorize]
-@using Campus.Attendance.Core.Enums
-@using Campus.Attendance.Models.Organization
+@rendermode InteractiveServer
+@using Campus.Attendance.Shared.Enums
+@using Campus.Attendance.Shared.Features.Organization
 @inject IApiClient ApiClient
 @inject ILogger<Components.Pages.Admin.Departments> Logger
 

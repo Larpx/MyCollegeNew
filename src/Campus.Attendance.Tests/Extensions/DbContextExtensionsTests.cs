@@ -1,7 +1,6 @@
-using Campus.Attendance.Core.Configuration;
-using Campus.Attendance.Core.Entities;
+using Campus.Attendance.Shared.Configuration;
+using Campus.Attendance.Shared.Entities;
 using Campus.Attendance.Tests.Infrastructure;
-using Xunit;
 
 namespace Campus.Attendance.Tests.Extensions;
 

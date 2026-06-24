@@ -1,28 +1,36 @@
-using Campus.Attendance.Core.Entities;
-using Campus.Attendance.Core.Enums;
-using Campus.Attendance.Services.Statistics;
+using Campus.Attendance.Api.Features.Statistics;
+using Campus.Attendance.Shared.Entities;
+using Campus.Attendance.Shared.Enums;
+using Campus.Attendance.Shared.Features.Statistics;
+using Campus.Attendance.Shared.Responses;
+using Campus.Attendance.Shared.Security;
 using Campus.Attendance.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using SqlSugar;
-using Xunit;
 
 namespace Campus.Attendance.Tests.Statistics;
 
 /// <summary>
-/// StatisticsService 单元测试，覆盖全局统计计数、学生维度统计、院系排名等场景
+/// StatisticsHandlers 单元测试，覆盖全局统计计数、学生维度统计、院系排名等场景
 /// </summary>
 public class StatisticsServiceTests : IDisposable
 {
     private readonly TestDbContext _dbContext;
-    private readonly StatisticsService _statisticsService;
+    private readonly StatisticsHandlers _statisticsHandlers;
 
     /// <summary>
-    /// 构造函数，初始化测试上下文与 StatisticsService 实例
+    /// 构造函数，初始化测试上下文与 StatisticsHandlers 实例
     /// </summary>
     public StatisticsServiceTests()
     {
         _dbContext = new TestDbContext();
-        _statisticsService = new StatisticsService(_dbContext, NullLogger<StatisticsService>.Instance);
+        // 使用 Mock 创建 ICurrentUser，默认为管理员角色以绕过权限校验
+        var currentUser = new Mock<ICurrentUser>();
+        currentUser.Setup(c => c.Role).Returns(UserRole.Admin);
+        currentUser.Setup(c => c.UserId).Returns("admin");
+        currentUser.Setup(c => c.IsAuthenticated).Returns(true);
+        _statisticsHandlers = new StatisticsHandlers(_dbContext, currentUser.Object, NullLogger<StatisticsHandlers>.Instance);
     }
 
     /// <summary>
@@ -36,13 +44,15 @@ public class StatisticsServiceTests : IDisposable
         await SeedAttendanceDataAsync();
 
         // Act
-        var result = await _statisticsService.GetOverviewAsync();
+        var result = await _statisticsHandlers.Handle(new GetOverviewQuery(), CancellationToken.None);
 
         // Assert
-        Assert.Equal(2, result.TotalStudents);
-        Assert.Equal(2, result.TotalTeachers);
-        Assert.Equal(1, result.TodaySessions);
-        Assert.True(result.OverallAttendanceRate >= 0 && result.OverallAttendanceRate <= 100);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.Equal(2, result.Data!.TotalStudents);
+        Assert.Equal(2, result.Data.TotalTeachers);
+        Assert.Equal(1, result.Data.TodaySessions);
+        Assert.True(result.Data.OverallAttendanceRate >= 0 && result.Data.OverallAttendanceRate <= 100);
     }
 
     /// <summary>
@@ -56,18 +66,20 @@ public class StatisticsServiceTests : IDisposable
         await SeedAttendanceDataAsync();
 
         // Act
-        var result = await _statisticsService.GetStudentStatisticsAsync("S001");
+        var result = await _statisticsHandlers.Handle(new GetStudentStatisticsQuery("S001"), CancellationToken.None);
 
         // Assert - S001 有 1 次 Present、1 次 Late、1 次 Absent
-        Assert.Equal("S001", result.StudentId);
-        Assert.Equal("李同学", result.StudentName);
-        Assert.Equal(3, result.TotalSessions);
-        Assert.Equal(1, result.PresentCount);
-        Assert.Equal(1, result.LateCount);
-        Assert.Equal(1, result.AbsentCount);
-        Assert.Equal(0, result.LeaveCount);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.Equal("S001", result.Data!.StudentId);
+        Assert.Equal("李同学", result.Data.StudentName);
+        Assert.Equal(3, result.Data.TotalSessions);
+        Assert.Equal(1, result.Data.PresentCount);
+        Assert.Equal(1, result.Data.LateCount);
+        Assert.Equal(1, result.Data.AbsentCount);
+        Assert.Equal(0, result.Data.LeaveCount);
         // 出勤率 = (Present + Late) / Total = 2/3 ≈ 66.67%
-        Assert.True(result.AttendanceRate > 66 && result.AttendanceRate < 67);
+        Assert.True(result.Data.AttendanceRate > 66 && result.Data.AttendanceRate < 67);
     }
 
     /// <summary>
@@ -81,20 +93,21 @@ public class StatisticsServiceTests : IDisposable
         await SeedAttendanceDataAsync();
 
         // Act
-        var result = await _statisticsService.GetDepartmentRankingAsync();
+        var result = await _statisticsHandlers.Handle(new GetDepartmentRankingQuery(), CancellationToken.None);
 
         // Assert
-        Assert.NotEmpty(result);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.NotEmpty(result.Data!);
         // 验证按出勤率降序排列
-        for (var i = 1; i < result.Count; i++)
+        for (var i = 1; i < result.Data!.Count; i++)
         {
-            Assert.True(result[i - 1].AttendanceRate >= result[i].AttendanceRate,
-                $"排名应按出勤率降序：第 {i} 名出勤率 {result[i - 1].AttendanceRate} 不应低于第 {i + 1} 名 {result[i].AttendanceRate}");
+            Assert.True(result.Data[i - 1].AttendanceRate >= result.Data[i].AttendanceRate);
         }
         // 验证排名序号从 1 开始递增
-        for (var i = 0; i < result.Count; i++)
+        for (var i = 0; i < result.Data.Count; i++)
         {
-            Assert.Equal(i + 1, result[i].Rank);
+            Assert.Equal(i + 1, result.Data[i].Rank);
         }
     }
 

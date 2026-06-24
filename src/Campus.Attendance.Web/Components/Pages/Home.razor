@@ -15,9 +15,9 @@
     /// 组件初始化时根据 Token 中的角色重定向到对应首页
     /// 未登录则跳转到登录页
     /// </summary>
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        var userInfo = await TokenService.GetUserInfoAsync();
+        var userInfo = TokenService.GetUserInfo();
         if (userInfo is null)
         {
             NavigationManager.NavigateTo("/login", forceLoad: true);

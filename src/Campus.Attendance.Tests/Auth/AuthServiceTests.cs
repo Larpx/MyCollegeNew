@@ -1,112 +1,125 @@
-using Campus.Attendance.Core.Entities;
-using Campus.Attendance.Core.Enums;
-using Campus.Attendance.Models.Auth;
-using Campus.Attendance.Services.Auth;
+using Campus.Attendance.Api.Features.Auth.Login;
+using Campus.Attendance.Shared.Entities;
+using Campus.Attendance.Shared.Enums;
+using Campus.Attendance.Shared.Features.Auth;
+using Campus.Attendance.Shared.Responses;
+using Campus.Attendance.Shared.Security;
+using Campus.Attendance.Infrastructure.Auth;
 using Campus.Attendance.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
+using Moq;
 
 namespace Campus.Attendance.Tests.Auth;
 
 /// <summary>
-/// AuthService 单元测试，使用 SQLite 内存数据库隔离测试
+/// LoginHandler 单元测试，使用 SQLite 内存数据库隔离测试
 /// </summary>
-public class AuthServiceTests : IDisposable
+public class LoginHandlerTests : IDisposable
 {
     private readonly TestDbContext _dbContext;
-    private readonly AuthService _authService;
+    private readonly LoginHandler _loginHandler;
 
     /// <summary>
-    /// 构造函数，初始化测试上下文与 AuthService 实例
+    /// 构造函数，初始化测试上下文与 LoginHandler 实例
     /// </summary>
-    public AuthServiceTests()
+    public LoginHandlerTests()
     {
         _dbContext = new TestDbContext();
         var tokenService = new TokenService(TestJwtConfigFactory.Create(), NullLogger<TokenService>.Instance);
-        _authService = new AuthService(_dbContext, tokenService, NullLogger<AuthService>.Instance);
+        _loginHandler = new LoginHandler(_dbContext, tokenService, NullLogger<LoginHandler>.Instance);
     }
 
     /// <summary>
     /// 管理员使用正确密码登录应返回包含 Token 的 LoginResult
     /// </summary>
     [Fact]
-    public async Task LoginAsync_AdminWithCorrectPassword_ReturnsToken()
+    public async Task Handle_AdminWithCorrectPassword_ReturnsToken()
     {
         // Arrange
         await SeedAdminAsync("admin", "123456");
-
-        // Act
-        var result = await _authService.LoginAsync(new LoginRequest
+        var command = new LoginCommand(new LoginRequest
         {
             Username = "admin",
             Password = "123456"
         });
 
+        // Act
+        var result = await _loginHandler.Handle(command, CancellationToken.None);
+
         // Assert
-        Assert.NotNull(result);
-        Assert.False(string.IsNullOrEmpty(result!.Token));
-        Assert.Equal("admin", result.UserId);
-        Assert.Equal(UserRole.Admin.ToString(), result.Role);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.False(string.IsNullOrEmpty(result.Data!.Token));
+        Assert.Equal("admin", result.Data.UserId);
+        Assert.Equal(UserRole.Admin.ToString(), result.Data.Role);
     }
 
     /// <summary>
-    /// 管理员使用错误密码登录应返回 null
+    /// 管理员使用错误密码登录应返回失败响应
     /// </summary>
     [Fact]
-    public async Task LoginAsync_AdminWithWrongPassword_ReturnsNull()
+    public async Task Handle_AdminWithWrongPassword_ReturnsFail()
     {
         // Arrange
         await SeedAdminAsync("admin", "123456");
-
-        // Act
-        var result = await _authService.LoginAsync(new LoginRequest
+        var command = new LoginCommand(new LoginRequest
         {
             Username = "admin",
             Password = "wrong"
         });
 
+        // Act
+        var result = await _loginHandler.Handle(command, CancellationToken.None);
+
         // Assert
-        Assert.Null(result);
+        Assert.Equal(401, result.Code);
+        Assert.Null(result.Data);
     }
 
     /// <summary>
-    /// 不存在的用户登录应返回 null
+    /// 不存在的用户登录应返回失败响应
     /// </summary>
     [Fact]
-    public async Task LoginAsync_NonExistentUser_ReturnsNull()
+    public async Task Handle_NonExistentUser_ReturnsFail()
     {
-        // Act
-        var result = await _authService.LoginAsync(new LoginRequest
+        // Arrange
+        var command = new LoginCommand(new LoginRequest
         {
             Username = "ghost",
             Password = "123456"
         });
 
+        // Act
+        var result = await _loginHandler.Handle(command, CancellationToken.None);
+
         // Assert
-        Assert.Null(result);
+        Assert.Equal(401, result.Code);
+        Assert.Null(result.Data);
     }
 
     /// <summary>
     /// 学生使用正确密码登录应返回 Student 角色
     /// </summary>
     [Fact]
-    public async Task LoginAsync_StudentWithCorrectPassword_ReturnsStudentRole()
+    public async Task Handle_StudentWithCorrectPassword_ReturnsStudentRole()
     {
         // Arrange
         await SeedStudentAsync("20220101", "220101");
-
-        // Act
-        var result = await _authService.LoginAsync(new LoginRequest
+        var command = new LoginCommand(new LoginRequest
         {
             Username = "20220101",
             Password = "220101"
         });
 
+        // Act
+        var result = await _loginHandler.Handle(command, CancellationToken.None);
+
         // Assert
-        Assert.NotNull(result);
-        Assert.False(string.IsNullOrEmpty(result!.Token));
-        Assert.Equal("20220101", result.UserId);
-        Assert.Equal(UserRole.Student.ToString(), result.Role);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.False(string.IsNullOrEmpty(result.Data!.Token));
+        Assert.Equal("20220101", result.Data.UserId);
+        Assert.Equal(UserRole.Student.ToString(), result.Data.Role);
     }
 
     /// <summary>

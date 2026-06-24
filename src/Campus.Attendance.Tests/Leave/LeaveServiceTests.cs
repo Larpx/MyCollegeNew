@@ -1,30 +1,30 @@
-using Campus.Attendance.Core.Entities;
-using Campus.Attendance.Core.Enums;
-using Campus.Attendance.Core.Exceptions;
-using Campus.Attendance.Models.Leave;
-using Campus.Attendance.Services.Leave;
+using Campus.Attendance.Api.Features.Leave;
+using Campus.Attendance.Shared.Entities;
+using Campus.Attendance.Shared.Enums;
+using Campus.Attendance.Shared.Exceptions;
+using Campus.Attendance.Shared.Features.Leave;
+using Campus.Attendance.Shared.Responses;
 using Campus.Attendance.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using SqlSugar;
-using Xunit;
 
 namespace Campus.Attendance.Tests.Leave;
 
 /// <summary>
-/// LeaveService 单元测试，覆盖请假申请、审批通过/驳回、审批后考勤记录联动更新、待审批数量统计等场景
+/// LeaveHandlers 单元测试，覆盖请假申请、审批通过/驳回、审批后考勤记录联动更新、待审批数量统计等场景
 /// </summary>
-public class LeaveServiceTests : IDisposable
+public class LeaveHandlersTests : IDisposable
 {
     private readonly TestDbContext _dbContext;
-    private readonly LeaveService _leaveService;
+    private readonly LeaveHandlers _leaveHandlers;
 
     /// <summary>
-    /// 构造函数，初始化测试上下文与 LeaveService 实例
+    /// 构造函数，初始化测试上下文与 LeaveHandlers 实例
     /// </summary>
-    public LeaveServiceTests()
+    public LeaveHandlersTests()
     {
         _dbContext = new TestDbContext();
-        _leaveService = new LeaveService(_dbContext, NullLogger<LeaveService>.Instance);
+        _leaveHandlers = new LeaveHandlers(_dbContext, NullLogger<LeaveHandlers>.Instance);
     }
 
     /// <summary>
@@ -44,15 +44,17 @@ public class LeaveServiceTests : IDisposable
         };
 
         // Act
-        var result = await _leaveService.CreateLeaveAsync(dto, "S001");
+        var result = await _leaveHandlers.Handle(new CreateLeaveCommand(dto, "S001"), CancellationToken.None);
 
         // Assert
-        Assert.True(result.Id > 0);
-        Assert.Equal("S001", result.StudentId);
-        Assert.Equal("李同学", result.StudentName);
-        Assert.Equal("T002", result.CounselorId);
-        Assert.Equal(LeaveStatus.Pending, result.Status);
-        Assert.Equal(LeaveType.Sick, result.LeaveType);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.True(result.Data!.Id > 0);
+        Assert.Equal("S001", result.Data.StudentId);
+        Assert.Equal("李同学", result.Data.StudentName);
+        Assert.Equal("T002", result.Data.CounselorId);
+        Assert.Equal(LeaveStatus.Pending, result.Data.Status);
+        Assert.Equal(LeaveType.Sick, result.Data.LeaveType);
     }
 
     /// <summary>
@@ -67,12 +69,14 @@ public class LeaveServiceTests : IDisposable
         var reviewDto = new LeaveReviewDto { ReviewRemark = "同意请假" };
 
         // Act
-        var result = await _leaveService.ApproveLeaveAsync(leaveId, "T002", reviewDto);
+        var result = await _leaveHandlers.Handle(new ApproveLeaveCommand(leaveId, "T002", reviewDto), CancellationToken.None);
 
         // Assert
-        Assert.Equal(LeaveStatus.Approved, result.Status);
-        Assert.Equal("同意请假", result.ReviewRemark);
-        Assert.NotNull(result.ReviewTime);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.Equal(LeaveStatus.Approved, result.Data!.Status);
+        Assert.Equal("同意请假", result.Data.ReviewRemark);
+        Assert.NotNull(result.Data.ReviewTime);
     }
 
     /// <summary>
@@ -92,7 +96,7 @@ public class LeaveServiceTests : IDisposable
         var leaveId = await CreateLeaveAsync(sessionStartTime.AddHours(-1), sessionStartTime.AddHours(1));
 
         // Act
-        await _leaveService.ApproveLeaveAsync(leaveId, "T002", new LeaveReviewDto { ReviewRemark = "同意" });
+        await _leaveHandlers.Handle(new ApproveLeaveCommand(leaveId, "T002", new LeaveReviewDto { ReviewRemark = "同意" }), CancellationToken.None);
 
         // Assert - 考勤记录应被联动更新为 Leave
         var record = await _dbContext.Client.Queryable<AttendanceRecord>()
@@ -114,13 +118,14 @@ public class LeaveServiceTests : IDisposable
         await CreateLeaveAsync();
         // 第三条请假审批通过，不计入待审批数
         var approvedId = await CreateLeaveAsync();
-        await _leaveService.ApproveLeaveAsync(approvedId, "T002", new LeaveReviewDto());
+        await _leaveHandlers.Handle(new ApproveLeaveCommand(approvedId, "T002", new LeaveReviewDto()), CancellationToken.None);
 
         // Act
-        var count = await _leaveService.GetPendingLeavesCountAsync("T002");
+        var result = await _leaveHandlers.Handle(new GetPendingLeavesCountQuery("T002"), CancellationToken.None);
 
         // Assert
-        Assert.Equal(2, count);
+        Assert.Equal(200, result.Code);
+        Assert.Equal(2, result.Data);
     }
 
     /// <summary>
@@ -135,30 +140,34 @@ public class LeaveServiceTests : IDisposable
         var reviewDto = new LeaveReviewDto { ReviewRemark = "事由不充分" };
 
         // Act
-        var result = await _leaveService.RejectLeaveAsync(leaveId, "T002", reviewDto);
+        var result = await _leaveHandlers.Handle(new RejectLeaveCommand(leaveId, "T002", reviewDto), CancellationToken.None);
 
         // Assert
-        Assert.Equal(LeaveStatus.Rejected, result.Status);
-        Assert.Equal("事由不充分", result.ReviewRemark);
-        Assert.NotNull(result.ReviewTime);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.Equal(LeaveStatus.Rejected, result.Data!.Status);
+        Assert.Equal("事由不充分", result.Data.ReviewRemark);
+        Assert.NotNull(result.Data.ReviewTime);
     }
 
     /// <summary>
-    /// 重复审批已通过的请假申请应抛出 BusinessException
+    /// 重复审批已通过的请假申请应返回失败响应
     /// </summary>
     [Fact]
-    public async Task ApproveLeaveAsync_AlreadyApproved_ThrowsBusinessException()
+    public async Task ApproveLeaveAsync_AlreadyApproved_ReturnsFail()
     {
         // Arrange
         await SeedReferenceDataAsync();
         var leaveId = await CreateLeaveAsync();
         // 第一次审批通过
-        await _leaveService.ApproveLeaveAsync(leaveId, "T002", new LeaveReviewDto { ReviewRemark = "同意" });
+        await _leaveHandlers.Handle(new ApproveLeaveCommand(leaveId, "T002", new LeaveReviewDto { ReviewRemark = "同意" }), CancellationToken.None);
 
-        // Act & Assert - 重复审批应抛出异常
-        var ex = await Assert.ThrowsAsync<BusinessException>(() =>
-            _leaveService.ApproveLeaveAsync(leaveId, "T002", new LeaveReviewDto { ReviewRemark = "再次审批" }));
-        Assert.Contains("已审批", ex.Message);
+        // Act - 重复审批应返回失败
+        var result = await _leaveHandlers.Handle(new ApproveLeaveCommand(leaveId, "T002", new LeaveReviewDto { ReviewRemark = "再次审批" }), CancellationToken.None);
+
+        // Assert
+        Assert.Equal(400, result.Code);
+        Assert.Contains("已审批", result.Message);
     }
 
     /// <summary>
@@ -172,8 +181,8 @@ public class LeaveServiceTests : IDisposable
         var leaveId = await CreateLeaveAsync();
 
         // Act & Assert - T001 不是该请假的辅导员，应抛出异常
-        var ex = await Assert.ThrowsAsync<BusinessException>(() =>
-            _leaveService.ApproveLeaveAsync(leaveId, "T001", new LeaveReviewDto { ReviewRemark = "越权审批" }));
+        var act = () => _leaveHandlers.Handle(new ApproveLeaveCommand(leaveId, "T001", new LeaveReviewDto { ReviewRemark = "越权审批" }), CancellationToken.None);
+        var ex = await Assert.ThrowsAsync<BusinessException>(act);
         Assert.Contains("自己", ex.Message);
     }
 
@@ -251,8 +260,8 @@ public class LeaveServiceTests : IDisposable
             LeaveType = LeaveType.Personal,
             Reason = "家中有事"
         };
-        var leave = await _leaveService.CreateLeaveAsync(dto, "S001");
-        return leave.Id;
+        var result = await _leaveHandlers.Handle(new CreateLeaveCommand(dto, "S001"), CancellationToken.None);
+        return result.Data!.Id;
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 @page "/login"
 @layout LoginLayout
-@using Campus.Attendance.Models.Auth
+@rendermode InteractiveServer
+@using Campus.Attendance.Shared.Features.Auth
 @inject IApiClient ApiClient
 @inject TokenService TokenService
 @inject CustomAuthStateProvider AuthStateProvider
@@ -82,7 +83,7 @@
     }
 
     /// <summary>
-    /// 处理登录：调用后端登录接口，存储 Token，更新认证状态，根据角色重定向
+    /// 处理登录：调用后端登录接口，存储 Token 到 HttpOnly Cookie，更新认证状态，根据角色重定向
     /// </summary>
     private async Task HandleLogin()
     {
@@ -99,8 +100,8 @@
                 return;
             }
 
-            // 存储 Token 到 localStorage
-            await TokenService.SetTokenAsync(result.Token);
+            // 存储 Token 到 HttpOnly Cookie（服务端设置，JS 无法读取）
+            TokenService.SetToken(result.Token);
 
             // 通知认证状态变更
             AuthStateProvider.NotifyUserLogin(new UserInfo(result.UserId, result.UserName, result.Role));

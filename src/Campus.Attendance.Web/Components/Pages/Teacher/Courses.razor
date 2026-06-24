@@ -1,8 +1,9 @@
 @page "/teacher/courses"
 @layout TeacherLayout
 @attribute [Authorize]
-@using Campus.Attendance.Models.Courses
-@using Campus.Attendance.Models.Organization
+@rendermode InteractiveServer
+@using Campus.Attendance.Shared.Features.Courses
+@using Campus.Attendance.Shared.Features.Organization
 @inject IApiClient ApiClient
 @inject TokenService TokenService
 @inject NavigationManager NavigationManager
@@ -174,7 +175,7 @@ else if (_activeTab == "schedule")
     /// <summary>页面初始化</summary>
     protected override async Task OnInitializedAsync()
     {
-        var userInfo = await TokenService.GetUserInfoAsync();
+        var userInfo = TokenService.GetUserInfo();
         if (userInfo is null)
         {
             NavigationManager.NavigateTo("/login", forceLoad: true);

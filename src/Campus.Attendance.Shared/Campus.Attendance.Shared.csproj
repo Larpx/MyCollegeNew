@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="SqlSugarCore" Version="5.1.4.215" />
+  </ItemGroup>
+</Project>

@@ -1,7 +1,8 @@
 @page "/student/schedule"
 @layout StudentLayout
 @attribute [Authorize(Roles = "Student")]
-@using Campus.Attendance.Models.Courses
+@rendermode InteractiveServer
+@using Campus.Attendance.Shared.Features.Courses
 @inject IApiClient ApiClient
 @inject TokenService TokenService
 @inject NavigationManager NavigationManager
@@ -98,7 +99,7 @@ else if (_weeklySchedule is not null)
     /// </summary>
     protected override async Task OnInitializedAsync()
     {
-        var userInfo = await TokenService.GetUserInfoAsync();
+        var userInfo = TokenService.GetUserInfo();
         if (userInfo is null)
         {
             NavigationManager.NavigateTo("/login", forceLoad: true);

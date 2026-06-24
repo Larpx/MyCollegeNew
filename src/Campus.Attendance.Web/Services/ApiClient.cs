@@ -1,11 +1,11 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using Campus.Attendance.Core.Constants;
-using Campus.Attendance.Core.Responses;
+using Campus.Attendance.Shared.Constants;
+using Campus.Attendance.Shared.Responses;
 using Microsoft.AspNetCore.Components;
-using Microsoft.JSInterop;
 
-using Msg = Campus.Attendance.Core.Constants.MessageConstants;
+using Msg = Campus.Attendance.Shared.Constants.MessageConstants;
 
 namespace Campus.Attendance.Web.Services;
 
@@ -31,28 +31,25 @@ public class ApiException : Exception
 }
 
 /// <summary>
-/// API 客户端实现：封装 HttpClient，自动附加 JWT Token、反序列化 ApiResponse&lt;T&gt;
+/// API 客户端实现：通过 HttpOnly Cookie 读取 JWT 并附加到 API 请求头
 /// 401 跳转登录页，403 提示无权限
 /// </summary>
 public class ApiClient : IApiClient
 {
     private readonly HttpClient _httpClient;
-    private readonly IJSRuntime _jsRuntime;
+    private readonly TokenService _tokenService;
     private readonly NavigationManager _navigationManager;
     private readonly ILogger<ApiClient> _logger;
 
-    /// <summary>localStorage 中存储 Token 的键名</summary>
-    private const string TokenKey = "campus_token";
-
-    /// <summary>构造函数，依赖注入 HttpClient、JSRuntime、NavigationManager、Logger</summary>
+    /// <summary>构造函数，依赖注入 HttpClient、TokenService、NavigationManager、Logger</summary>
     /// <param name="httpClient">已配置 BaseAddress 的 HttpClient</param>
-    /// <param name="jsRuntime">JS 运行时，用于读取 localStorage</param>
+    /// <param name="tokenService">Cookie-based Token 服务</param>
     /// <param name="navigationManager">导航管理器，用于 401 跳转</param>
     /// <param name="logger">日志记录器</param>
-    public ApiClient(HttpClient httpClient, IJSRuntime jsRuntime, NavigationManager navigationManager, ILogger<ApiClient> logger)
+    public ApiClient(HttpClient httpClient, TokenService tokenService, NavigationManager navigationManager, ILogger<ApiClient> logger)
     {
         _httpClient = httpClient;
-        _jsRuntime = jsRuntime;
+        _tokenService = tokenService;
         _navigationManager = navigationManager;
         _logger = logger;
     }
@@ -96,9 +93,9 @@ public class ApiClient : IApiClient
     /// <inheritdoc />
     public async Task<byte[]> DownloadFileAsync(string url, CancellationToken cancellationToken = default)
     {
-        using var request = await CreateAuthenticatedRequestAsync(HttpMethod.Get, url, cancellationToken);
+        using var request = CreateAuthenticatedRequest(HttpMethod.Get, url);
         var response = await SendRequestAsync(request, url, cancellationToken);
-        await HandleAuthErrors(response, url);
+        HandleAuthErrors(response, url);
         if (!response.IsSuccessStatusCode)
         {
             throw new ApiException(response.StatusCode, Msg.Common.DownloadFailed);
@@ -111,10 +108,10 @@ public class ApiClient : IApiClient
     /// </summary>
     private async Task<T?> SendFormAsync<T>(HttpMethod method, string url, MultipartFormDataContent content, CancellationToken cancellationToken)
     {
-        using var request = await CreateAuthenticatedRequestAsync(method, url, cancellationToken);
+        using var request = CreateAuthenticatedRequest(method, url);
         request.Content = content;
         var response = await SendRequestAsync(request, url, cancellationToken);
-        await HandleAuthErrors(response, url);
+        HandleAuthErrors(response, url);
         return await DeserializeApiResponseAsync<T>(response, url, cancellationToken);
     }
 
@@ -123,26 +120,26 @@ public class ApiClient : IApiClient
     /// </summary>
     private async Task<T?> SendAsync<T>(HttpMethod method, string url, object? body, CancellationToken cancellationToken)
     {
-        using var request = await CreateAuthenticatedRequestAsync(method, url, cancellationToken);
+        using var request = CreateAuthenticatedRequest(method, url);
         if (body is not null)
         {
             request.Content = JsonContent.Create(body);
         }
         var response = await SendRequestAsync(request, url, cancellationToken);
-        await HandleAuthErrors(response, url);
+        HandleAuthErrors(response, url);
         return await DeserializeApiResponseAsync<T>(response, url, cancellationToken);
     }
 
     /// <summary>
-    /// 创建已附加 JWT Token 的 HttpRequestMessage
+    /// 创建已附加 JWT Token 的 HttpRequestMessage（从 HttpOnly Cookie 读取）
     /// </summary>
-    private async Task<HttpRequestMessage> CreateAuthenticatedRequestAsync(HttpMethod method, string url, CancellationToken cancellationToken)
+    private HttpRequestMessage CreateAuthenticatedRequest(HttpMethod method, string url)
     {
         var request = new HttpRequestMessage(method, url);
-        var token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", cancellationToken, TokenKey);
+        var token = _tokenService.GetToken();
         if (!string.IsNullOrWhiteSpace(token))
         {
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         }
         return request;
     }
@@ -166,11 +163,11 @@ public class ApiClient : IApiClient
     /// <summary>
     /// 处理 401/403 认证与授权错误
     /// </summary>
-    private async Task HandleAuthErrors(HttpResponseMessage response, string url)
+    private void HandleAuthErrors(HttpResponseMessage response, string url)
     {
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
-            await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", TokenKey);
+            _tokenService.RemoveToken();
             _logger.LogWarning("API 返回 401 未认证：{Url}", url);
             _navigationManager.NavigateTo("/login", forceLoad: true);
             throw new ApiException(HttpStatusCode.Unauthorized, Msg.Common.TokenExpired);

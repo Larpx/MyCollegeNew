@@ -88,7 +88,7 @@
     };
 
     /// <summary>
-    /// 处理登出：清除 Token、通知认证状态变更、重定向到登录页
+    /// 处理登出：清除 HttpOnly Cookie、通知认证状态变更、重定向到登录页
     /// </summary>
     private async Task HandleLogout()
     {
@@ -102,7 +102,7 @@
             // 登出失败不阻断前端登出流程
         }
 
-        await TokenService.RemoveTokenAsync();
+        TokenService.RemoveToken();
         AuthStateProvider.NotifyUserLogout();
         NavigationManager.NavigateTo("/login", forceLoad: true);
     }

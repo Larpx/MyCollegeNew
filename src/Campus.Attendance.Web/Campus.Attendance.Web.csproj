@@ -1,9 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
-    <ProjectReference Include="..\Campus.Attendance.Core\Campus.Attendance.Core.csproj" />
-    <ProjectReference Include="..\Campus.Attendance.Models\Campus.Attendance.Models.csproj" />
-    <ProjectReference Include="..\Campus.Attendance.Services\Campus.Attendance.Services.csproj" />
+    <ProjectReference Include="..\Campus.Attendance.Shared\Campus.Attendance.Shared.csproj" />
+    <ProjectReference Include="..\Campus.Attendance.Infrastructure\Campus.Attendance.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
   </ItemGroup>
 
   <PropertyGroup>

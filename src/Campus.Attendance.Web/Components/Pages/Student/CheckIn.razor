@@ -1,9 +1,10 @@
 @page "/student/checkin"
 @layout StudentLayout
 @attribute [Authorize(Roles = "Student")]
+@rendermode InteractiveServer
 @using System.IdentityModel.Tokens.Jwt
-@using Campus.Attendance.Core.Enums
-@using Campus.Attendance.Models.Attendance
+@using Campus.Attendance.Shared.Enums
+@using Campus.Attendance.Shared.Features.Attendance
 @inject IApiClient ApiClient
 @inject TokenService TokenService
 @inject NavigationManager NavigationManager
@@ -78,9 +79,9 @@
     /// <summary>
     /// 页面初始化：获取当前学生学号
     /// </summary>
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        var userInfo = await TokenService.GetUserInfoAsync();
+        var userInfo = TokenService.GetUserInfo();
         if (userInfo is null)
         {
             NavigationManager.NavigateTo("/login", forceLoad: true);

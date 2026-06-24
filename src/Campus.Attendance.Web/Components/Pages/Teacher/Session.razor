@@ -2,8 +2,9 @@
 @page "/teacher/session/new"
 @layout TeacherLayout
 @attribute [Authorize]
-@using Campus.Attendance.Core.Enums
-@using Campus.Attendance.Models.Attendance
+@rendermode InteractiveServer
+@using Campus.Attendance.Shared.Enums
+@using Campus.Attendance.Shared.Features.Attendance
 @inject IApiClient ApiClient
 @inject TokenService TokenService
 @inject IJSRuntime JSRuntime

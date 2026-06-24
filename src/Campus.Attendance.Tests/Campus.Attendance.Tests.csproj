@@ -22,9 +22,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Campus.Attendance.Core\Campus.Attendance.Core.csproj" />
-    <ProjectReference Include="..\Campus.Attendance.Models\Campus.Attendance.Models.csproj" />
-    <ProjectReference Include="..\Campus.Attendance.Services\Campus.Attendance.Services.csproj" />
+    <ProjectReference Include="..\Campus.Attendance.Shared\Campus.Attendance.Shared.csproj" />
+    <ProjectReference Include="..\Campus.Attendance.Infrastructure\Campus.Attendance.Infrastructure.csproj" />
+    <ProjectReference Include="..\Campus.Attendance.Api\Campus.Attendance.Api.csproj" />
   </ItemGroup>
 
 </Project>

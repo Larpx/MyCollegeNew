@@ -1,40 +1,41 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using Campus.Attendance.Core.Constants;
-using Campus.Attendance.Core.Entities;
-using Campus.Attendance.Core.Enums;
-using Campus.Attendance.Core.Exceptions;
-using Campus.Attendance.Core.Security;
-using Campus.Attendance.Models.Attendance;
-using Campus.Attendance.Services.Attendance;
+using System.Security.Claims;
+using System.Text;
+using Campus.Attendance.Api.Features.Attendance;
+using Campus.Attendance.Shared.Security;
+using Campus.Attendance.Shared.Constants;
+using Campus.Attendance.Shared.Entities;
+using Campus.Attendance.Shared.Enums;
+using Campus.Attendance.Shared.Exceptions;
+using Campus.Attendance.Shared.Features.Attendance;
+using Campus.Attendance.Shared.Responses;
 using Campus.Attendance.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using SqlSugar;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 
 namespace Campus.Attendance.Tests.Attendance;
 
 /// <summary>
-/// AttendanceService 单元测试，覆盖签到状态判定、重复签到、过期令牌、一键点名、随机点名等场景
+/// AttendanceHandlers 单元测试，覆盖签到状态判定、重复签到、过期令牌、一键点名、随机点名等场景
 /// </summary>
-public class AttendanceServiceTests : IDisposable
+public class AttendanceHandlersTests : IDisposable
 {
     private readonly TestDbContext _dbContext;
-    private readonly AttendanceService _attendanceService;
+    private readonly AttendanceHandlers _attendanceHandlers;
     private readonly IOptions<JwtConfig> _jwtConfig;
 
     /// <summary>
-    /// 构造函数，初始化测试上下文与 AttendanceService 实例
+    /// 构造函数，初始化测试上下文与 AttendanceHandlers 实例
     /// </summary>
-    public AttendanceServiceTests()
+    public AttendanceHandlersTests()
     {
         _dbContext = new TestDbContext();
         _jwtConfig = TestJwtConfigFactory.Create();
-        _attendanceService = new AttendanceService(_dbContext, _jwtConfig, NullLogger<AttendanceService>.Instance);
+        _attendanceHandlers = new AttendanceHandlers(_dbContext, _jwtConfig, NullLogger<AttendanceHandlers>.Instance);
     }
 
     /// <summary>
@@ -49,11 +50,13 @@ public class AttendanceServiceTests : IDisposable
         var token = await GenerateValidQrTokenAsync(sessionId);
 
         // Act
-        var result = await _attendanceService.CheckInAsync(sessionId, token, "S001");
+        var result = await _attendanceHandlers.Handle(new CheckInCommand(sessionId, token, "S001"), CancellationToken.None);
 
         // Assert
-        Assert.Equal(AttendanceStatus.Present, result.Status);
-        Assert.Contains("签到成功", result.Message);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.Equal(AttendanceStatus.Present, result.Data!.Status);
+        Assert.Contains("签到成功", result.Data.Message);
     }
 
     /// <summary>
@@ -69,18 +72,20 @@ public class AttendanceServiceTests : IDisposable
         var token = await GenerateValidQrTokenAsync(sessionId);
 
         // Act
-        var result = await _attendanceService.CheckInAsync(sessionId, token, "S001");
+        var result = await _attendanceHandlers.Handle(new CheckInCommand(sessionId, token, "S001"), CancellationToken.None);
 
         // Assert
-        Assert.Equal(AttendanceStatus.Late, result.Status);
-        Assert.Contains("迟到", result.Message);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.Equal(AttendanceStatus.Late, result.Data!.Status);
+        Assert.Contains("迟到", result.Data.Message);
     }
 
     /// <summary>
-    /// 使用过期令牌签到应抛出 BusinessException
+    /// 使用过期令牌签到应返回失败响应
     /// </summary>
     [Fact]
-    public async Task CheckInAsync_ExpiredToken_ThrowsBusinessException()
+    public async Task CheckInAsync_ExpiredToken_ReturnsFail()
     {
         // Arrange
         await SeedReferenceDataAsync();
@@ -88,17 +93,19 @@ public class AttendanceServiceTests : IDisposable
         // 生成已过期的令牌（签发时间为 2 分钟前，已超过 30 秒有效期）
         var expiredToken = GenerateCustomToken(sessionId, DateTime.UtcNow.AddMinutes(-2));
 
-        // Act & Assert
-        var ex = await Assert.ThrowsAsync<BusinessException>(() =>
-            _attendanceService.CheckInAsync(sessionId, expiredToken, "S001"));
-        Assert.Contains("过期", ex.Message);
+        // Act
+        var result = await _attendanceHandlers.Handle(new CheckInCommand(sessionId, expiredToken, "S001"), CancellationToken.None);
+
+        // Assert
+        Assert.Equal(400, result.Code);
+        Assert.Contains("过期", result.Message);
     }
 
     /// <summary>
-    /// 重复签到应抛出 BusinessException
+    /// 重复签到应返回失败响应
     /// </summary>
     [Fact]
-    public async Task CheckInAsync_DuplicateCheckIn_ThrowsBusinessException()
+    public async Task CheckInAsync_DuplicateCheckIn_ReturnsFail()
     {
         // Arrange
         await SeedReferenceDataAsync();
@@ -106,12 +113,14 @@ public class AttendanceServiceTests : IDisposable
         var token = await GenerateValidQrTokenAsync(sessionId);
 
         // 第一次签到成功
-        await _attendanceService.CheckInAsync(sessionId, token, "S001");
+        await _attendanceHandlers.Handle(new CheckInCommand(sessionId, token, "S001"), CancellationToken.None);
 
-        // Act & Assert - 第二次签到应抛出异常
-        var ex = await Assert.ThrowsAsync<BusinessException>(() =>
-            _attendanceService.CheckInAsync(sessionId, token, "S001"));
-        Assert.Contains("重复", ex.Message);
+        // Act - 第二次签到应返回失败
+        var result = await _attendanceHandlers.Handle(new CheckInCommand(sessionId, token, "S001"), CancellationToken.None);
+
+        // Assert
+        Assert.Equal(400, result.Code);
+        Assert.Contains("重复", result.Message);
     }
 
     /// <summary>
@@ -125,16 +134,17 @@ public class AttendanceServiceTests : IDisposable
         var sessionId = await CreateSessionAsync(DateTime.UtcNow);
 
         // Act
-        var count = await _attendanceService.RollCallAllPresentAsync(sessionId, "T001");
+        var result = await _attendanceHandlers.Handle(new RollCallCommand(sessionId, "T001"), CancellationToken.None);
 
         // Assert - 班级中有 2 名学生（S001、S002），均未签到
-        Assert.Equal(2, count);
+        Assert.Equal(200, result.Code);
+        Assert.Equal(2, result.Data);
 
         var records = await _dbContext.Client.Queryable<AttendanceRecord>()
             .Where(r => r.SessionId == sessionId)
             .ToListAsync();
         Assert.Equal(2, records.Count);
-        Assert.All(records, r => Assert.Equal(AttendanceStatus.Present, r.Status));
+        Assert.True(records.All(r => r.Status == AttendanceStatus.Present));
     }
 
     /// <summary>
@@ -147,64 +157,53 @@ public class AttendanceServiceTests : IDisposable
         await SeedReferenceDataAsync();
 
         // Act
-        var result = await _attendanceService.RandomPickAsync(1);
+        var result = await _attendanceHandlers.Handle(new RandomPickQuery(1, null), CancellationToken.None);
 
         // Assert
-        Assert.Equal(1, result.ClassId);
-        Assert.False(string.IsNullOrEmpty(result.StudentId));
-        Assert.False(string.IsNullOrEmpty(result.StudentName));
-        Assert.False(string.IsNullOrEmpty(result.ClassName));
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.Equal(1, result.Data!.ClassId);
+        Assert.False(string.IsNullOrEmpty(result.Data.StudentId));
+        Assert.False(string.IsNullOrEmpty(result.Data.StudentName));
+        Assert.False(string.IsNullOrEmpty(result.Data.ClassName));
 
         // 验证返回的学生确实属于该班级
         var student = await _dbContext.Client.Queryable<Student>()
-            .FirstAsync(s => s.Id == result.StudentId);
+            .FirstAsync(s => s.Id == result.Data.StudentId);
         Assert.NotNull(student);
         Assert.Equal(1, student!.ClassId);
     }
 
     /// <summary>
-    /// 标记随机点名结果 - 已回答应返回 Task.CompletedTask 且不产生异步状态机开销
+    /// 标记随机点名结果应返回成功响应
     /// </summary>
     [Fact]
-    public async Task MarkRandomPickResultAsync_AnsweredTrue_ReturnsCompletedTask()
+    public async Task MarkRandomPickResultAsync_AnsweredTrue_ReturnsSuccess()
     {
         // Arrange
         await SeedReferenceDataAsync();
 
         // Act
-        var task = _attendanceService.MarkRandomPickResultAsync(1, "S001", answered: true);
+        var result = await _attendanceHandlers.Handle(new MarkRandomPickCommand(1, "S001", Answered: true), CancellationToken.None);
 
-        // Assert - 应返回已完成的 Task（非异步状态机生成）
-        Assert.True(task.IsCompleted);
-        Assert.Equal(Task.CompletedTask, task);
-        // 验证方法不包含异步状态机标记（同步返回 Task.CompletedTask）
-        var method = typeof(AttendanceService).GetMethod(nameof(AttendanceService.MarkRandomPickResultAsync));
-        Assert.NotNull(method);
-        var asyncAttr = method!.GetCustomAttribute<AsyncMethodBuilderAttribute>();
-        // 同步返回 Task 的方法不应有 AsyncStateMachine 属性
-        Assert.False(method.GetCustomAttributes<AsyncStateMachineAttribute>().Any(),
-            "MarkRandomPickResultAsync 不应包含 AsyncStateMachine 属性，应同步返回 Task.CompletedTask");
-
-        await task;
+        // Assert
+        Assert.Equal(200, result.Code);
     }
 
     /// <summary>
-    /// 标记随机点名结果 - 未回答应返回 Task.CompletedTask
+    /// 标记随机点名结果 - 未回答也应返回成功响应
     /// </summary>
     [Fact]
-    public async Task MarkRandomPickResultAsync_AnsweredFalse_ReturnsCompletedTask()
+    public async Task MarkRandomPickResultAsync_AnsweredFalse_ReturnsSuccess()
     {
         // Arrange
         await SeedReferenceDataAsync();
 
         // Act
-        var task = _attendanceService.MarkRandomPickResultAsync(1, "S001", answered: false);
+        var result = await _attendanceHandlers.Handle(new MarkRandomPickCommand(1, "S001", Answered: false), CancellationToken.None);
 
-        // Assert - 未回答也应返回已完成的 Task
-        Assert.True(task.IsCompleted);
-        Assert.Equal(Task.CompletedTask, task);
-
-        await task;
+        // Assert
+        Assert.Equal(200, result.Code);
     }
 
     /// <summary>
@@ -220,11 +219,13 @@ public class AttendanceServiceTests : IDisposable
         var token = await GenerateValidQrTokenAsync(sessionId);
 
         // Act
-        var result = await _attendanceService.CheckInAsync(sessionId, token, "S001");
+        var result = await _attendanceHandlers.Handle(new CheckInCommand(sessionId, token, "S001"), CancellationToken.None);
 
         // Assert
-        Assert.Equal(AttendanceStatus.Absent, result.Status);
-        Assert.Contains("缺勤", result.Message);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.Equal(AttendanceStatus.Absent, result.Data!.Status);
+        Assert.Contains("缺勤", result.Data.Message);
     }
 
     /// <summary>
@@ -238,14 +239,16 @@ public class AttendanceServiceTests : IDisposable
         var sessionId = await CreateSessionAsync(DateTime.UtcNow);
 
         // Act
-        await _attendanceService.CloseSessionAsync(sessionId, "T001");
+        var result = await _attendanceHandlers.Handle(new CloseSessionCommand(sessionId, "T001"), CancellationToken.None);
 
         // Assert - 班级中有 2 名学生，均未签到，应生成 2 条缺勤记录
+        Assert.Equal(200, result.Code);
+
         var records = await _dbContext.Client.Queryable<AttendanceRecord>()
             .Where(r => r.SessionId == sessionId)
             .ToListAsync();
         Assert.Equal(2, records.Count);
-        Assert.All(records, r => Assert.Equal(AttendanceStatus.Absent, r.Status));
+        Assert.True(records.All(r => r.Status == AttendanceStatus.Absent));
 
         // 验证会话状态已关闭
         var session = await _dbContext.Client.Queryable<AttendanceSession>()
@@ -264,27 +267,32 @@ public class AttendanceServiceTests : IDisposable
         var sessionId = await CreateSessionAsync(DateTime.UtcNow);
 
         // Act
-        var result = await _attendanceService.ManualCheckInAsync(sessionId, "S001", AttendanceStatus.Present, "T001");
+        var result = await _attendanceHandlers.Handle(
+            new ManualCheckInCommand(sessionId, "S001", AttendanceStatus.Present, "T001"), CancellationToken.None);
 
         // Assert
-        Assert.Equal("S001", result.StudentId);
-        Assert.Equal(AttendanceStatus.Present, result.Status);
-        Assert.Equal("手动补签", result.Remark);
+        Assert.Equal(200, result.Code);
+        Assert.NotNull(result.Data);
+        Assert.Equal("S001", result.Data!.StudentId);
+        Assert.Equal(AttendanceStatus.Present, result.Data.Status);
+        Assert.Contains("手动补签", result.Data.Remark);
     }
 
     /// <summary>
-    /// 不存在的班级随机点名应抛出 BusinessException
+    /// 不存在的班级随机点名应返回失败响应
     /// </summary>
     [Fact]
-    public async Task RandomPickAsync_NonExistentClass_ThrowsBusinessException()
+    public async Task RandomPickAsync_NonExistentClass_ReturnsFail()
     {
         // Arrange
         await SeedReferenceDataAsync();
 
-        // Act & Assert
-        var ex = await Assert.ThrowsAsync<BusinessException>(() =>
-            _attendanceService.RandomPickAsync(999));
-        Assert.Contains("不存在", ex.Message);
+        // Act
+        var result = await _attendanceHandlers.Handle(new RandomPickQuery(999, null), CancellationToken.None);
+
+        // Assert
+        Assert.Equal(404, result.Code);
+        Assert.Contains("不存在", result.Message);
     }
 
     /// <summary>
@@ -374,19 +382,19 @@ public class AttendanceServiceTests : IDisposable
             StartTime = startTime,
             EndTime = startTime.AddMinutes(30)
         };
-        var session = await _attendanceService.CreateSessionAsync(dto, "T001");
-        return session.Id;
+        var result = await _attendanceHandlers.Handle(new CreateSessionCommand(dto, "T001"), CancellationToken.None);
+        return result.Data!.Id;
     }
 
     /// <summary>
-    /// 通过 AttendanceService 生成有效的二维码令牌
+    /// 通过 AttendanceHandlers 生成有效的二维码令牌
     /// </summary>
     /// <param name="sessionId">会话 Id</param>
     /// <returns>有效的 JWT 令牌</returns>
     private async Task<string> GenerateValidQrTokenAsync(long sessionId)
     {
-        var result = await _attendanceService.GenerateQrCodeAsync(sessionId, "T001");
-        return result.Token;
+        var result = await _attendanceHandlers.Handle(new GenerateQrCodeCommand(sessionId, "T001"), CancellationToken.None);
+        return result.Data!.Token;
     }
 
     /// <summary>

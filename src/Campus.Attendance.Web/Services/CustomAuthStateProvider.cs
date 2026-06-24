@@ -1,52 +1,66 @@
 using System.Security.Claims;
-using Microsoft.AspNetCore.Components;
+using Campus.Attendance.Shared.Security;
 using Microsoft.AspNetCore.Components.Authorization;
 
 namespace Campus.Attendance.Web.Services;
 
 /// <summary>
-/// 自定义认证状态提供器：从 localStorage 读取 Token，解析 Claims 构建认证状态
+/// 自定义认证状态提供器：从 HttpOnly Cookie 中的 JWT 解析用户信息
 /// 用于 Blazor Server 的 AuthorizeView 与 AuthorizeRouteView
 /// </summary>
 public class CustomAuthStateProvider : AuthenticationStateProvider
 {
     private readonly TokenService _tokenService;
-    private readonly NavigationManager _navigationManager;
-    private readonly ILogger<CustomAuthStateProvider> _logger;
+    private readonly ITokenService _jwtTokenService;
 
     /// <summary>构造函数</summary>
-    /// <param name="tokenService">前端 Token 服务</param>
-    /// <param name="navigationManager">导航管理器</param>
-    /// <param name="logger">日志记录器</param>
-    public CustomAuthStateProvider(TokenService tokenService, NavigationManager navigationManager, ILogger<CustomAuthStateProvider> logger)
+    /// <param name="tokenService">前端 Cookie-based Token 服务</param>
+    /// <param name="jwtTokenService">JWT 校验服务（Shared.Security）</param>
+    public CustomAuthStateProvider(TokenService tokenService, ITokenService jwtTokenService)
     {
         _tokenService = tokenService;
-        _navigationManager = navigationManager;
-        _logger = logger;
+        _jwtTokenService = jwtTokenService;
     }
 
     /// <summary>
-    /// 获取当前认证状态：从 localStorage 读取 Token 并解析 Claims
+    /// 获取当前认证状态：从 HttpOnly Cookie 读取 Token 并通过 JWT 校验构建 ClaimsPrincipal
     /// </summary>
     /// <returns>认证状态（已登录返回已认证用户，未登录返回匿名用户）</returns>
-    public override async Task<AuthenticationState> GetAuthenticationStateAsync()
+    public override Task<AuthenticationState> GetAuthenticationStateAsync()
     {
-        var userInfo = await _tokenService.GetUserInfoAsync();
-        if (userInfo is null)
+        var token = _tokenService.GetToken();
+
+        if (string.IsNullOrEmpty(token))
         {
-            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+            return Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
         }
 
-        var claims = new[]
+        try
         {
-            new Claim(ClaimTypes.NameIdentifier, userInfo.UserId),
-            new Claim(ClaimTypes.Name, userInfo.UserName),
-            new Claim(ClaimTypes.Role, userInfo.Role)
-        };
+            var validationResult = _jwtTokenService.ValidateToken(token);
+            if (validationResult is null)
+            {
+                _tokenService.RemoveToken();
+                return Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
+            }
 
-        var identity = new ClaimsIdentity(claims, "CampusAuth");
-        var principal = new ClaimsPrincipal(identity);
-        return new AuthenticationState(principal);
+            var (userId, userName, role) = validationResult.Value;
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, userId),
+                new Claim(ClaimTypes.Name, userName),
+                new Claim(ClaimTypes.Role, role.ToString())
+            };
+
+            var identity = new ClaimsIdentity(claims, "CampusAuth");
+            var principal = new ClaimsPrincipal(identity);
+            return Task.FromResult(new AuthenticationState(principal));
+        }
+        catch
+        {
+            _tokenService.RemoveToken();
+            return Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
+        }
     }
 
     /// <summary>

@@ -2,8 +2,9 @@
 @page "/student/leave"
 @layout StudentLayout
 @attribute [Authorize(Roles = "Student")]
-@using Campus.Attendance.Core.Enums
-@using Campus.Attendance.Models.Leave
+@rendermode InteractiveServer
+@using Campus.Attendance.Shared.Enums
+@using Campus.Attendance.Shared.Features.Leave
 @inject IApiClient ApiClient
 @inject TokenService TokenService
 @inject NavigationManager NavigationManager
@@ -163,7 +164,7 @@ else
     /// </summary>
     protected override async Task OnInitializedAsync()
     {
-        var userInfo = await TokenService.GetUserInfoAsync();
+        var userInfo = TokenService.GetUserInfo();
         if (userInfo is null)
         {
             NavigationManager.NavigateTo("/login", forceLoad: true);

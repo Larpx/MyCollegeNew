@@ -1,6 +1,6 @@
-using Campus.Attendance.Core.Configuration;
-using Campus.Attendance.Core.Entities;
-using Campus.Attendance.Core.Security;
+using Campus.Attendance.Shared.Configuration;
+using Campus.Attendance.Shared.Entities;
+using Campus.Attendance.Shared.Security;
 using Microsoft.Extensions.Options;
 using SqlSugar;
 

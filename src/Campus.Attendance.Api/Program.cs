@@ -1,20 +1,35 @@
 using System.Text;
+using Campus.Attendance.Api.Behaviors;
+using Campus.Attendance.Api.Exceptions;
+using Campus.Attendance.Api.Features.Attendance;
+using Campus.Attendance.Api.Features.Auth.Login;
+using Campus.Attendance.Api.Features.Courses;
+using Campus.Attendance.Api.Features.Leave;
+using Campus.Attendance.Api.Features.Organization;
+using Campus.Attendance.Api.Features.Profile.ChangePassword;
+using Campus.Attendance.Api.Features.Statistics;
+using Campus.Attendance.Api.Features.Students;
+using Campus.Attendance.Api.Features.Teachers;
 using Campus.Attendance.Api.Middleware;
-using Campus.Attendance.Core.Configuration;
-using Campus.Attendance.Core.Security;
-using Campus.Attendance.Services.Attendance;
-using Campus.Attendance.Services.Auth;
-using Campus.Attendance.Services.Courses;
-using Campus.Attendance.Services.Data;
-using Campus.Attendance.Services.Leave;
-using Campus.Attendance.Services.Organization;
-using Campus.Attendance.Services.Statistics;
-using Campus.Attendance.Services.Users;
+using Campus.Attendance.Infrastructure.Auth;
+using Campus.Attendance.Infrastructure.Data;
+using Campus.Attendance.Shared.Configuration;
+using Campus.Attendance.Shared.Security;
+using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi;
+using Scalar.AspNetCore;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Serilog 结构化日志
+builder.Host.UseSerilog((context, config) =>
+{
+    config.ReadFrom.Configuration(context.Configuration);
+});
 
 // 注册数据库配置（IOptions<DbConfig>），连接字符串支持环境变量 Db__ConnectionString 覆盖
 builder.Services.Configure<DbConfig>(builder.Configuration.GetSection("Db"));
@@ -30,16 +45,18 @@ builder.Services.AddScoped<DbInitializer>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUserService>();
 
-// 注册认证与令牌服务
+// 注册令牌服务（Singleton：无状态服务）
 builder.Services.AddSingleton<ITokenService, TokenService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IOrganizationService, OrganizationService>();
-builder.Services.AddScoped<ICourseService, CourseService>();
-builder.Services.AddScoped<IScheduleService, ScheduleService>();
-builder.Services.AddScoped<IAttendanceService, AttendanceService>();
-builder.Services.AddScoped<ILeaveService, LeaveService>();
-builder.Services.AddScoped<IStatisticsService, StatisticsService>();
+
+// MediatR CQRS：注册所有 Handler 所在程序集
+builder.Services.AddMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
+    cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+});
+
+// FluentValidation：注册所有 Validator 所在程序集
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
 
 // 配置 JWT Bearer 认证
 var jwtConfig = builder.Configuration.GetSection("Jwt").Get<JwtConfig>()
@@ -69,38 +86,47 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("RequireCounselor", policy => policy.RequireRole("Counselor"));
 });
 
-// Add services to the container.
-builder.Services.AddControllers();
+// 全局异常处理器（IExceptionHandler 替代自定义中间件）
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
-// 配置 Swagger，支持 Bearer Token 输入
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
+// OpenAPI 文档生成
+builder.Services.AddOpenApi();
+
+// 速率限制
+builder.Services.AddRateLimiter(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo
+    options.AddFixedWindowLimiter("fixed", opt =>
     {
-        Title = "Campus Attendance API",
-        Version = "v1",
-        Description = "考勤管理系统 API 文档"
+        opt.PermitLimit = 100;
+        opt.Window = TimeSpan.FromMinutes(1);
     });
+});
 
-    var jwtScheme = new OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "请输入 JWT 令牌，格式：Bearer {token}"
-    };
-    options.AddSecurityDefinition("Bearer", jwtScheme);
+// 输出缓存
+builder.Services.AddOutputCache(options =>
+{
+    options.AddBasePolicy(policyBuilder => policyBuilder.Expire(TimeSpan.FromMinutes(5)));
+});
 
-    options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
+// API 版本控制
+builder.Services.AddApiVersioning();
+
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
     {
-        {
-            new OpenApiSecuritySchemeReference("Bearer"),
-            new List<string>()
-        }
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
     });
+});
+
+// 响应压缩
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
 });
 
 var app = builder.Build();
@@ -113,21 +139,40 @@ using (var scope = app.Services.CreateScope())
     await initializer.SeedAsync();
 }
 
-// Configure the HTTP request pipeline.
+// 全局异常处理（替代自定义中间件）
+app.UseExceptionHandler();
+
+// 安全头中间件
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    // Scalar OpenAPI 文档（替代 Swashbuckle）
+    app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
-app.UseMiddleware<SecurityHeadersMiddleware>();
-app.UseMiddleware<GlobalExceptionMiddleware>();
-
 app.UseHttpsRedirection();
+app.UseResponseCompression();
+app.UseCors();
+app.UseRateLimiter();
+app.UseOutputCache();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
+// Minimal API 端点映射（VSA Feature Slices）
+var api = app.MapGroup("/api/v1")
+    .RequireRateLimiting("fixed");
+
+api.MapLoginEndpoint();
+api.MapChangePasswordEndpoint();
+api.MapStudentEndpoints();
+api.MapTeacherEndpoints();
+api.MapOrganizationEndpoints();
+api.MapCourseEndpoints();
+api.MapAttendanceEndpoints();
+api.MapLeaveEndpoints();
+api.MapStatisticsEndpoints();
 
 app.Run();

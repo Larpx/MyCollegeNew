@@ -1,8 +1,9 @@
 @page "/admin/courses"
 @layout AdminLayout
 @attribute [Authorize]
-@using Campus.Attendance.Models.Courses
-@using Campus.Attendance.Models.Users
+@rendermode InteractiveServer
+@using Campus.Attendance.Shared.Features.Courses
+@using Campus.Attendance.Shared.Features.Users
 @inject IApiClient ApiClient
 @inject ILogger<Components.Pages.Admin.Courses> Logger
 
