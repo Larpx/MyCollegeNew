@@ -1,4 +1,4 @@
-﻿{
+{
   "version": "0.2.0",
   "configurations": [
     {
@@ -6,9 +6,9 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build-api",
-      "program": "${workspaceFolder}/src/Campus.Attendance.Api/bin/Debug/net10.0/Campus.Attendance.Api.dll",
+      "program": "${workspaceFolder}/src/MyCollegeNew.Api/bin/Debug/net10.0/MyCollegeNew.Api.dll",
       "args": [],
-      "cwd": "${workspaceFolder}/src/Campus.Attendance.Api",
+      "cwd": "${workspaceFolder}/src/MyCollegeNew.Api",
       "stopAtEntry": false,
       "serverReadyAction": {
         "action": "openExternally",
@@ -20,7 +20,7 @@
         "ASPNETCORE_URLS": "http://localhost:5144"
       },
       "sourceFileMap": {
-        "/Views": "${workspaceFolder}/src/Campus.Attendance.Api/Views"
+        "/Views": "${workspaceFolder}/src/MyCollegeNew.Api/Views"
       }
     },
     {
@@ -28,9 +28,9 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build-web",
-      "program": "${workspaceFolder}/src/Campus.Attendance.Web/bin/Debug/net10.0/Campus.Attendance.Web.dll",
+      "program": "${workspaceFolder}/src/MyCollegeNew.Web/bin/Debug/net10.0/MyCollegeNew.Web.dll",
       "args": [],
-      "cwd": "${workspaceFolder}/src/Campus.Attendance.Web",
+      "cwd": "${workspaceFolder}/src/MyCollegeNew.Web",
       "stopAtEntry": false,
       "serverReadyAction": {
         "action": "openExternally",
@@ -46,9 +46,9 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build-tests",
-      "program": "${workspaceFolder}/src/Campus.Attendance.Tests/bin/Debug/net10.0/Campus.Attendance.Tests.dll",
+      "program": "${workspaceFolder}/src/MyCollegeNew.Tests/bin/Debug/net10.0/MyCollegeNew.Tests.dll",
       "args": [],
-      "cwd": "${workspaceFolder}/src/Campus.Attendance.Tests",
+      "cwd": "${workspaceFolder}/src/MyCollegeNew.Tests",
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }

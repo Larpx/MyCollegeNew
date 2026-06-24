@@ -1,45 +1,44 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users;
-using FluentValidation;
+﻿using FluentValidation;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Students
 {
-/// <summary>
-/// 学生相关请求校验器
-/// </summary>
-public class CreateStudentValidator : AbstractValidator<CreateStudentCommand>
-{
     /// <summary>
-    /// 构造函数，定义创建学生校验规则
+    /// 学生相关请求校验器
     /// </summary>
-    public CreateStudentValidator()
+    public class CreateStudentValidator : AbstractValidator<CreateStudentCommand>
     {
-        RuleFor(x => x.Dto.Id).NotEmpty().WithMessage("学号不能为空");
-        RuleFor(x => x.Dto.Name).NotEmpty().WithMessage("姓名不能为空");
-        RuleFor(x => x.Dto.Password).NotEmpty().WithMessage("密码不能为空").MinimumLength(6).WithMessage("密码长度不能少于6位");
-        RuleFor(x => x.Dto.Gender).NotEmpty().WithMessage("性别不能为空");
-        RuleFor(x => x.Dto.DepartmentId).GreaterThan(0).WithMessage("院系ID无效");
-        RuleFor(x => x.Dto.MajorId).GreaterThan(0).WithMessage("专业ID无效");
-        RuleFor(x => x.Dto.ClassId).GreaterThan(0).WithMessage("班级ID无效");
-        RuleFor(x => x.Dto.Grade).GreaterThan(0).WithMessage("年级无效");
+        /// <summary>
+        /// 构造函数，定义创建学生校验规则
+        /// </summary>
+        public CreateStudentValidator()
+        {
+            RuleFor(x => x.Dto.Id).NotEmpty().WithMessage("学号不能为空");
+            RuleFor(x => x.Dto.Name).NotEmpty().WithMessage("姓名不能为空");
+            RuleFor(x => x.Dto.Password).NotEmpty().WithMessage("密码不能为空").MinimumLength(6).WithMessage("密码长度不能少于6位");
+            RuleFor(x => x.Dto.Gender).NotEmpty().WithMessage("性别不能为空");
+            RuleFor(x => x.Dto.DepartmentId).GreaterThan(0).WithMessage("院系ID无效");
+            RuleFor(x => x.Dto.MajorId).GreaterThan(0).WithMessage("专业ID无效");
+            RuleFor(x => x.Dto.ClassId).GreaterThan(0).WithMessage("班级ID无效");
+            RuleFor(x => x.Dto.Grade).GreaterThan(0).WithMessage("年级无效");
+        }
     }
-}
 
-/// <summary>
-/// 更新学生校验器
-/// </summary>
-public class UpdateStudentValidator : AbstractValidator<UpdateStudentCommand>
-{
     /// <summary>
-    /// 构造函数，定义更新学生校验规则
+    /// 更新学生校验器
     /// </summary>
-    public UpdateStudentValidator()
+    public class UpdateStudentValidator : AbstractValidator<UpdateStudentCommand>
     {
-        RuleFor(x => x.Dto.Name).NotEmpty().WithMessage("姓名不能为空");
-        RuleFor(x => x.Dto.Gender).NotEmpty().WithMessage("性别不能为空");
-        RuleFor(x => x.Dto.DepartmentId).GreaterThan(0).WithMessage("院系ID无效");
-        RuleFor(x => x.Dto.MajorId).GreaterThan(0).WithMessage("专业ID无效");
-        RuleFor(x => x.Dto.ClassId).GreaterThan(0).WithMessage("班级ID无效");
-        RuleFor(x => x.Dto.Grade).GreaterThan(0).WithMessage("年级无效");
+        /// <summary>
+        /// 构造函数，定义更新学生校验规则
+        /// </summary>
+        public UpdateStudentValidator()
+        {
+            RuleFor(x => x.Dto.Name).NotEmpty().WithMessage("姓名不能为空");
+            RuleFor(x => x.Dto.Gender).NotEmpty().WithMessage("性别不能为空");
+            RuleFor(x => x.Dto.DepartmentId).GreaterThan(0).WithMessage("院系ID无效");
+            RuleFor(x => x.Dto.MajorId).GreaterThan(0).WithMessage("专业ID无效");
+            RuleFor(x => x.Dto.ClassId).GreaterThan(0).WithMessage("班级ID无效");
+            RuleFor(x => x.Dto.Grade).GreaterThan(0).WithMessage("年级无效");
+        }
     }
-}
 }
