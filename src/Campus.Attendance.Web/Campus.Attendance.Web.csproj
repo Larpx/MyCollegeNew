@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Campus.Attendance.Shared\Campus.Attendance.Shared.csproj" />
     <ProjectReference Include="..\Campus.Attendance.Infrastructure\Campus.Attendance.Infrastructure.csproj" />
+    <ProjectReference Include="..\Campus.Attendance.ServiceDefaults\Campus.Attendance.ServiceDefaults.csproj" />
   </ItemGroup>
 
   <ItemGroup>

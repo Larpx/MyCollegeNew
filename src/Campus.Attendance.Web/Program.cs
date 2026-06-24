@@ -6,6 +6,9 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// .NET Aspire 服务默认配置：服务发现、OpenTelemetry、健康检查、弹性策略
+builder.AddServiceDefaults();
+
 // Serilog
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
@@ -47,6 +50,10 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+
+// .NET Aspire 健康检查端点
+app.MapDefaultEndpoints();
+
 app.UseHttpsRedirection();
 app.UseAntiforgery();
 app.MapStaticAssets();

@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Campus.Attendance.Shared\Campus.Attendance.Shared.csproj" />
     <ProjectReference Include="..\Campus.Attendance.Infrastructure\Campus.Attendance.Infrastructure.csproj" />
+    <ProjectReference Include="..\Campus.Attendance.ServiceDefaults\Campus.Attendance.ServiceDefaults.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -13,6 +14,7 @@
     <PackageReference Include="MediatR" Version="12.5.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.9" />
     <PackageReference Include="QRCoder" Version="1.6.0" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.6.6" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />

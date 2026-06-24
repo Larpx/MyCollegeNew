@@ -1,10 +1,23 @@
 # ============================================================
 # Campus Attendance docker-compose 编排文件
-# 三个服务：db（MySQL）、api（后端 API）、web（Blazor Server 前端）
-# 启动顺序：db(healthy) → api(healthy) → web
+# 四个服务：redis（缓存）、db（MySQL）、api（后端 API）、web（Blazor Server 前端）
+# 启动顺序：db(healthy) + redis(healthy) → api(healthy) → web
 # ============================================================
 
 services:
+  # ---- Redis 缓存 ----
+  redis:
+    image: redis:7-alpine
+    container_name: attendance-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   # ---- MySQL 数据库 ----
   db:
     image: mysql:8.0
@@ -27,20 +40,25 @@ services:
   # ---- 后端 API ----
   api:
     build:
-      context: .
-      dockerfile: src/Campus.Attendance.Api/Dockerfile
+      context: ./src
+      dockerfile: Campus.Attendance.Api/Dockerfile
     container_name: attendance-api
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      - Db__ProviderType=MySQL
-      - Db__ConnectionString=Server=db;Port=3306;Database=attendance;Uid=root;Pwd=root;
-      - Jwt__SecretKey=Campus.Attendance.SecretKey.2026.DoNotHardCode.InProduction
-      - Jwt__Issuer=Campus.Attendance.Api
-      - Jwt__Audience=Campus.Attendance.Client
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
+      - Db__ProviderType=MySQL
+      - Db__ConnectionString=Server=db;Port=3306;Database=attendance;Uid=root;Pwd=root;
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-Campus.Attendance.SecretKey.2026.DoNotHardCode.InProduction}
+      - Jwt__Issuer=Campus.Attendance.Api
+      - Jwt__Audience=Campus.Attendance.Client
+      - Jwt__ExpireMinutes=120
+      - ConnectionStrings__redis=redis:6379
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire-dashboard:18889
     ports:
       - "5000:8080"
     healthcheck:
@@ -54,16 +72,17 @@ services:
   # ---- Blazor Server 前端 ----
   web:
     build:
-      context: .
-      dockerfile: src/Campus.Attendance.Web/Dockerfile
+      context: ./src
+      dockerfile: Campus.Attendance.Web/Dockerfile
     container_name: attendance-web
     depends_on:
       api:
         condition: service_healthy
     environment:
-      - Api__BaseUrl=http://api:8080
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
+      - Api__BaseUrl=http://api:8080
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-Campus.Attendance.SecretKey.2026.DoNotHardCode.InProduction}
     ports:
       - "8080:8080"
     healthcheck:

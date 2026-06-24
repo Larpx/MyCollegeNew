@@ -25,6 +25,9 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// .NET Aspire 服务默认配置：服务发现、OpenTelemetry、健康检查、弹性策略
+builder.AddServiceDefaults();
+
 // Serilog 结构化日志
 builder.Host.UseSerilog((context, config) =>
 {
@@ -103,6 +106,20 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
+// Distributed Cache - Redis（生产环境）或 Memory（开发环境）
+var redisConnectionString = builder.Configuration.GetConnectionString("redis");
+if (!string.IsNullOrEmpty(redisConnectionString))
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnectionString;
+    });
+}
+else
+{
+    builder.Services.AddDistributedMemoryCache();
+}
+
 // 输出缓存
 builder.Services.AddOutputCache(options =>
 {
@@ -141,6 +158,9 @@ using (var scope = app.Services.CreateScope())
 
 // 全局异常处理（替代自定义中间件）
 app.UseExceptionHandler();
+
+// .NET Aspire 健康检查端点
+app.MapDefaultEndpoints();
 
 // 安全头中间件
 app.UseMiddleware<SecurityHeadersMiddleware>();

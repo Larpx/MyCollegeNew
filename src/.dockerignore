@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+**/logs/
+**/.vs/
+**/*.user
+**/*.suo
+**/TestResults/
+**/.idea/
+**/.vscode/
+**/node_modules/
+**/wwwroot/dist/
+**/*.md
+!Directory.Build.props

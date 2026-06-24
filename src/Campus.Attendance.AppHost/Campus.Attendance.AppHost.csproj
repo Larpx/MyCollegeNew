@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <Sdk Name="Aspire.AppHost.Sdk" Version="9.3.1" />
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.3.1" />
+    <PackageReference Include="Aspire.Hosting.Redis" Version="9.3.1" />
+    <PackageReference Include="Aspire.Hosting.SqlServer" Version="9.3.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Campus.Attendance.Api\Campus.Attendance.Api.csproj" />
+    <ProjectReference Include="..\Campus.Attendance.Web\Campus.Attendance.Web.csproj" />
+  </ItemGroup>
+</Project>
