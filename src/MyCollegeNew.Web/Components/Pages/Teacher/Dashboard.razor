@@ -1,0 +1,258 @@
+﻿@page "/teacher/dashboard"
+@layout TeacherLayout
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Enums
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Attendance
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Statistics
+@inject IApiClient ApiClient
+@inject TokenService TokenService
+@inject NavigationManager NavigationManager
+@inject ILogger<Components.Pages.Teacher.Dashboard> Logger
+
+<PageTitle>教师仪表盘 - 考勤管理系统</PageTitle>
+
+<PageHeader Title="教师仪表盘" Icon="layout-dashboard" Subtitle="@($"欢迎回来，{_userName}")">
+    <Actions>
+        <Button Variant="ButtonVariant.Secondary" Icon="refresh-cw" OnClick="LoadDataAsync" Loading="_loading">刷新</Button>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert--error">
+        <span class="alert__icon"><Icon Name="alert-circle" Size="20" /></span>
+        <span class="alert__body">@_errorMessage</span>
+    </div>
+}
+
+@if (_loading && _statistics is null)
+{
+    <div class="loading-state">
+        <span class="loading-state__spinner"></span>
+        <span>加载中...</span>
+    </div>
+}
+else
+{
+    @* 统计卡片 *@
+    <div class="dashboard-grid">
+        <Card>
+            <div class="stat-card">
+                <span class="stat-card__icon"><Icon Name="book-open" Size="24" /></span>
+                <div class="stat-card__body">
+                    <div class="stat-card__label">我的课程</div>
+                    <div class="stat-card__value">@(_statistics?.TotalCourses ?? 0)</div>
+                </div>
+            </div>
+        </Card>
+        <Card>
+            <div class="stat-card">
+                <span class="stat-card__icon stat-card__icon--success"><Icon Name="clipboard-list" Size="24" /></span>
+                <div class="stat-card__body">
+                    <div class="stat-card__label">考勤会话总数</div>
+                    <div class="stat-card__value">@(_statistics?.TotalSessions ?? 0)</div>
+                </div>
+            </div>
+        </Card>
+        <Card>
+            <div class="stat-card">
+                <span class="stat-card__icon stat-card__icon--warning"><Icon Name="play" Size="24" /></span>
+                <div class="stat-card__body">
+                    <div class="stat-card__label">进行中会话</div>
+                    <div class="stat-card__value">@(_activeSessions?.Count ?? 0)</div>
+                </div>
+            </div>
+        </Card>
+        <Card>
+            <div class="stat-card">
+                <span class="stat-card__icon stat-card__icon--success"><Icon Name="percent" Size="24" /></span>
+                <div class="stat-card__body">
+                    <div class="stat-card__label">平均出勤率</div>
+                    <div class="stat-card__value">@((_statistics?.AverageAttendanceRate ?? 0).ToString("F1"))%</div>
+                </div>
+            </div>
+        </Card>
+    </div>
+
+    @* 辅导员待审批请假徽章（仅辅导员可见） *@
+    @if (_isCounselor)
+    {
+        <Card Class="mb-6">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="stat-card__icon stat-card__icon--warning"><Icon Name="inbox" Size="20" /></span>
+                    <div>
+                        <div class="font-medium">待审批请假申请</div>
+                        <div class="text-sm text-secondary">辅导员专属功能</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="tab-bar__badge">@_pendingLeavesCount</span>
+                    <Button Variant="ButtonVariant.Primary" Icon="clipboard-list" OnClick="GoToLeaves">前往审批</Button>
+                </div>
+            </div>
+        </Card>
+    }
+
+    @* 进行中会话（如有） *@
+    @if (_activeSessions is not null && _activeSessions.Count > 0)
+    {
+        <Card Title="进行中考勤会话" Class="mb-6">
+            <div class="course-card-list">
+                @foreach (var session in _activeSessions)
+                {
+                    <div class="course-card-item">
+                        <span class="course-card-item__section"><Icon Name="play" Size="20" /></span>
+                        <div class="course-card-item__body">
+                            <div class="course-card-item__title">@session.CourseName</div>
+                            <div class="course-card-item__meta">
+                                <span class="course-card-item__meta-item"><Icon Name="users" Size="16" />@session.ClassName</span>
+                                <span class="course-card-item__meta-item"><Icon Name="clock" Size="16" />@session.StartTime.ToLocalTime().ToString("HH:mm")</span>
+                            </div>
+                        </div>
+                        <div class="course-card-item__actions">
+                            <Button Variant="ButtonVariant.Primary" Icon="qr-code" OnClick="() => GoToSession(session.Id)">查看签到</Button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </Card>
+    }
+
+    @* 今日课程 *@
+    <Card Title="今日课程">
+        @if (_todaySchedules is null || _todaySchedules.Count == 0)
+        {
+            <EmptyState Title="今日无课" Description="今天没有排课记录" Icon="calendar-days" />
+        }
+        else
+        {
+            <div class="course-card-list">
+                @foreach (var schedule in _todaySchedules)
+                {
+                    <div class="course-card-item">
+                        <span class="course-card-item__section">第@(schedule.StartSection)-@(schedule.EndSection)节</span>
+                        <div class="course-card-item__body">
+                            <div class="course-card-item__title">@schedule.CourseName</div>
+                            <div class="course-card-item__meta">
+                                <span class="course-card-item__meta-item"><Icon Name="users" Size="16" />@schedule.ClassName</span>
+                                <span class="course-card-item__meta-item"><Icon Name="map-pin" Size="16" />@schedule.Classroom</span>
+                            </div>
+                        </div>
+                        <div class="course-card-item__actions">
+                            <Button Variant="ButtonVariant.Primary" Icon="qr-code" OnClick="() => StartSessionAsync(schedule)">开始考勤</Button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </Card>
+}
+
+@code {
+    private TeacherStatisticsDto? _statistics;
+    private List<SessionResponseDto>? _activeSessions;
+    private List<ScheduleResponseDto>? _todaySchedules;
+    private int _pendingLeavesCount;
+    private bool _loading;
+    private string? _errorMessage;
+    private string _userId = string.Empty;
+    private string _userName = string.Empty;
+    private bool _isCounselor;
+
+    /// <summary>页面初始化：获取用户信息并加载数据</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        var userInfo = TokenService.GetUserInfo();
+        if (userInfo is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        _userId = userInfo.UserId;
+        _userName = userInfo.UserName;
+        _isCounselor = userInfo.Role == "Counselor";
+        await LoadDataAsync();
+    }
+
+    /// <summary>并行加载教师统计、进行中会话、今日课表、待审批请假数</summary>
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            // 计算今日星期几（1=周一, 7=周日）
+            var today = DateTime.UtcNow;
+            var dayOfWeek = (int)today.DayOfWeek;
+            if (dayOfWeek == 0) dayOfWeek = 7; // 周日转为 7
+
+            // 并行加载统计、进行中会话、今日课表
+            var statsTask = ApiClient.GetAsync<TeacherStatisticsDto>($"api/statistics/teacher/{_userId}");
+            var activeTask = ApiClient.GetAsync<List<SessionResponseDto>>("api/sessions/active");
+            var scheduleTask = ApiClient.GetAsync<WeeklyScheduleDto>($"api/schedules/by-teacher/{_userId}?week=1");
+
+            await Task.WhenAll(statsTask, activeTask, scheduleTask);
+
+            _statistics = statsTask.Result;
+            _activeSessions = activeTask.Result;
+            var weekly = scheduleTask.Result;
+            _todaySchedules = weekly?.Days?.GetValueOrDefault(dayOfWeek) ?? new List<ScheduleResponseDto>();
+
+            // 辅导员额外加载待审批请假数
+            if (_isCounselor)
+            {
+                try
+                {
+                    // 后端返回 { Count: int }，使用字典反序列化
+                    var pendingObj = await ApiClient.GetAsync<Dictionary<string, int>>("api/leaves/pending-count");
+                    if (pendingObj is not null && pendingObj.TryGetValue("Count", out var count))
+                    {
+                        _pendingLeavesCount = count;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "加载待审批请假数失败");
+                }
+            }
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+            Logger.LogWarning(ex, "加载教师仪表盘数据失败");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载数据失败，请稍后重试";
+            Logger.LogError(ex, "加载教师仪表盘数据异常");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>开始考勤：跳转到会话页（先创建会话）</summary>
+    private Task StartSessionAsync(ScheduleResponseDto schedule)
+    {
+        // 通过查询参数传递排课信息，由 Session 页面创建会话
+        NavigationManager.NavigateTo($"/teacher/session/new?courseId={schedule.CourseId}&classId={schedule.ClassId}&scheduleId={schedule.Id}");
+        return Task.CompletedTask;
+    }
+
+    /// <summary>跳转到会话详情</summary>
+    private void GoToSession(long sessionId)
+    {
+        NavigationManager.NavigateTo($"/teacher/session/{sessionId}");
+    }
+
+    /// <summary>跳转到请假审批页</summary>
+    private void GoToLeaves()
+    {
+        NavigationManager.NavigateTo("/teacher/leaves");
+    }
+}

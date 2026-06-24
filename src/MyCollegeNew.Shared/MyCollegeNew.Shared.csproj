@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Larpx.PersonalTools.MyCollegeNew.Shared</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="SqlSugarCore" Version="5.1.4.215" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,490 @@
+﻿@page "/admin/teachers"
+@layout AdminLayout
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Enums
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Organization
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
+@inject IApiClient ApiClient
+@inject ILogger<Components.Pages.Admin.Teachers> Logger
+
+<PageTitle>教师管理 - 考勤管理系统</PageTitle>
+
+<PageHeader Title="教师管理" Icon="user-check" Subtitle="管理任课教师与辅导员账号">
+    <Actions>
+        <Button Variant="ButtonVariant.Secondary" Icon="refresh-cw" OnClick="LoadTeachersAsync" Loading="_loading">刷新</Button>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert--error">
+        <span class="alert__icon"><Icon Name="alert-circle" Size="20" /></span>
+        <span class="alert__body">@_errorMessage</span>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <div class="alert alert--success">
+        <span class="alert__icon"><Icon Name="check-circle" Size="20" /></span>
+        <span class="alert__body">@_successMessage</span>
+    </div>
+}
+
+@* 过滤器工具栏 *@
+<div class="page-filters">
+    <div class="page-filters__field">
+        <label class="page-filters__label">关键字</label>
+        <InputText @bind-Value="_keyword" placeholder="工号 / 姓名" class="form-field__input" />
+    </div>
+    <div class="page-filters__field">
+        <label class="page-filters__label">院系</label>
+        <select class="page-filters__select" @bind="_filterDepartmentId">
+            <option value="">全部院系</option>
+            @foreach (var dept in _departments)
+            {
+                <option value="@dept.Id">@dept.Name</option>
+            }
+        </select>
+    </div>
+    <div class="page-filters__field">
+        <label class="page-filters__label">角色</label>
+        <select class="page-filters__select" @bind="_filterRole">
+            <option value="">全部角色</option>
+            <option value="@TeacherRole.Teacher">任课教师</option>
+            <option value="@TeacherRole.Counselor">辅导员</option>
+        </select>
+    </div>
+    <div class="page-filters__actions">
+        <Button Variant="ButtonVariant.Secondary" Icon="search" OnClick="SearchAsync">查询</Button>
+        <Button Variant="ButtonVariant.Primary" Icon="plus" OnClick="OpenCreateModal">新增教师</Button>
+    </div>
+</div>
+
+@* 教师列表 *@
+@if (_loading && _teachers is null)
+{
+    <div class="loading-state">
+        <span class="loading-state__spinner"></span>
+        <span>加载中...</span>
+    </div>
+}
+else
+{
+    <Card>
+        <Table T="TeacherResponseDto"
+               Items="_teachers?.Items"
+               Columns="_columns"
+               ShowPagination="true"
+               PageIndex="_pageIndex"
+               PageSize="_pageSize"
+               TotalCount="(int)(_teachers?.Total ?? 0)"
+               PageChanged="OnPageChanged" />
+    </Card>
+}
+
+@* 新增/编辑 Modal *@
+<Modal Visible="_formModalVisible" Title="@_formModalTitle" OnClose="CloseFormModal">
+    <ChildContent>
+        <div class="form-grid">
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">工号</label>
+                <input class="form-field__input" @bind="_form.Id" placeholder="请输入工号" maxlength="32" disabled="@_isEdit" />
+            </div>
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">姓名</label>
+                <input class="form-field__input" @bind="_form.Name" placeholder="请输入姓名" maxlength="32" />
+            </div>
+            @if (!_isEdit)
+            {
+                <div class="form-field">
+                    <label class="form-field__label form-field__label--required">登录密码</label>
+                    <input type="password" class="form-field__input" @bind="_form.Password" placeholder="至少 6 位" maxlength="128" />
+                </div>
+            }
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">性别</label>
+                <select class="form-field__input" @bind="_form.Gender">
+                    <option value="">请选择</option>
+                    <option value="男">男</option>
+                    <option value="女">女</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">院系</label>
+                <select class="form-field__input" value="@_form.DepartmentId" @onchange="OnDepartmentChanged">
+                    <option value="0">请选择</option>
+                    @foreach (var dept in _departments)
+                    {
+                        <option value="@dept.Id">@dept.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-field__label">所属专业（辅导员可空）</label>
+                <select class="form-field__input" @bind="_form.MajorId" disabled="@(_formMajors.Count == 0)">
+                    <option value="">不关联专业</option>
+                    @foreach (var major in _formMajors)
+                    {
+                        <option value="@major.Id">@major.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">教师角色</label>
+                <select class="form-field__input" @bind="_form.Role">
+                    <option value="@TeacherRole.Teacher">任课教师</option>
+                    <option value="@TeacherRole.Counselor">辅导员</option>
+                </select>
+            </div>
+            @if (_isEdit)
+            {
+                <div class="form-field form-field--full">
+                    <label class="form-field__label">备注</label>
+                    <input class="form-field__input" @bind="_form.Remark" placeholder="备注信息" maxlength="256" />
+                </div>
+            }
+        </div>
+    </ChildContent>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" OnClick="CloseFormModal">取消</Button>
+        <Button Variant="ButtonVariant.Primary" Icon="save" OnClick="SaveAsync" Loading="_saving">保存</Button>
+    </Footer>
+</Modal>
+
+@* 删除确认 Modal *@
+<Modal Visible="_deleteModalVisible" Title="删除确认" OnClose="CloseDeleteModal">
+    <ChildContent>
+        <div class="alert alert--warning">
+            <span class="alert__icon"><Icon Name="alert-triangle" Size="20" /></span>
+            <span class="alert__body">确定删除教师「@_deletingTeacher?.Name」（@_deletingTeacher?.Id）吗？该操作为软删除，后续可恢复。</span>
+        </div>
+    </ChildContent>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" OnClick="CloseDeleteModal">取消</Button>
+        <Button Variant="ButtonVariant.Danger" Icon="trash" OnClick="ConfirmDeleteAsync" Loading="_saving">确认删除</Button>
+    </Footer>
+</Modal>
+
+@code {
+    private PagedResult<TeacherResponseDto>? _teachers;
+    private List<DepartmentResponseDto> _departments = new();
+    private List<MajorResponseDto> _formMajors = new();
+
+    private int _pageIndex = 1;
+    private int _pageSize = 10;
+    private string _keyword = string.Empty;
+    private long? _filterDepartmentId;
+    private TeacherRole? _filterRole;
+
+    private bool _loading;
+    private bool _saving;
+    private string? _errorMessage;
+    private string? _successMessage;
+
+    // 表单状态
+    private bool _formModalVisible;
+    private string _formModalTitle = string.Empty;
+    private bool _isEdit;
+    private TeacherForm _form = new();
+    private string? _editingId;
+
+    // 删除状态
+    private bool _deleteModalVisible;
+    private TeacherResponseDto? _deletingTeacher;
+
+    private List<Table<TeacherResponseDto>.Column<TeacherResponseDto>> _columns = new();
+
+    /// <summary>教师表单</summary>
+    private sealed class TeacherForm
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string Gender { get; set; } = string.Empty;
+        public long DepartmentId { get; set; }
+        public long? MajorId { get; set; }
+        public TeacherRole Role { get; set; } = TeacherRole.Teacher;
+        public string? Remark { get; set; }
+    }
+
+    /// <summary>页面初始化</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        BuildColumns();
+        await LoadDepartmentsAsync();
+        await LoadTeachersAsync();
+    }
+
+    /// <summary>构建表格列</summary>
+    private void BuildColumns()
+    {
+        _columns = new List<Table<TeacherResponseDto>.Column<TeacherResponseDto>>
+        {
+            new() { Title = "工号", Template = item => @<span class="font-medium">@item.Id</span> },
+            new() { Title = "姓名", Template = item => @<span>@item.Name</span> },
+            new() { Title = "性别", Template = item => @<span>@item.Gender</span> },
+            new() { Title = "院系", Template = item => @<span>@item.DepartmentName</span> },
+            new() { Title = "专业", Template = item => @<span>@(item.MajorName ?? "—")</span> },
+            new() { Title = "角色", Template = item => RenderRoleBadge(item.Role) },
+            new() { Title = "操作", Template = item => RenderActions(item) }
+        };
+    }
+
+    /// <summary>渲染角色徽章</summary>
+    private RenderFragment RenderRoleBadge(TeacherRole role)
+    {
+        var (text, variant) = role switch
+        {
+            TeacherRole.Teacher => ("任课教师", BadgeVariant.Primary),
+            TeacherRole.Counselor => ("辅导员", BadgeVariant.Success),
+            _ => ("未知", BadgeVariant.Neutral)
+        };
+        return @<Badge Variant="variant">@text</Badge>;
+    }
+
+    /// <summary>渲染行操作按钮</summary>
+    private RenderFragment RenderActions(TeacherResponseDto item) => @<span class="table-actions">
+        <button type="button" class="table-action-btn" @onclick="() => OpenEditModal(item)" title="编辑" aria-label="编辑">
+            <Icon Name="edit" Size="16" />
+        </button>
+        <button type="button" class="table-action-btn table-action-btn--danger" @onclick="() => OpenDeleteModal(item)" title="删除" aria-label="删除">
+            <Icon Name="trash" Size="16" />
+        </button>
+    </span>;
+
+    /// <summary>加载院系列表</summary>
+    private async Task LoadDepartmentsAsync()
+    {
+        try
+        {
+            _departments = await ApiClient.GetAsync<List<DepartmentResponseDto>>("api/departments") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "加载院系列表失败");
+        }
+    }
+
+    /// <summary>加载教师分页数据</summary>
+    private async Task LoadTeachersAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            var url = $"api/teachers?pageIndex={_pageIndex}&pageSize={_pageSize}";
+            if (!string.IsNullOrWhiteSpace(_keyword)) url += $"&keyword={Uri.EscapeDataString(_keyword.Trim())}";
+            if (_filterDepartmentId.HasValue) url += $"&departmentId={_filterDepartmentId.Value}";
+            if (_filterRole.HasValue) url += $"&role={_filterRole.Value}";
+            _teachers = await ApiClient.GetAsync<PagedResult<TeacherResponseDto>>(url);
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载教师列表失败，请稍后重试";
+            Logger.LogError(ex, "加载教师列表异常");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>查询按钮：重置页码后加载</summary>
+    private async Task SearchAsync()
+    {
+        _pageIndex = 1;
+        await LoadTeachersAsync();
+    }
+
+    /// <summary>分页变更</summary>
+    private async Task OnPageChanged(int newPage)
+    {
+        _pageIndex = newPage;
+        await LoadTeachersAsync();
+    }
+
+    /// <summary>表单院系变更：加载专业列表</summary>
+    private async Task OnDepartmentChanged(ChangeEventArgs e)
+    {
+        _form.MajorId = null;
+        _formMajors.Clear();
+        if (long.TryParse(e.Value?.ToString(), out var deptId) && deptId > 0)
+        {
+            _form.DepartmentId = deptId;
+            try
+            {
+                _formMajors = await ApiClient.GetAsync<List<MajorResponseDto>>($"api/majors?departmentId={deptId}") ?? new();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "加载专业列表失败");
+            }
+        }
+        else
+        {
+            _form.DepartmentId = 0;
+        }
+    }
+
+    // ---------- 表单 ----------
+
+    /// <summary>打开新增 Modal</summary>
+    private void OpenCreateModal()
+    {
+        _isEdit = false;
+        _editingId = null;
+        _formModalTitle = "新增教师";
+        _form = new TeacherForm { Role = TeacherRole.Teacher };
+        _formMajors.Clear();
+        _formModalVisible = true;
+    }
+
+    /// <summary>打开编辑 Modal</summary>
+    private void OpenEditModal(TeacherResponseDto teacher)
+    {
+        _isEdit = true;
+        _editingId = teacher.Id;
+        _formModalTitle = "编辑教师";
+        _form = new TeacherForm
+        {
+            Id = teacher.Id,
+            Name = teacher.Name,
+            Gender = teacher.Gender,
+            Role = teacher.Role,
+            Remark = teacher.Remark
+        };
+        _formMajors.Clear();
+        _formModalVisible = true;
+        // 院系/专业需要管理员重新选择（响应 DTO 未返回 Id）
+    }
+
+    /// <summary>关闭表单 Modal</summary>
+    private void CloseFormModal() => _formModalVisible = false;
+
+    /// <summary>保存教师</summary>
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Id) && !_isEdit)
+        {
+            _errorMessage = "工号不能为空";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_form.Name))
+        {
+            _errorMessage = "姓名不能为空";
+            return;
+        }
+        if (!_isEdit && _form.Password.Length < 6)
+        {
+            _errorMessage = "密码长度至少 6 位";
+            return;
+        }
+        if (_form.DepartmentId <= 0)
+        {
+            _errorMessage = "请选择院系";
+            return;
+        }
+
+        _saving = true;
+        _errorMessage = null;
+        _successMessage = null;
+        try
+        {
+            if (_isEdit && _editingId is not null)
+            {
+                var dto = new TeacherUpdateDto
+                {
+                    Name = _form.Name.Trim(),
+                    Gender = _form.Gender,
+                    DepartmentId = _form.DepartmentId,
+                    MajorId = _form.MajorId,
+                    Role = _form.Role,
+                    Remark = _form.Remark
+                };
+                await ApiClient.PutAsync<TeacherResponseDto>($"api/teachers/{_editingId}", dto);
+                _successMessage = "教师信息已更新";
+            }
+            else
+            {
+                var dto = new TeacherCreateDto
+                {
+                    Id = _form.Id.Trim(),
+                    Name = _form.Name.Trim(),
+                    Password = _form.Password,
+                    Gender = _form.Gender,
+                    DepartmentId = _form.DepartmentId,
+                    MajorId = _form.MajorId,
+                    Role = _form.Role
+                };
+                await ApiClient.PostAsync<TeacherResponseDto>("api/teachers", dto);
+                _successMessage = "教师创建成功";
+            }
+            _formModalVisible = false;
+            await LoadTeachersAsync();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "保存教师失败，请稍后重试";
+            Logger.LogError(ex, "保存教师异常");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    // ---------- 删除 ----------
+
+    /// <summary>打开删除确认</summary>
+    private void OpenDeleteModal(TeacherResponseDto teacher)
+    {
+        _deletingTeacher = teacher;
+        _deleteModalVisible = true;
+    }
+
+    /// <summary>关闭删除确认</summary>
+    private void CloseDeleteModal()
+    {
+        _deleteModalVisible = false;
+        _deletingTeacher = null;
+    }
+
+    /// <summary>确认删除</summary>
+    private async Task ConfirmDeleteAsync()
+    {
+        if (_deletingTeacher is null) return;
+        _saving = true;
+        _errorMessage = null;
+        try
+        {
+            await ApiClient.DeleteAsync<object>($"api/teachers/{_deletingTeacher.Id}");
+            _deleteModalVisible = false;
+            _deletingTeacher = null;
+            _successMessage = "教师已删除";
+            await LoadTeachersAsync();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "删除失败，请稍后重试";
+            Logger.LogError(ex, "删除教师异常");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

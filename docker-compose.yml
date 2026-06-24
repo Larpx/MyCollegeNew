@@ -1,5 +1,5 @@
 # ============================================================
-# Campus Attendance docker-compose 编排文件
+# MyCollegeNew docker-compose 编排文件
 # 四个服务：redis（缓存）、db（MySQL）、api（后端 API）、web（Blazor Server 前端）
 # 启动顺序：db(healthy) + redis(healthy) → api(healthy) → web
 # ============================================================
@@ -41,7 +41,7 @@ services:
   api:
     build:
       context: ./src
-      dockerfile: Campus.Attendance.Api/Dockerfile
+      dockerfile: MyCollegeNew.Api/Dockerfile
     container_name: attendance-api
     depends_on:
       db:
@@ -53,9 +53,9 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       - Db__ProviderType=MySQL
       - Db__ConnectionString=Server=db;Port=3306;Database=attendance;Uid=root;Pwd=root;
-      - Jwt__SecretKey=${JWT_SECRET_KEY:-Campus.Attendance.SecretKey.2026.DoNotHardCode.InProduction}
-      - Jwt__Issuer=Campus.Attendance.Api
-      - Jwt__Audience=Campus.Attendance.Client
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-MyCollegeNew.SecretKey.2026.DoNotHardCode.InProduction}
+      - Jwt__Issuer=MyCollegeNew.Api
+      - Jwt__Audience=MyCollegeNew.Client
       - Jwt__ExpireMinutes=120
       - ConnectionStrings__redis=redis:6379
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire-dashboard:18889
@@ -73,7 +73,7 @@ services:
   web:
     build:
       context: ./src
-      dockerfile: Campus.Attendance.Web/Dockerfile
+      dockerfile: MyCollegeNew.Web/Dockerfile
     container_name: attendance-web
     depends_on:
       api:
@@ -82,7 +82,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
       - Api__BaseUrl=http://api:8080
-      - Jwt__SecretKey=${JWT_SECRET_KEY:-Campus.Attendance.SecretKey.2026.DoNotHardCode.InProduction}
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-MyCollegeNew.SecretKey.2026.DoNotHardCode.InProduction}
     ports:
       - "8080:8080"
     healthcheck:

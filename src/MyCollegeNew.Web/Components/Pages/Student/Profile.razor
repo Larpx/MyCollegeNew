@@ -1,0 +1,197 @@
+﻿@page "/student/profile"
+@layout StudentLayout
+@attribute [Authorize(Roles = "Student")]
+@rendermode InteractiveServer
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
+@inject IApiClient ApiClient
+@inject TokenService TokenService
+@inject NavigationManager NavigationManager
+@inject ILogger<Components.Pages.Student.Profile> Logger
+
+<PageTitle>个人信息 - 考勤管理系统</PageTitle>
+
+<PageHeader Title="个人信息" Icon="user" Subtitle="查看个人资料与修改密码" />
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert--error">
+        <span class="alert__icon"><Icon Name="alert-circle" Size="20" /></span>
+        <span class="alert__body">@_errorMessage</span>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <div class="alert alert--success">
+        <span class="alert__icon"><Icon Name="check-circle" Size="20" /></span>
+        <span class="alert__body">@_successMessage</span>
+    </div>
+}
+
+@* 个人信息展示 *@
+<Card Title="个人资料" Class="mb-6">
+    <div class="info-list">
+        <div class="info-list__item">
+            <span class="info-list__label">学号</span>
+            <span class="info-list__value font-medium">@_userId</span>
+        </div>
+        <div class="info-list__item">
+            <span class="info-list__label">姓名</span>
+            <span class="info-list__value font-medium">@_userName</span>
+        </div>
+        <div class="info-list__item">
+            <span class="info-list__label">角色</span>
+            <span class="info-list__value">学生</span>
+        </div>
+        <div class="info-list__item">
+            <span class="info-list__label">性别</span>
+            <span class="info-list__value text-tertiary">—</span>
+        </div>
+        <div class="info-list__item">
+            <span class="info-list__label">院系</span>
+            <span class="info-list__value text-tertiary">—</span>
+        </div>
+        <div class="info-list__item">
+            <span class="info-list__label">专业</span>
+            <span class="info-list__value text-tertiary">—</span>
+        </div>
+        <div class="info-list__item">
+            <span class="info-list__label">班级</span>
+            <span class="info-list__value text-tertiary">—</span>
+        </div>
+    </div>
+    <div class="text-xs text-tertiary mt-4">
+        <Icon Name="info" Size="16" />
+        详细个人资料由管理员维护，如有变更需求请联系管理员。
+    </div>
+</Card>
+
+@* 修改密码表单 *@
+<Card Title="修改密码">
+    <div class="student-form-field">
+        <label class="student-form-field__label student-form-field__label--required">旧密码</label>
+        <input class="student-form-field__input"
+               type="password"
+               placeholder="请输入当前密码"
+               @bind="_oldPassword"
+               autocomplete="current-password" />
+    </div>
+
+    <div class="student-form-field">
+        <label class="student-form-field__label student-form-field__label--required">新密码</label>
+        <input class="student-form-field__input"
+               type="password"
+               placeholder="至少 6 个字符"
+               @bind="_newPassword"
+               autocomplete="new-password" />
+        @if (!string.IsNullOrEmpty(_newPassword) && _newPassword.Length < 6)
+        {
+            <span class="student-form-field__error">新密码至少需要 6 个字符</span>
+        }
+    </div>
+
+    <div class="student-form-field">
+        <label class="student-form-field__label student-form-field__label--required">确认新密码</label>
+        <input class="student-form-field__input"
+               type="password"
+               placeholder="请再次输入新密码"
+               @bind="_confirmPassword"
+               autocomplete="new-password" />
+        @if (!string.IsNullOrEmpty(_confirmPassword) && _confirmPassword != _newPassword)
+        {
+            <span class="student-form-field__error">两次输入的密码不一致</span>
+        }
+    </div>
+
+    <Button Variant="ButtonVariant.Primary"
+            Icon="lock"
+            OnClick="ChangePasswordAsync"
+            Loading="_submitting"
+            Disabled="!IsPasswordFormValid()"
+            Class="student-btn-large">
+        确认修改
+    </Button>
+</Card>
+
+@code {
+    private bool _submitting;
+    private string? _errorMessage;
+    private string? _successMessage;
+    private string _userId = string.Empty;
+    private string _userName = string.Empty;
+
+    // 密码表单字段
+    private string _oldPassword = string.Empty;
+    private string _newPassword = string.Empty;
+    private string _confirmPassword = string.Empty;
+
+    /// <summary>
+    /// 页面初始化：获取当前学生信息
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        var userInfo = TokenService.GetUserInfo();
+        if (userInfo is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        _userId = userInfo.UserId;
+        _userName = userInfo.UserName;
+    }
+
+    /// <summary>校验密码表单是否有效</summary>
+    private bool IsPasswordFormValid()
+    {
+        return !string.IsNullOrWhiteSpace(_oldPassword)
+            && !string.IsNullOrWhiteSpace(_newPassword)
+            && _newPassword.Length >= 6
+            && _newPassword == _confirmPassword;
+    }
+
+    /// <summary>提交修改密码</summary>
+    private async Task ChangePasswordAsync()
+    {
+        if (!IsPasswordFormValid())
+        {
+            _errorMessage = "请检查密码输入是否正确";
+            return;
+        }
+
+        _submitting = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            var dto = new PasswordChangeDto
+            {
+                OldPassword = _oldPassword,
+                NewPassword = _newPassword
+            };
+
+            await ApiClient.PostAsync<object>("api/profile/password", dto);
+            _successMessage = "密码修改成功";
+
+            // 清空表单
+            _oldPassword = string.Empty;
+            _newPassword = string.Empty;
+            _confirmPassword = string.Empty;
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+            Logger.LogWarning(ex, "修改密码失败");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "修改密码失败，请稍后重试";
+            Logger.LogError(ex, "修改密码异常");
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+}

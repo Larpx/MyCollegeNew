@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "Larpx.PersonalTools.MyCollegeNew.AppHost": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:17179;http://localhost:15096",
+      "launchUrl": "scalar/v1"
+    }
+  }
+}
