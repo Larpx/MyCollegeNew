@@ -1,35 +1,41 @@
 # Campus.Attendance.Api
 
-API 层，提供 RESTful HTTP 接口，供 Blazor Server 前端调用。
+API 入口项目，基于 **Minimal APIs + 垂直切片架构 (VSA)** 提供 RESTful HTTP 接口。
 
 ## 项目职责
 
-- 暴露 RESTful 端点（`api/[controller]` 路由约定）
+- 使用 Minimal APIs 按模块注册路由（`MapXxxEndpoints` 扩展方法）
 - 配置 JWT Bearer 认证与基于角色的策略授权
-- 配置 Swagger/OpenAPI 文档（Development 环境）
-- 全局异常处理与安全响应头中间件
+- 集成 MediatR CQRS（Command/Query + Handler 分离）
+- 集成 FluentValidation 管道自动校验（ValidationBehavior）
+- 集成 Mapster 对象映射
+- 集成 Serilog 结构化日志 + 异步写入
+- 集成 Scalar OpenAPI 文档
+- API 版本控制（URL 路径：`/api/v1/...`）
+- 统一异常处理（`IExceptionHandler` + `ProblemDetails` RFC 7807）
+- 安全响应头中间件
+- 响应压缩（Brotli + Gzip）、限流、OutputCache
 - 启动时自动执行数据库建表与种子数据播种
 
 ## 关键目录与类型
 
-| 目录 | 关键类型 | 说明 |
-|------|---------|------|
-| `Controllers/` | `AuthController` | 登录认证（POST /api/auth/login） |
-| | `ProfileController` | 当前用户信息（GET /api/profile/me） |
-| | `StudentsController`, `TeachersController` | 学生/教师管理 |
-| | `DepartmentsController`, `MajorsController`, `ClassesController` | 组织架构管理 |
-| | `CoursesController`, `SchedulesController` | 课程与排课管理 |
-| | `SessionsController` | 考勤会话（创建/二维码/签到/点名） |
-| | `LeavesController` | 请假申请与审批 |
-| | `StatisticsController` | 出勤统计与报表导出 |
-| `Middleware/` | `GlobalExceptionMiddleware` | 全局异常捕获，返回统一 ApiResponse |
-| | `SecurityHeadersMiddleware` | 安全响应头（X-Content-Type-Options 等） |
-| `Program.cs` | — | 服务注册、JWT 配置、启动时数据库初始化 |
+| 目录 | 说明 |
+|------|------|
+| `Features/Auth/` | 认证切片：登录、登出、个人信息 |
+| `Features/Users/` | 用户管理切片：学生/教师 CRUD、批量导入、密码修改 |
+| `Features/Organization/` | 组织架构切片：院系/专业/班级管理 |
+| `Features/Courses/` | 课程与排课切片 |
+| `Features/Attendance/` | 考勤切片：会话创建、二维码签到、一键点名、随机点名、手动补签 |
+| `Features/Leave/` | 请假切片：申请、审批、记录查询 |
+| `Features/Statistics/` | 统计切片：全局统计、院系排名、趋势分析、Excel 导出 |
+| `Behaviors/` | MediatR 管道行为（FluentValidation 自动校验） |
+| `ExceptionHandler/` | 全局异常处理器（`IExceptionHandler`） |
+| `Program.cs` | 启动配置、DI 注册、中间件编排 |
 
 ## 依赖关系
 
-- 引用 `Campus.Attendance.Core`、`Campus.Attendance.Models`、`Campus.Attendance.Services`
-- NuGet 包：`Microsoft.AspNetCore.Authentication.JwtBearer`、`Swashbuckle.AspNetCore`
+- 引用 `Campus.Attendance.Shared`、`Campus.Attendance.Infrastructure`、`Campus.Attendance.ServiceDefaults`
+- NuGet 包：`MediatR`、`FluentValidation`、`Mapster`、`Serilog`、`Scalar`、`Asp.Versioning`
 - 运行端口：开发 5144（HTTP）/ 7088（HTTPS），Docker 8080
 
 ## 配置
@@ -42,3 +48,4 @@ API 层，提供 RESTful HTTP 接口，供 Blazor Server 前端调用。
 | `Jwt:Issuer` | `Jwt__Issuer` | 签发者 |
 | `Jwt:Audience` | `Jwt__Audience` | 受众 |
 | `Jwt:ExpireMinutes` | `Jwt__ExpireMinutes` | 过期时间（分钟） |
+| `ConnectionStrings__redis` | `ConnectionStrings__redis` | Redis 连接字符串 |

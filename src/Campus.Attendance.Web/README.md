@@ -1,33 +1,44 @@
 # Campus.Attendance.Web
 
-Web 层，基于 Blazor Server 的前端 UI，通过 HttpClient 调用后端 API。
+Web 前端项目，基于 **Blazor Web App**，采用**静态 SSR 默认渲染 + 高交互组件 InteractiveServer** 的模式，通过 HttpClient 调用后端 API。
 
 ## 项目职责
 
-- 提供 Blazor Server 交互式 UI（服务端渲染 + SignalR 实时通信）
+- 提供 Blazor Web App UI（静态 SSR + 交互式 Server）
 - 实现三端页面（管理员 / 教师 / 学生）
-- 封装 ApiClient 统一调用后端 API，自动附加 JWT Token
-- 自定义 AuthenticationStateProvider，基于 JWT Claims 构建认证状态
+- BFF 简化模式：JWT 存储在 HttpOnly Cookie，服务端拦截器附加 Bearer Token
+- 封装 ApiClient 统一调用后端 API
+- 自定义 AuthenticationStateProvider，基于 Cookie 中的 JWT 构建认证状态
 - 响应式布局，适配桌面与移动端浏览器
 
 ## 关键目录与类型
 
-| 目录 | 关键类型 | 说明 |
-|------|---------|------|
-| `Components/Pages/Admin/` | `Dashboard`, `Students`, `Teachers`, `Departments`, `Courses`, `Statistics` | 管理员页面 |
-| `Components/Pages/Teacher/` | `Dashboard`, `Session`, `RollCall`, `Attendance`, `Leaves`, `Courses` | 教师页面（考勤发起/点名/请假审批） |
-| `Components/Pages/Student/` | `Home`, `CheckIn`, `Attendance`, `Leave`, `Schedule`, `Profile` | 学生页面（签到/请假/课表） |
-| `Components/Pages/` | `Login` | 统一登录页 |
-| `Components/Layout/` | `MainLayout`, `AdminLayout`, `TeacherLayout`, `StudentLayout`, `LoginLayout`, `NavMenu` | 布局组件与导航菜单 |
-| `Components/Ui/` | `Button`, `Card`, `Input`, `Modal`, `Table`, `Pagination`, `Badge`, `Icon`, `EmptyState`, `PageHeader` | 通用 UI 组件库 |
-| `Services/` | `ApiClient`, `CustomAuthStateProvider`, `TokenService` | API 客户端、认证状态提供器、Token 管理 |
-| `Program.cs` | — | 服务注册、HttpClient 配置、Blazor 渲染配置 |
+| 目录 | 说明 |
+|------|------|
+| `Services/ApiClient.cs` | API 客户端：从 Cookie 读取 Token 附加到请求头 |
+| `Services/TokenService.cs` | Token 服务：管理 HttpOnly Cookie 中的 JWT |
+| `Services/CustomAuthStateProvider.cs` | 自定义认证状态提供器 |
+| `Components/Layout/` | 布局组件（Admin/Teacher/Student/Login） |
+| `Components/Pages/Admin/` | 管理员页面（仪表盘、用户管理、组织架构、课程、统计） |
+| `Components/Pages/Teacher/` | 教师页面（考勤发起、点名、请假审批、课程） |
+| `Components/Pages/Student/` | 学生页面（签到、请假、课表、个人信息） |
+| `Components/Ui/` | 通用 UI 组件库（Button、Card、Modal、Table 等） |
+| `wwwroot/` | 静态资源（CSS 设计系统） |
+| `Program.cs` | 服务注册、HttpClient 配置、Blazor 渲染配置 |
 
 ## 依赖关系
 
-- 引用 `Campus.Attendance.Core`、`Campus.Attendance.Models`、`Campus.Attendance.Services`
+- 引用 `Campus.Attendance.Shared`、`Campus.Attendance.Infrastructure`、`Campus.Attendance.ServiceDefaults`
 - 通过 `HttpClient` 调用 `Campus.Attendance.Api`（基址由 `Api:BaseUrl` 配置）
 - 运行端口：开发 5249（HTTP）/ 7250（HTTPS），Docker 8080
+
+## 渲染模式
+
+| 页面类型 | 渲染模式 | 说明 |
+|----------|----------|------|
+| 静态展示页 | 静态 SSR（默认） | 无交互需求，服务端渲染 |
+| 登录页、仪表盘、表单 | `@rendermode InteractiveServer` | 需要交互操作 |
+| 错误/未找到页面 | 静态 SSR | 错误处理页面 |
 
 ## 配置
 
