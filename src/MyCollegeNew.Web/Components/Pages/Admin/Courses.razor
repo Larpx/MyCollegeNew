@@ -1,4 +1,4 @@
-﻿@page "/admin/courses"
+@page "/admin/courses"
 @layout AdminLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -185,7 +185,7 @@ else
         try
         {
             // 通过分页端点拉取较大数量教师供下拉选择
-            var paged = await ApiClient.GetAsync<PagedResult<TeacherResponseDto>>("api/teachers?pageIndex=1&pageSize=200");
+            var paged = await ApiClient.GetAsync<PagedResult<TeacherResponseDto>>("teachers?pageIndex=1&pageSize=200");
             _teachers = paged?.Items ?? new();
         }
         catch (Exception ex)
@@ -201,7 +201,7 @@ else
         _errorMessage = null;
         try
         {
-            var url = $"api/courses?pageIndex={_pageIndex}&pageSize={_pageSize}";
+            var url = $"courses?pageIndex={_pageIndex}&pageSize={_pageSize}";
             if (!string.IsNullOrWhiteSpace(_keyword)) url += $"&keyword={Uri.EscapeDataString(_keyword.Trim())}";
             _courses = await ApiClient.GetAsync<PagedResult<CourseResponseDto>>(url);
         }
@@ -298,7 +298,7 @@ else
                     Credit = _form.Credit,
                     Remark = _form.Remark
                 };
-                await ApiClient.PutAsync<CourseResponseDto>($"api/courses/{_editingId.Value}", dto);
+                await ApiClient.PutAsync<CourseResponseDto>($"courses/{_editingId.Value}", dto);
                 _successMessage = "课程信息已更新";
             }
             else
@@ -310,7 +310,7 @@ else
                     Credit = _form.Credit,
                     Remark = _form.Remark
                 };
-                await ApiClient.PostAsync<CourseResponseDto>("api/courses", dto);
+                await ApiClient.PostAsync<CourseResponseDto>("courses", dto);
                 _successMessage = "课程创建成功";
             }
             _formModalVisible = false;
@@ -355,7 +355,7 @@ else
         _errorMessage = null;
         try
         {
-            await ApiClient.DeleteAsync<object>($"api/courses/{_deletingCourse.Id}");
+            await ApiClient.DeleteAsync<object>($"courses/{_deletingCourse.Id}");
             _deleteModalVisible = false;
             _deletingCourse = null;
             _successMessage = "课程已删除";

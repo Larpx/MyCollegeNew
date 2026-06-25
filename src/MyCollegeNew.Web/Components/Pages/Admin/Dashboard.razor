@@ -1,4 +1,4 @@
-﻿@page "/admin/dashboard"
+@page "/admin/dashboard"
 @layout AdminLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -163,11 +163,11 @@ else
         {
             var endDate = DateTime.UtcNow;
             var startDate = endDate.AddDays(-13);
-            var trendUrl = $"api/statistics/attendance-trend?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}";
+            var trendUrl = $"statistics/attendance-trend?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}";
 
             // 并行调用三个统计端点，减少总等待时间
-            var overviewTask = ApiClient.GetAsync<OverviewStatisticsDto>("api/statistics/overview");
-            var rankingTask = ApiClient.GetAsync<List<DepartmentRankingDto>>("api/statistics/department-ranking");
+            var overviewTask = ApiClient.GetAsync<OverviewStatisticsDto>("statistics/overview");
+            var rankingTask = ApiClient.GetAsync<List<DepartmentRankingDto>>("statistics/department-ranking");
             var trendTask = ApiClient.GetAsync<List<AttendanceTrendDto>>(trendUrl);
 
             await Task.WhenAll(overviewTask, rankingTask, trendTask);

@@ -1,4 +1,4 @@
-﻿@page "/teacher/dashboard"
+@page "/teacher/dashboard"
 @layout TeacherLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -191,9 +191,9 @@ else
             if (dayOfWeek == 0) dayOfWeek = 7; // 周日转为 7
 
             // 并行加载统计、进行中会话、今日课表
-            var statsTask = ApiClient.GetAsync<TeacherStatisticsDto>($"api/statistics/teacher/{_userId}");
-            var activeTask = ApiClient.GetAsync<List<SessionResponseDto>>("api/sessions/active");
-            var scheduleTask = ApiClient.GetAsync<WeeklyScheduleDto>($"api/schedules/by-teacher/{_userId}?week=1");
+            var statsTask = ApiClient.GetAsync<TeacherStatisticsDto>($"statistics/teacher/{_userId}");
+            var activeTask = ApiClient.GetAsync<List<SessionResponseDto>>("sessions/active");
+            var scheduleTask = ApiClient.GetAsync<WeeklyScheduleDto>($"schedules/by-teacher/{_userId}?week=1");
 
             await Task.WhenAll(statsTask, activeTask, scheduleTask);
 
@@ -208,7 +208,7 @@ else
                 try
                 {
                     // 后端返回 { Count: int }，使用字典反序列化
-                    var pendingObj = await ApiClient.GetAsync<Dictionary<string, int>>("api/leaves/pending-count");
+                    var pendingObj = await ApiClient.GetAsync<Dictionary<string, int>>("leaves/pending-count");
                     if (pendingObj is not null && pendingObj.TryGetValue("Count", out var count))
                     {
                         _pendingLeavesCount = count;

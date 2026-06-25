@@ -1,4 +1,4 @@
-﻿@page "/teacher/leaves"
+@page "/teacher/leaves"
 @layout TeacherLayout
 @attribute [Authorize(Roles = "Counselor")]
 @rendermode InteractiveServer
@@ -202,7 +202,7 @@ else
         _errorMessage = null;
         try
         {
-            var url = $"api/leaves/counselor?pageIndex={_pageIndex}&pageSize={_pageSize}";
+            var url = $"leaves/counselor?pageIndex={_pageIndex}&pageSize={_pageSize}";
             if (_filterStatus.HasValue) url += $"&status={_filterStatus.Value}";
             _leaves = await ApiClient.GetAsync<PagedResult<LeaveResponseDto>>(url);
         }
@@ -261,7 +261,7 @@ else
         try
         {
             var dto = new LeaveReviewDto { ReviewRemark = _reviewRemark };
-            await ApiClient.PostAsync<LeaveResponseDto>($"api/leaves/{_reviewingLeave.Id}/approve", dto);
+            await ApiClient.PostAsync<LeaveResponseDto>($"leaves/{_reviewingLeave.Id}/approve", dto);
             _successMessage = "审批通过";
             _reviewModalVisible = false;
             await LoadLeavesAsync();
@@ -290,7 +290,7 @@ else
         try
         {
             var dto = new LeaveReviewDto { ReviewRemark = _reviewRemark };
-            await ApiClient.PostAsync<LeaveResponseDto>($"api/leaves/{_reviewingLeave.Id}/reject", dto);
+            await ApiClient.PostAsync<LeaveResponseDto>($"leaves/{_reviewingLeave.Id}/reject", dto);
             _successMessage = "已驳回";
             _reviewModalVisible = false;
             await LoadLeavesAsync();

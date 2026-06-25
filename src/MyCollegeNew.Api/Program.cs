@@ -1,4 +1,4 @@
-﻿using FluentValidation;
+using FluentValidation;
 using Larpx.PersonalTools.MyCollegeNew.Api.Behaviors;
 using Larpx.PersonalTools.MyCollegeNew.Api.Exceptions;
 using Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance;
@@ -74,8 +74,12 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
             builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
 
             // 配置 JWT Bearer 认证
-            var jwtConfig = builder.Configuration.GetSection("Jwt").Get<JwtConfig>()
-                ?? throw new InvalidOperationException("未配置 Jwt 节点");
+            var jwtConfig = new JwtConfig();
+            builder.Configuration.GetSection("Jwt").Bind(jwtConfig);
+            if (string.IsNullOrWhiteSpace(jwtConfig.SecretKey))
+            {
+                throw new InvalidOperationException("未配置 Jwt:SecretKey，请在 appsettings.json 或环境变量中设置");
+            }
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
                 {

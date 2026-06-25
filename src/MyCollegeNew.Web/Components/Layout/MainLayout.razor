@@ -95,7 +95,7 @@
         try
         {
             // 调用后端登出接口（可选，JWT 无状态）
-            await ApiClient.PostNoContentAsync("api/auth/logout");
+            await ApiClient.PostNoContentAsync("auth/logout");
         }
         catch
         {

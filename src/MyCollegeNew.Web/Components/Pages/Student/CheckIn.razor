@@ -1,4 +1,4 @@
-﻿@page "/student/checkin"
+@page "/student/checkin"
 @layout StudentLayout
 @attribute [Authorize(Roles = "Student")]
 @rendermode InteractiveServer
@@ -127,7 +127,7 @@
 
             // 调用签到接口
             var request = new CheckInRequestDto { Token = _token };
-            _checkInResult = await ApiClient.PostAsync<CheckInResult>($"api/sessions/{sessionId.Value}/checkin", request);
+            _checkInResult = await ApiClient.PostAsync<CheckInResult>($"sessions/{sessionId.Value}/checkin", request);
         }
         catch (ApiException ex)
         {

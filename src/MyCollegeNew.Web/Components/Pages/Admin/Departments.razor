@@ -1,4 +1,4 @@
-﻿@page "/admin/departments"
+@page "/admin/departments"
 @layout AdminLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -251,7 +251,7 @@ else
         _errorMessage = null;
         try
         {
-            _tree = await ApiClient.GetAsync<List<OrganizationTreeNodeDto>>("api/departments/tree");
+            _tree = await ApiClient.GetAsync<List<OrganizationTreeNodeDto>>("organization/tree");
         }
         catch (ApiException ex)
         {
@@ -308,12 +308,12 @@ else
             if (_editingDeptId.HasValue)
             {
                 var dto = new DepartmentUpdateDto { Name = _deptForm.Name.Trim() };
-                await ApiClient.PutAsync<DepartmentResponseDto>($"api/departments/{_editingDeptId.Value}", dto);
+                await ApiClient.PutAsync<DepartmentResponseDto>($"departments/{_editingDeptId.Value}", dto);
             }
             else
             {
                 var dto = new DepartmentCreateDto { Name = _deptForm.Name.Trim() };
-                await ApiClient.PostAsync<DepartmentResponseDto>("api/departments", dto);
+                await ApiClient.PostAsync<DepartmentResponseDto>("departments", dto);
             }
             _deptModalVisible = false;
             await LoadTreeAsync();
@@ -339,7 +339,7 @@ else
         _deleteConfirmText = $"确定删除院系「{dept.Name}」吗？该操作将同时删除其下所有专业与班级，且不可恢复。";
         _deleteAction = async () =>
         {
-            await ApiClient.DeleteAsync<object>($"api/departments/{dept.Id}");
+            await ApiClient.DeleteAsync<object>($"departments/{dept.Id}");
             await LoadTreeAsync();
         };
         _deleteModalVisible = true;
@@ -391,12 +391,12 @@ else
             if (_editingMajorId.HasValue)
             {
                 var dto = new MajorUpdateDto { Name = _majorForm.Name.Trim(), DepartmentId = _majorForm.DepartmentId };
-                await ApiClient.PutAsync<MajorResponseDto>($"api/majors/{_editingMajorId.Value}", dto);
+                await ApiClient.PutAsync<MajorResponseDto>($"majors/{_editingMajorId.Value}", dto);
             }
             else
             {
                 var dto = new MajorCreateDto { Name = _majorForm.Name.Trim(), DepartmentId = _majorForm.DepartmentId };
-                await ApiClient.PostAsync<MajorResponseDto>("api/majors", dto);
+                await ApiClient.PostAsync<MajorResponseDto>("majors", dto);
             }
             _majorModalVisible = false;
             await LoadTreeAsync();
@@ -422,7 +422,7 @@ else
         _deleteConfirmText = $"确定删除专业「{major.Name}」吗？该操作将同时删除其下所有班级，且不可恢复。";
         _deleteAction = async () =>
         {
-            await ApiClient.DeleteAsync<object>($"api/majors/{major.Id}");
+            await ApiClient.DeleteAsync<object>($"majors/{major.Id}");
             await LoadTreeAsync();
         };
         _deleteModalVisible = true;
@@ -491,7 +491,7 @@ else
                     Grade = _classForm.Grade,
                     CounselorId = _classForm.CounselorId.Trim()
                 };
-                await ApiClient.PutAsync<ClassResponseDto>($"api/classes/{_editingClassId.Value}", dto);
+                await ApiClient.PutAsync<ClassResponseDto>($"classes/{_editingClassId.Value}", dto);
             }
             else
             {
@@ -502,7 +502,7 @@ else
                     Grade = _classForm.Grade,
                     CounselorId = _classForm.CounselorId.Trim()
                 };
-                await ApiClient.PostAsync<ClassResponseDto>("api/classes", dto);
+                await ApiClient.PostAsync<ClassResponseDto>("classes", dto);
             }
             _classModalVisible = false;
             await LoadTreeAsync();
@@ -528,7 +528,7 @@ else
         _deleteConfirmText = $"确定删除班级「{cls.Name}」吗？该操作不可恢复。";
         _deleteAction = async () =>
         {
-            await ApiClient.DeleteAsync<object>($"api/classes/{cls.Id}");
+            await ApiClient.DeleteAsync<object>($"classes/{cls.Id}");
             await LoadTreeAsync();
         };
         _deleteModalVisible = true;

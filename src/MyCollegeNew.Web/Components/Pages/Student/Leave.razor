@@ -1,4 +1,4 @@
-﻿@page "/student/leaves"
+@page "/student/leaves"
 @page "/student/leave"
 @layout StudentLayout
 @attribute [Authorize(Roles = "Student")]
@@ -193,7 +193,7 @@ else
         _errorMessage = null;
         try
         {
-            _leaves = await ApiClient.GetAsync<PagedResult<LeaveResponseDto>>("api/leaves/my?pageIndex=1&pageSize=50");
+            _leaves = await ApiClient.GetAsync<PagedResult<LeaveResponseDto>>("leaves/my?pageIndex=1&pageSize=50");
         }
         catch (ApiException ex)
         {
@@ -233,7 +233,7 @@ else
                 Reason = _reason
             };
 
-            await ApiClient.PostAsync<LeaveResponseDto>("api/leaves", dto);
+            await ApiClient.PostAsync<LeaveResponseDto>("leaves", dto);
             _successMessage = "请假申请已提交，请等待辅导员审批";
 
             // 重置表单

@@ -1,4 +1,4 @@
-﻿@page "/student/home"
+@page "/student/home"
 @layout StudentLayout
 @attribute [Authorize(Roles = "Student")]
 @rendermode InteractiveServer
@@ -158,13 +158,13 @@ else
             if (dayOfWeek == 0) dayOfWeek = 7; // 周日转为 7
 
             // 加载本周课表，从中提取今日课程
-            var weekly = await ApiClient.GetAsync<WeeklyScheduleDto>($"api/schedules/by-student/{_userId}?week=1");
+            var weekly = await ApiClient.GetAsync<WeeklyScheduleDto>($"schedules/weekly/student/{_userId}?week=1");
             _todaySchedules = weekly?.Days?.GetValueOrDefault(dayOfWeek) ?? new List<ScheduleResponseDto>();
 
             // 尝试获取进行中会话（学生端可能无权限，失败时忽略）
             try
             {
-                var activeSessions = await ApiClient.GetAsync<List<SessionResponseDto>>("api/sessions/active");
+                var activeSessions = await ApiClient.GetAsync<List<SessionResponseDto>>("sessions/active");
                 _hasActiveSession = activeSessions is not null && activeSessions.Count > 0;
             }
             catch (ApiException)

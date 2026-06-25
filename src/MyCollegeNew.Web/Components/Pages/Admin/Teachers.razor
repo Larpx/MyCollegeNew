@@ -1,4 +1,4 @@
-﻿@page "/admin/teachers"
+@page "/admin/teachers"
 @layout AdminLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -259,7 +259,7 @@ else
     {
         try
         {
-            _departments = await ApiClient.GetAsync<List<DepartmentResponseDto>>("api/departments") ?? new();
+            _departments = await ApiClient.GetAsync<List<DepartmentResponseDto>>("departments") ?? new();
         }
         catch (Exception ex)
         {
@@ -274,7 +274,7 @@ else
         _errorMessage = null;
         try
         {
-            var url = $"api/teachers?pageIndex={_pageIndex}&pageSize={_pageSize}";
+            var url = $"teachers?pageIndex={_pageIndex}&pageSize={_pageSize}";
             if (!string.IsNullOrWhiteSpace(_keyword)) url += $"&keyword={Uri.EscapeDataString(_keyword.Trim())}";
             if (_filterDepartmentId.HasValue) url += $"&departmentId={_filterDepartmentId.Value}";
             if (_filterRole.HasValue) url += $"&role={_filterRole.Value}";
@@ -319,7 +319,7 @@ else
             _form.DepartmentId = deptId;
             try
             {
-                _formMajors = await ApiClient.GetAsync<List<MajorResponseDto>>($"api/majors?departmentId={deptId}") ?? new();
+                _formMajors = await ApiClient.GetAsync<List<MajorResponseDto>>($"departments/{deptId}/majors") ?? new();
             }
             catch (Exception ex)
             {
@@ -407,7 +407,7 @@ else
                     Role = _form.Role,
                     Remark = _form.Remark
                 };
-                await ApiClient.PutAsync<TeacherResponseDto>($"api/teachers/{_editingId}", dto);
+                await ApiClient.PutAsync<TeacherResponseDto>($"teachers/{_editingId}", dto);
                 _successMessage = "教师信息已更新";
             }
             else
@@ -422,7 +422,7 @@ else
                     MajorId = _form.MajorId,
                     Role = _form.Role
                 };
-                await ApiClient.PostAsync<TeacherResponseDto>("api/teachers", dto);
+                await ApiClient.PostAsync<TeacherResponseDto>("teachers", dto);
                 _successMessage = "教师创建成功";
             }
             _formModalVisible = false;
@@ -467,7 +467,7 @@ else
         _errorMessage = null;
         try
         {
-            await ApiClient.DeleteAsync<object>($"api/teachers/{_deletingTeacher.Id}");
+            await ApiClient.DeleteAsync<object>($"teachers/{_deletingTeacher.Id}");
             _deleteModalVisible = false;
             _deletingTeacher = null;
             _successMessage = "教师已删除";

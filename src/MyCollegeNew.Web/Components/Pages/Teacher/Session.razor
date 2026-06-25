@@ -1,4 +1,4 @@
-﻿@page "/teacher/session/{SessionId:long}"
+@page "/teacher/session/{SessionId:long}"
 @page "/teacher/session/new"
 @layout TeacherLayout
 @attribute [Authorize]
@@ -261,7 +261,7 @@ else if (_session is not null)
         _errorMessage = null;
         try
         {
-            _session = await ApiClient.GetAsync<SessionResponseDto>($"api/sessions/{SessionId}");
+            _session = await ApiClient.GetAsync<SessionResponseDto>($"sessions/{SessionId}");
             await LoadRecordsAsync();
             // 若会话进行中且已有 token，自动生成二维码
             if (_session is not null && _session.Status == SessionStatus.Active)
@@ -289,7 +289,7 @@ else if (_session is not null)
     {
         try
         {
-            _records = await ApiClient.GetAsync<List<AttendanceRecordResponseDto>>($"api/sessions/{SessionId}/records");
+            _records = await ApiClient.GetAsync<List<AttendanceRecordResponseDto>>($"sessions/{SessionId}/records");
         }
         catch (Exception ex)
         {
@@ -318,7 +318,7 @@ else if (_session is not null)
                 StartTime = DateTime.UtcNow,
                 EndTime = DateTime.UtcNow.AddMinutes(_durationMinutes)
             };
-            var created = await ApiClient.PostAsync<SessionResponseDto>("api/sessions", dto);
+            var created = await ApiClient.PostAsync<SessionResponseDto>("sessions", dto);
             if (created is not null)
             {
                 // 跳转到会话详情页
@@ -348,7 +348,7 @@ else if (_session is not null)
         _errorMessage = null;
         try
         {
-            _qrCode = await ApiClient.PostAsync<QrCodeResult>($"api/sessions/{_session.Id}/qrcode", null);
+            _qrCode = await ApiClient.PostAsync<QrCodeResult>($"sessions/{_session.Id}/qrcode", null);
             if (_qrCode is not null)
             {
                 _countdown = _qrCode.ExpireSeconds;
@@ -383,7 +383,7 @@ else if (_session is not null)
         _errorMessage = null;
         try
         {
-            await ApiClient.PostAsync<object>($"api/sessions/{_session.Id}/roll-call-all", null);
+            await ApiClient.PostAsync<object>($"sessions/{_session.Id}/roll-call-all", null);
             _successMessage = "一键点名完成";
             await LoadRecordsAsync();
         }
@@ -412,7 +412,7 @@ else if (_session is not null)
         try
         {
             var dto = new UpdateRecordStatusDto { Status = newStatus };
-            await ApiClient.PutAsync<object>($"api/sessions/records/{record.Id}", dto);
+            await ApiClient.PutAsync<object>($"sessions/records/{record.Id}", dto);
             await LoadRecordsAsync();
         }
         catch (ApiException ex)
@@ -438,7 +438,7 @@ else if (_session is not null)
         _errorMessage = null;
         try
         {
-            await ApiClient.PostAsync<object>($"api/sessions/{_session.Id}/close", null);
+            await ApiClient.PostAsync<object>($"sessions/{_session.Id}/close", null);
             _successMessage = "会话已关闭";
             await LoadSessionAsync();
         }
@@ -465,7 +465,7 @@ else if (_session is not null)
         _errorMessage = null;
         try
         {
-            var bytes = await ApiClient.DownloadFileAsync($"api/statistics/export/session/{_session.Id}");
+            var bytes = await ApiClient.DownloadFileAsync($"statistics/export/session/{_session.Id}");
             var fileName = $"考勤记录_{_session.CourseName}_{_session.Id}.xlsx";
             await DownloadFileAsync(bytes, fileName);
             _successMessage = "导出成功";

@@ -1,4 +1,4 @@
-﻿@page "/student/attendance"
+@page "/student/attendance"
 @layout StudentLayout
 @attribute [Authorize(Roles = "Student")]
 @rendermode InteractiveServer
@@ -153,7 +153,7 @@ else if (_statistics is not null)
         _errorMessage = null;
         try
         {
-            _statistics = await ApiClient.GetAsync<StudentStatisticsDto>($"api/statistics/student/{_studentId}");
+            _statistics = await ApiClient.GetAsync<StudentStatisticsDto>($"statistics/student/{_studentId}");
         }
         catch (ApiException ex)
         {

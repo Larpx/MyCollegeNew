@@ -1,4 +1,4 @@
-﻿@page "/admin/students"
+@page "/admin/students"
 @layout AdminLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -331,7 +331,7 @@ else
     {
         try
         {
-            _departments = await ApiClient.GetAsync<List<DepartmentResponseDto>>("api/departments") ?? new();
+            _departments = await ApiClient.GetAsync<List<DepartmentResponseDto>>("departments") ?? new();
         }
         catch (Exception ex)
         {
@@ -346,7 +346,7 @@ else
         _errorMessage = null;
         try
         {
-            var url = $"api/students?pageIndex={_pageIndex}&pageSize={_pageSize}";
+            var url = $"students?pageIndex={_pageIndex}&pageSize={_pageSize}";
             if (!string.IsNullOrWhiteSpace(_keyword)) url += $"&keyword={Uri.EscapeDataString(_keyword.Trim())}";
             if (_filterClassId.HasValue) url += $"&classId={_filterClassId.Value}";
             _students = await ApiClient.GetAsync<PagedResult<StudentResponseDto>>(url);
@@ -389,10 +389,10 @@ else
         {
             try
             {
-                var majors = await ApiClient.GetAsync<List<MajorResponseDto>>($"api/majors?departmentId={_filterDepartmentId.Value}") ?? new();
+                var majors = await ApiClient.GetAsync<List<MajorResponseDto>>($"departments/{_filterDepartmentId.Value}/majors") ?? new();
                 foreach (var major in majors)
                 {
-                    var classes = await ApiClient.GetAsync<List<ClassResponseDto>>($"api/majors/{major.Id}/classes") ?? new();
+                    var classes = await ApiClient.GetAsync<List<ClassResponseDto>>($"majors/{major.Id}/classes") ?? new();
                     _availableClasses.AddRange(classes);
                 }
             }
@@ -415,7 +415,7 @@ else
             _form.DepartmentId = deptId;
             try
             {
-                _formMajors = await ApiClient.GetAsync<List<MajorResponseDto>>($"api/majors?departmentId={deptId}") ?? new();
+                _formMajors = await ApiClient.GetAsync<List<MajorResponseDto>>($"departments/{deptId}/majors") ?? new();
             }
             catch (Exception ex)
             {
@@ -438,7 +438,7 @@ else
             _form.MajorId = majorId;
             try
             {
-                _formClasses = await ApiClient.GetAsync<List<ClassResponseDto>>($"api/majors/{majorId}/classes") ?? new();
+                _formClasses = await ApiClient.GetAsync<List<ClassResponseDto>>($"majors/{majorId}/classes") ?? new();
             }
             catch (Exception ex)
             {
@@ -533,7 +533,7 @@ else
                     Status = _form.Status,
                     Remark = _form.Remark
                 };
-                await ApiClient.PutAsync<StudentResponseDto>($"api/students/{_editingId}", dto);
+                await ApiClient.PutAsync<StudentResponseDto>($"students/{_editingId}", dto);
                 _successMessage = "学生信息已更新";
             }
             else
@@ -549,7 +549,7 @@ else
                     ClassId = _form.ClassId,
                     Grade = _form.Grade
                 };
-                await ApiClient.PostAsync<StudentResponseDto>("api/students", dto);
+                await ApiClient.PostAsync<StudentResponseDto>("students", dto);
                 _successMessage = "学生创建成功";
             }
             _formModalVisible = false;
@@ -594,7 +594,7 @@ else
         _errorMessage = null;
         try
         {
-            await ApiClient.DeleteAsync<object>($"api/students/{_deletingStudent.Id}");
+            await ApiClient.DeleteAsync<object>($"students/{_deletingStudent.Id}");
             _deleteModalVisible = false;
             _deletingStudent = null;
             _successMessage = "学生已删除";
@@ -655,7 +655,7 @@ else
             content.Add(fileContent, "file", _selectedFile.Name);
 
             // 使用 PostFormAsync 以 multipart/form-data 方式上传
-            _importResult = await ApiClient.PostFormAsync<BatchImportResultDto>("api/students/import", content);
+            _importResult = await ApiClient.PostFormAsync<BatchImportResultDto>("students/import", content);
             _successMessage = $"导入完成：成功 {_importResult?.SuccessCount ?? 0} 条";
             await LoadStudentsAsync();
         }

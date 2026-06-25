@@ -1,4 +1,4 @@
-﻿@page "/student/schedule"
+@page "/student/schedule"
 @layout StudentLayout
 @attribute [Authorize(Roles = "Student")]
 @rendermode InteractiveServer
@@ -123,7 +123,7 @@ else if (_weeklySchedule is not null)
         _errorMessage = null;
         try
         {
-            _weeklySchedule = await ApiClient.GetAsync<WeeklyScheduleDto>($"api/schedules/by-student/{_studentId}?week={_week}");
+            _weeklySchedule = await ApiClient.GetAsync<WeeklyScheduleDto>($"schedules/weekly/student/{_studentId}?week={_week}");
         }
         catch (ApiException ex)
         {

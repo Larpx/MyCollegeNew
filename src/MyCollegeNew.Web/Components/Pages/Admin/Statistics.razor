@@ -1,4 +1,4 @@
-﻿@page "/admin/statistics"
+@page "/admin/statistics"
 @layout AdminLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -190,11 +190,11 @@ else
             // 解析日期范围（UTC）
             var startDate = DateTime.Parse(_startDateStr);
             var endDate = DateTime.Parse(_endDateStr).AddDays(1).AddSeconds(-1);
-            var trendUrl = $"api/statistics/attendance-trend?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}";
+            var trendUrl = $"statistics/attendance-trend?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}";
 
             // 并行调用三个统计端点
-            var overviewTask = ApiClient.GetAsync<OverviewStatisticsDto>("api/statistics/overview");
-            var rankingTask = ApiClient.GetAsync<List<DepartmentRankingDto>>("api/statistics/department-ranking");
+            var overviewTask = ApiClient.GetAsync<OverviewStatisticsDto>("statistics/overview");
+            var rankingTask = ApiClient.GetAsync<List<DepartmentRankingDto>>("statistics/department-ranking");
             var trendTask = ApiClient.GetAsync<List<AttendanceTrendDto>>(trendUrl);
 
             await Task.WhenAll(overviewTask, rankingTask, trendTask);

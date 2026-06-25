@@ -1,4 +1,4 @@
-﻿@page "/teacher/courses"
+@page "/teacher/courses"
 @layout TeacherLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -214,7 +214,7 @@ else if (_activeTab == "schedule")
         _errorMessage = null;
         try
         {
-            _courses = await ApiClient.GetAsync<List<CourseResponseDto>>($"api/courses/by-teacher/{_userId}");
+            _courses = await ApiClient.GetAsync<List<CourseResponseDto>>($"courses/by-teacher/{_userId}");
         }
         catch (ApiException ex)
         {
@@ -238,7 +238,7 @@ else if (_activeTab == "schedule")
         _errorMessage = null;
         try
         {
-            _weeklySchedule = await ApiClient.GetAsync<WeeklyScheduleDto>($"api/schedules/by-teacher/{_userId}?week={_week}");
+            _weeklySchedule = await ApiClient.GetAsync<WeeklyScheduleDto>($"schedules/weekly/teacher/{_userId}?week={_week}");
         }
         catch (ApiException ex)
         {
@@ -264,7 +264,7 @@ else if (_activeTab == "schedule")
         try
         {
             // 通过教师课表查询该课程关联的班级（取第 1 周）
-            var weekly = await ApiClient.GetAsync<WeeklyScheduleDto>($"api/schedules/by-teacher/{_userId}?week=1");
+            var weekly = await ApiClient.GetAsync<WeeklyScheduleDto>($"schedules/weekly/teacher/{_userId}?week=1");
             if (weekly?.Days is not null)
             {
                 // 从课表中提取该课程对应的所有班级（去重）

@@ -1,4 +1,4 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Web.Services
@@ -33,13 +33,13 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web.Services
             _cachedToken = token;
 
             var httpContext = _httpContextAccessor.HttpContext;
-            if (httpContext is not null)
+            if (httpContext is not null && !httpContext.Response.HasStarted)
             {
                 var options = new CookieOptions
                 {
                     HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.Strict,
+                    Secure = false, // 开发环境使用 HTTP，需设为 false
+                    SameSite = SameSiteMode.Lax,
                     Expires = DateTimeOffset.UtcNow.AddHours(2),
                     Path = "/"
                 };
@@ -47,14 +47,25 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web.Services
             }
         }
 
-        /// <summary>从 HttpOnly Cookie 读取 JWT；Cookie 不可用时降级到内存缓存</summary>
+        /// <summary>从认证 Cookie Claim 或 HttpOnly Cookie 读取 JWT；降级到内存缓存</summary>
         /// <returns>Token 字符串；不存在则返回 null</returns>
         public string? GetToken()
         {
-            // 优先从 HttpContext 读取（SSR 模式）
             var httpContext = _httpContextAccessor.HttpContext;
             if (httpContext is not null)
             {
+                // 优先从 ASP.NET Core 认证 Cookie 的 claim 中读取 token
+                if (httpContext.User.Identity?.IsAuthenticated == true)
+                {
+                    var claimToken = httpContext.User.FindFirst("token")?.Value;
+                    if (!string.IsNullOrEmpty(claimToken))
+                    {
+                        _cachedToken = claimToken;
+                        return claimToken;
+                    }
+                }
+
+                // 降级到自定义 Cookie
                 var cookieToken = httpContext.Request.Cookies[TokenCookieName];
                 if (!string.IsNullOrEmpty(cookieToken))
                 {
@@ -73,13 +84,13 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web.Services
             _cachedToken = null;
 
             var httpContext = _httpContextAccessor.HttpContext;
-            if (httpContext is not null)
+            if (httpContext is not null && !httpContext.Response.HasStarted)
             {
                 var options = new CookieOptions
                 {
                     HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.Strict,
+                    Secure = false,
+                    SameSite = SameSiteMode.Lax,
                     Path = "/"
                 };
                 httpContext.Response.Cookies.Delete(TokenCookieName, options);

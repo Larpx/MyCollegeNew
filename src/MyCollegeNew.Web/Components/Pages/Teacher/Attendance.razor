@@ -1,4 +1,4 @@
-﻿@page "/teacher/attendance"
+@page "/teacher/attendance"
 @layout TeacherLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -145,7 +145,7 @@ else
         {
             var startDate = DateTime.Parse(_startDateStr);
             var endDate = DateTime.Parse(_endDateStr).AddDays(1).AddSeconds(-1);
-            var url = $"api/sessions/history?pageIndex={_pageIndex}&pageSize={_pageSize}&startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}";
+            var url = $"sessions/history?pageIndex={_pageIndex}&pageSize={_pageSize}&startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}";
             _sessions = await ApiClient.GetAsync<PagedResult<SessionResponseDto>>(url);
         }
         catch (ApiException ex)
@@ -189,7 +189,7 @@ else
         _errorMessage = null;
         try
         {
-            var bytes = await ApiClient.DownloadFileAsync($"api/statistics/export/session/{sessionId}");
+            var bytes = await ApiClient.DownloadFileAsync($"statistics/export/session/{sessionId}");
             var fileName = $"考勤记录_{sessionId}_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
             await DownloadFileAsync(bytes, fileName);
             _successMessage = "导出成功";

@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SqlSugar;
@@ -24,7 +24,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data
             var config = dbConfig.Value;
             var dbType = ResolveDbType(config.ProviderType);
 
-            _client = new SqlSugarClient(new ConnectionConfig
+            var connectionConfig = new ConnectionConfig
             {
                 DbType = dbType,
                 ConnectionString = config.ConnectionString,
@@ -33,7 +33,33 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data
                 {
                     IsAutoRemoveDataCache = true
                 }
-            });
+            };
+
+            // 配置实体特性（全局生效）：自动映射可空类型、SQLite 下修正自增主键类型
+            connectionConfig.ConfigureExternalServices = new ConfigureExternalServices
+            {
+                EntityService = (propertyInfo, columnInfo) =>
+                {
+                    // 将可空值类型（如 DateTime?、long?、int?）映射为数据库可空列
+                    if (columnInfo.IsPrimarykey == false
+                        && propertyInfo.PropertyType.IsGenericType
+                        && propertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+                    {
+                        columnInfo.IsNullable = true;
+                    }
+
+                    // SQLite 下 long 自增主键使用 INTEGER（而非 BIGINT），以支持 AUTOINCREMENT
+                    if (dbType == DbType.Sqlite
+                        && columnInfo.IsPrimarykey
+                        && columnInfo.IsIdentity
+                        && propertyInfo.PropertyType == typeof(long))
+                    {
+                        columnInfo.DataType = "INTEGER";
+                    }
+                }
+            };
+
+            _client = new SqlSugarClient(connectionConfig);
 
             _logger.LogInformation("SqlSugar 数据库上下文已初始化，提供程序: {ProviderType}", config.ProviderType);
         }

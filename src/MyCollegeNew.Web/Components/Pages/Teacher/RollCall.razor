@@ -1,4 +1,4 @@
-﻿@page "/teacher/rollcall/{SessionId:long}"
+@page "/teacher/rollcall/{SessionId:long}"
 @layout TeacherLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -159,7 +159,7 @@ else if (_session is not null)
         _errorMessage = null;
         try
         {
-            _session = await ApiClient.GetAsync<SessionResponseDto>($"api/sessions/{SessionId}");
+            _session = await ApiClient.GetAsync<SessionResponseDto>($"sessions/{SessionId}");
             await LoadRecordsAsync();
         }
         catch (ApiException ex)
@@ -182,7 +182,7 @@ else if (_session is not null)
     {
         try
         {
-            _records = await ApiClient.GetAsync<List<AttendanceRecordResponseDto>>($"api/sessions/{SessionId}/records");
+            _records = await ApiClient.GetAsync<List<AttendanceRecordResponseDto>>($"sessions/{SessionId}/records");
             UpdateStatistics();
         }
         catch (Exception ex)
@@ -213,7 +213,7 @@ else if (_session is not null)
         _errorMessage = null;
         try
         {
-            await ApiClient.PostAsync<object>($"api/sessions/{_session.Id}/roll-call-all", null);
+            await ApiClient.PostAsync<object>($"sessions/{_session.Id}/roll-call-all", null);
             _successMessage = "一键点名完成";
             await LoadRecordsAsync();
         }
@@ -240,7 +240,7 @@ else if (_session is not null)
         _errorMessage = null;
         try
         {
-            _randomPick = await ApiClient.PostAsync<RandomPickResult>($"api/sessions/random-pick/{_session.ClassId}?sessionId={_session.Id}", null);
+            _randomPick = await ApiClient.PostAsync<RandomPickResult>($"classes/{_session.ClassId}/random-pick?sessionId={_session.Id}", null);
         }
         catch (ApiException ex)
         {
@@ -266,7 +266,7 @@ else if (_session is not null)
         try
         {
             var dto = new MarkRandomPickDto { StudentId = _randomPick.StudentId, Answered = answered };
-            await ApiClient.PostAsync<object>($"api/sessions/random-pick/{_session.Id}/mark", dto);
+            await ApiClient.PostAsync<object>($"sessions/{_session.Id}/random-pick/mark", dto);
             _successMessage = answered ? "已标记为已回答" : "已标记为未回答";
             _randomPick = null;
         }
@@ -295,7 +295,7 @@ else if (_session is not null)
         try
         {
             var dto = new UpdateRecordStatusDto { Status = newStatus };
-            await ApiClient.PutAsync<object>($"api/sessions/records/{record.Id}", dto);
+            await ApiClient.PutAsync<object>($"sessions/records/{record.Id}", dto);
             await LoadRecordsAsync();
         }
         catch (ApiException ex)
