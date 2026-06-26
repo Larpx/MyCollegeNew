@@ -1,0 +1,9 @@
+@* 未登录重定向到 /login 页面 *@
+@inject NavigationManager NavigationManager
+
+@code {
+    protected override void OnInitialized()
+    {
+        NavigationManager.NavigateTo("/login", forceLoad: true);
+    }
+}

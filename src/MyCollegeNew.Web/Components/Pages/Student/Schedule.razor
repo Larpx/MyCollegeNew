@@ -1,4 +1,4 @@
-@page "/student/schedule"
+﻿@page "/student/schedule"
 @layout StudentLayout
 @attribute [Authorize(Roles = "Student")]
 @rendermode InteractiveServer
@@ -35,9 +35,9 @@ else if (_weeklySchedule is not null)
 {
     @* 周次切换 *@
     <div class="student-week-nav">
-        <Button Variant="ButtonVariant.Outline" Icon="chevron-left" OnClick="PreviousWeek" Disabled="_week <= 1">上一周</Button>
+        <Button Variant="ButtonVariant.Secondary" Icon="chevron-left" OnClick="PreviousWeek" Disabled="_week <= 1">上一周</Button>
         <span class="student-week-nav__label">第 @_week 周</span>
-        <Button Variant="ButtonVariant.Outline" OnClick="NextWeek" Disabled="_week >= 20">
+        <Button Variant="ButtonVariant.Secondary" OnClick="NextWeek" Disabled="_week >= 20">
             下一周
             <Icon Name="chevron-right" Size="16" />
         </Button>

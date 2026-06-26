@@ -126,6 +126,13 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
                         return;
                     }
 
+                    // 用户端不允许 Admin 角色登录，请使用管理员端
+                    if (result.Data.Role == "Admin")
+                    {
+                        context.Response.Redirect("/login?error=invalid");
+                        return;
+                    }
+
                     var claims = new[]
                     {
                         new Claim(ClaimTypes.NameIdentifier, result.Data.UserId),
@@ -139,7 +146,6 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
 
                     var redirectUrl = result.Data.Role switch
                     {
-                        "Admin" => "/admin/dashboard",
                         "Teacher" => "/teacher/dashboard",
                         "Counselor" => "/teacher/dashboard",
                         "Student" => "/student/home",

@@ -1,5 +1,5 @@
-@page "/admin/courses"
-@layout AdminLayout
+﻿@page "/admin/courses"
+@layout AdminMainLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
 @using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses
@@ -66,7 +66,7 @@ else
 }
 
 @* 新增/编辑 Modal *@
-<Modal Visible="_formModalVisible" Title="@_formModalTitle" OnClose="CloseFormModal">
+<Modal IsOpen="_formModalVisible" Title="@_formModalTitle" OnClose="CloseFormModal">
     <ChildContent>
         <div class="form-grid">
             <div class="form-field form-field--full">
@@ -100,7 +100,7 @@ else
 </Modal>
 
 @* 删除确认 Modal *@
-<Modal Visible="_deleteModalVisible" Title="删除确认" OnClose="CloseDeleteModal">
+<Modal IsOpen="_deleteModalVisible" Title="删除确认" OnClose="CloseDeleteModal">
     <ChildContent>
         <div class="alert alert--warning">
             <span class="alert__icon"><Icon Name="alert-triangle" Size="20" /></span>

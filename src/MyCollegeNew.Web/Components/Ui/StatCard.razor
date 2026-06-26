@@ -1,0 +1,53 @@
+@* 统计数值卡片，顶部渐变色条 *@
+<div class="ui-card ui-card--stat @AccentClass @Class">
+    <div class="ui-stat-label">@Label</div>
+    <div class="ui-stat-value">@Value</div>
+    @if (!string.IsNullOrEmpty(Trend))
+    {
+        <div class="ui-stat-trend @TrendClass">
+            @if (!string.IsNullOrEmpty(TrendIcon))
+            {
+                <Icon Name="@TrendIcon" Size="14" />
+            }
+            @TrendDescription
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>标签文字</summary>
+    [Parameter] public string Label { get; set; } = "";
+
+    /// <summary>数值</summary>
+    [Parameter] public string Value { get; set; } = "";
+
+    /// <summary>趋势方向（up/down）</summary>
+    [Parameter] public string? Trend { get; set; }
+
+    /// <summary>趋势描述文字</summary>
+    [Parameter] public string? TrendDescription { get; set; }
+
+    /// <summary>趋势图标名称</summary>
+    [Parameter] public string? TrendIcon { get; set; }
+
+    /// <summary>强调色</summary>
+    [Parameter] public StatAccent Accent { get; set; } = StatAccent.Primary;
+
+    /// <summary>自定义 CSS 类</summary>
+    [Parameter] public string? Class { get; set; }
+
+    private string AccentClass => Accent switch
+    {
+        StatAccent.Success => "ui-card--stat-success",
+        StatAccent.Warning => "ui-card--stat-warning",
+        StatAccent.Error => "ui-card--stat-error",
+        _ => ""
+    };
+
+    private string TrendClass => Trend switch
+    {
+        "up" => "ui-stat-trend--up",
+        "down" => "ui-stat-trend--down",
+        _ => ""
+    };
+}

@@ -1,0 +1,39 @@
+@* 管理员端侧边栏导航 *@
+<nav class="admin-sidebar__nav">
+    <div class="admin-sidebar__brand">
+        <Icon Name="graduation-cap" Size="24" />
+        <span class="admin-sidebar__brand-text">考勤管理</span>
+    </div>
+
+    <AuthorizeView>
+        <Authorized>
+            @foreach (var item in MenuItems)
+            {
+                <div class="admin-sidebar__item">
+                    <NavLink class="admin-sidebar__link" href="@item.Href"
+                             Match="@NavLinkMatch.Prefix"
+                             ActiveClass="admin-sidebar__link--active">
+                        <Icon Name="@item.Icon" Size="20" />
+                        <span>@item.Title</span>
+                    </NavLink>
+                </div>
+            }
+        </Authorized>
+    </AuthorizeView>
+</nav>
+
+@code {
+    /// <summary>菜单项定义</summary>
+    private sealed record MenuItem(string Title, string Href, string Icon);
+
+    /// <summary>管理员端菜单项</summary>
+    private static readonly List<MenuItem> MenuItems = new()
+    {
+        new("仪表盘", "/admin/dashboard", "layout-dashboard"),
+        new("院系管理", "/admin/departments", "building"),
+        new("学生管理", "/admin/students", "users"),
+        new("教师管理", "/admin/teachers", "user"),
+        new("课程管理", "/admin/courses", "book-open"),
+        new("统计报表", "/admin/statistics", "bar-chart"),
+    };
+}

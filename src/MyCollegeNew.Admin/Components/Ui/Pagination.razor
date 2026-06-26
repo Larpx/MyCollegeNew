@@ -1,0 +1,97 @@
+@* 分页组件 *@
+@{
+    var totalPages = (int)Math.Ceiling((double)TotalCount / Math.Max(1, PageSize));
+    var currentPage = Math.Max(1, Math.Min(PageIndex, totalPages));
+    var startPage = Math.Max(1, currentPage - 2);
+    var endPage = Math.Min(totalPages, startPage + 4);
+    if (endPage - startPage < 4 && startPage > 1)
+    {
+        startPage = Math.Max(1, endPage - 4);
+    }
+}
+
+@if (totalPages > 1)
+{
+    <div class="ui-pagination @Class">
+        <span class="ui-pagination__info">
+            共 @TotalCount 条，第 @currentPage/@totalPages 页
+        </span>
+        <div class="ui-pagination__buttons">
+            <button type="button"
+                    class="ui-pagination__btn"
+                    disabled="@(currentPage <= 1)"
+                    onclick="@(() => GoToPage(currentPage - 1))">
+                <Icon Name="chevron-left" Size="16" />
+            </button>
+            @if (startPage > 1)
+            {
+                <button type="button" class="ui-pagination__btn" onclick="@(() => GoToPage(1))">1</button>
+                @if (startPage > 2)
+                {
+                    <span class="ui-pagination__ellipsis">…</span>
+                }
+            }
+            @for (var i = startPage; i <= endPage; i++)
+            {
+                var pageNumber = i;
+                <button type="button"
+                        class="ui-pagination__btn @(pageNumber == currentPage ? "ui-pagination__btn--active" : "")"
+                        onclick="@(() => GoToPage(pageNumber))">@pageNumber</button>
+            }
+            @if (endPage < totalPages)
+            {
+                @if (endPage < totalPages - 1)
+                {
+                    <span class="ui-pagination__ellipsis">…</span>
+                }
+                <button type="button" class="ui-pagination__btn" onclick="@(() => GoToPage(totalPages))">@totalPages</button>
+            }
+            <button type="button"
+                    class="ui-pagination__btn"
+                    disabled="@(currentPage >= totalPages)"
+                    onclick="@(() => GoToPage(currentPage + 1))">
+                <Icon Name="chevron-right" Size="16" />
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>当前页码（从 1 开始）</summary>
+    [Parameter]
+    public int PageIndex { get; set; } = 1;
+
+    /// <summary>每页大小</summary>
+    [Parameter]
+    public int PageSize { get; set; } = 10;
+
+    /// <summary>总记录数</summary>
+    [Parameter]
+    public int TotalCount { get; set; }
+
+    /// <summary>页码变更回调</summary>
+    [Parameter]
+    public EventCallback<int> PageChanged { get; set; }
+
+    /// <summary>自定义 CSS 类</summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    private async Task GoToPage(int page)
+    {
+        if (page < 1)
+        {
+            page = 1;
+        }
+        var totalPages = (int)Math.Ceiling((double)TotalCount / Math.Max(1, PageSize));
+        if (page > totalPages)
+        {
+            page = totalPages;
+        }
+        if (page == PageIndex)
+        {
+            return;
+        }
+        await PageChanged.InvokeAsync(page);
+    }
+}

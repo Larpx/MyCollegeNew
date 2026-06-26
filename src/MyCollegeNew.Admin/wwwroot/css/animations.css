@@ -1,0 +1,84 @@
+/* ===================================================================
+ * 动画关键帧：全部使用 CSS @keyframes，无 JS 依赖
+ * =================================================================== */
+
+/* 淡入上浮 —— 页面切换 */
+@keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 淡入缩放 —— Modal / Dialog 弹入 */
+@keyframes scale-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+/* 淡出缩放 —— Modal / Dialog 弹出 */
+@keyframes scale-out {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0.95); }
+}
+
+/* 右侧滑入 —— Toast 通知 */
+@keyframes slide-in-right {
+    from { opacity: 0; transform: translateX(100%); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+/* 右侧滑出 —— Toast 消失 */
+@keyframes slide-out-right {
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(100%); }
+}
+
+/* Shimmer —— 骨架屏加载 */
+@keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* 脉冲环 —— 签到按钮吸引注意力 */
+@keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 rgba(129, 140, 248, 0.4); }
+    70%  { box-shadow: 0 0 0 12px rgba(129, 140, 248, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(129, 140, 248, 0); }
+}
+
+/* 渐变光晕呼吸 —— 统计卡片悬停 */
+@keyframes glow-breathe {
+    0%, 100% { opacity: 0.6; }
+    50%      { opacity: 1; }
+}
+
+/* 浮动 —— 登录页背景几何图形 */
+@keyframes float {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    33%      { transform: translateY(-12px) rotate(1deg); }
+    66%      { transform: translateY(6px) rotate(-1deg); }
+}
+
+/* 浮动（延迟相位） */
+@keyframes float-delayed {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    33%      { transform: translateY(8px) rotate(-1deg); }
+    66%      { transform: translateY(-10px) rotate(1deg); }
+}
+
+/* 旋转加载 */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ---------- 工具类 ---------- */
+.animate-fade-in-up {
+    animation: fade-in-up var(--duration-normal) var(--ease-out) both;
+}
+
+.animate-scale-in {
+    animation: scale-in var(--duration-slow) var(--ease-spring) both;
+}
+
+.animate-slide-in-right {
+    animation: slide-in-right var(--duration-slow) var(--ease-spring) both;
+}

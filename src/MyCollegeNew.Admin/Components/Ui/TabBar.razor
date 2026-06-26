@@ -1,0 +1,31 @@
+@* 手机端底部导航栏，仅 <768px 显示 *@
+<nav class="tab-bar" role="navigation" aria-label="底部导航">
+    @foreach (var item in Items)
+    {
+        <NavLink class="tab-bar__item" href="@item.Href" Match="@NavLinkMatch.Prefix"
+                 ActiveClass="tab-bar__item--active">
+            <span class="tab-bar__icon">
+                <Icon Name="@item.Icon" Size="24" />
+            </span>
+            <span>@item.Label</span>
+        </NavLink>
+    }
+</nav>
+
+@code {
+    /// <summary>导航项列表</summary>
+    [Parameter] public List<TabItem> Items { get; set; } = new();
+
+    /// <summary>底部导航项</summary>
+    public class TabItem
+    {
+        /// <summary>标签文字</summary>
+        public string Label { get; set; } = "";
+
+        /// <summary>链接地址</summary>
+        public string Href { get; set; } = "";
+
+        /// <summary>图标名称</summary>
+        public string Icon { get; set; } = "";
+    }
+}

@@ -1,4 +1,4 @@
-@page "/teacher/courses"
+﻿@page "/teacher/courses"
 @layout TeacherLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -129,7 +129,7 @@ else if (_activeTab == "schedule")
 }
 
 @* 发起考勤 Modal（选择班级） *@
-<Modal Visible="_startModalVisible" Title="发起考勤" OnClose="CloseStartModal">
+<Modal IsOpen="_startModalVisible" Title="发起考勤" OnClose="CloseStartModal">
     <ChildContent>
         <div class="form-grid form-grid--single">
             <div class="alert alert--info">

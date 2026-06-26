@@ -1,4 +1,4 @@
-@page "/teacher/session/{SessionId:long}"
+﻿@page "/teacher/session/{SessionId:long}"
 @page "/teacher/session/new"
 @layout TeacherLayout
 @attribute [Authorize]
@@ -150,7 +150,7 @@ else if (_session is not null)
                         <Button Variant="ButtonVariant.Primary" Icon="check-square" OnClick="RollCallAllAsync" Loading="_operating">一键点名</Button>
                         <Button Variant="ButtonVariant.Secondary" Icon="user-plus" OnClick="GoToManualCheckIn">手动补签</Button>
                         <Button Variant="ButtonVariant.Secondary" Icon="shuffle" OnClick="() => GoToRollCall(_session.Id)">随机点名</Button>
-                        <Button Variant="ButtonVariant.Outline" Icon="download" OnClick="ExportRecordsAsync" Loading="_exporting">导出记录</Button>
+                        <Button Variant="ButtonVariant.Secondary" Icon="download" OnClick="ExportRecordsAsync" Loading="_exporting">导出记录</Button>
                     }
                 </div>
             </Card>

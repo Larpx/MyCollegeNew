@@ -1,0 +1,19 @@
+@* 骨架屏加载占位 *@
+<div class="@GetClass() @Class" aria-hidden="true"></div>
+
+@code {
+    /// <summary>骨架屏类型</summary>
+    [Parameter] public SkeletonType Type { get; set; } = SkeletonType.Text;
+
+    /// <summary>自定义 CSS 类</summary>
+    [Parameter] public string? Class { get; set; }
+
+    private string GetClass() => Type switch
+    {
+        SkeletonType.Text => "skeleton skeleton--text",
+        SkeletonType.Title => "skeleton skeleton--title",
+        SkeletonType.Avatar => "skeleton skeleton--avatar",
+        SkeletonType.Card => "skeleton skeleton--card",
+        _ => "skeleton"
+    };
+}

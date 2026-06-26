@@ -1,13 +1,11 @@
 @page "/login"
 @layout LoginLayout
-@using Microsoft.AspNetCore.Antiforgery
 @inject IAntiforgery Antiforgery
 @inject IHttpContextAccessor HttpContextAccessor
 
 <PageTitle>登录 - 考勤管理系统</PageTitle>
 
 @{
-    // 生成标准 ASP.NET Core 防伪令牌
     var httpContext = HttpContextAccessor.HttpContext;
     var tokenSet = httpContext is not null
         ? Antiforgery.GetAndStoreTokens(httpContext)
@@ -15,46 +13,64 @@
     var requestToken = tokenSet?.RequestToken ?? string.Empty;
 }
 
-@if (!string.IsNullOrEmpty(_errorMessage))
-{
-    <div class="login-card__alert" role="alert">
-        <Icon Name="alert-circle" Size="20" />
-        <span>@_errorMessage</span>
-    </div>
-}
+<div class="login-page">
+    @* 左侧品牌展示区 *@
+    <div class="login-page__brand">
+        @* 浮动装饰几何图形 *@
+        <div class="login-page__deco login-page__deco--1"></div>
+        <div class="login-page__deco login-page__deco--2"></div>
+        <div class="login-page__deco login-page__deco--3"></div>
 
-<form method="post" action="/auth/login" class="login-card">
-    <input type="hidden" name="__RequestVerificationToken" value="@requestToken" />
-
-    <div class="login-card__header">
-        <h2 class="login-card__title">欢迎登录</h2>
-        <p class="login-card__subtitle">请输入您的账号信息</p>
-    </div>
-
-    <div class="login-card__field">
-        <label class="login-card__label" for="username">用户ID</label>
-        <input id="username"
-               name="Username"
-               class="login-card__input"
-               placeholder="学号 / 工号 / admin"
-               required />
+        <div class="login-page__brand-content">
+            <div class="login-page__brand-icon">
+                <Icon Name="graduation-cap" Size="40" />
+            </div>
+            <h1 class="login-page__brand-title">考勤管理系统</h1>
+            <p class="login-page__brand-subtitle">智能考勤 &middot; 高效管理</p>
+            <p class="login-page__brand-quote">让每一次考勤都有迹可循</p>
+        </div>
     </div>
 
-    <div class="login-card__field">
-        <label class="login-card__label" for="password">密码</label>
-        <input id="password"
-               name="Password"
-               type="password"
-               class="login-card__input"
-               placeholder="请输入密码"
-               required />
-    </div>
+    @* 右侧登录表单区 *@
+    <div class="login-page__form-side">
+        <form method="post" action="/auth/login" class="login-form">
+            <input type="hidden" name="__RequestVerificationToken" value="@requestToken" />
 
-    <button type="submit" class="login-card__submit">
-        <Icon Name="log-in" Size="20" />
-        <span>登录</span>
-    </button>
-</form>
+            <div class="login-form__header">
+                <h2 class="login-form__title">欢迎回来</h2>
+                <p class="login-form__subtitle">登录你的账号以继续</p>
+            </div>
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="alert alert--error" role="alert">
+                    <Icon Name="alert-circle" Size="18" />
+                    <span>@_errorMessage</span>
+                </div>
+            }
+
+            <div class="ui-input-wrapper">
+                <span class="ui-input-icon">
+                    <Icon Name="user" Size="18" />
+                </span>
+                <input id="username" name="Username" class="ui-input"
+                       placeholder="学号 / 工号" required autocomplete="username" />
+            </div>
+
+            <div class="ui-input-wrapper">
+                <span class="ui-input-icon">
+                    <Icon Name="lock" Size="18" />
+                </span>
+                <input id="password" name="Password" type="password" class="ui-input"
+                       placeholder="密码" required autocomplete="current-password" />
+            </div>
+
+            <button type="submit" class="login-form__submit">
+                登录
+            </button>
+        </form>
+    </div>
+</div>
 
 @code {
     /// <summary>从查询参数获取错误消息</summary>

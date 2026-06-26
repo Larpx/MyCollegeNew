@@ -1,5 +1,5 @@
-@page "/admin/students"
-@layout AdminLayout
+﻿@page "/admin/students"
+@layout AdminMainLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
 @using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Organization
@@ -60,7 +60,7 @@
     <div class="page-filters__actions">
         <Button Variant="ButtonVariant.Secondary" Icon="search" OnClick="SearchAsync">查询</Button>
         <Button Variant="ButtonVariant.Primary" Icon="plus" OnClick="OpenCreateModal">新增学生</Button>
-        <Button Variant="ButtonVariant.Outline" Icon="upload" OnClick="OpenImportModal">CSV 导入</Button>
+        <Button Variant="ButtonVariant.Secondary" Icon="upload" OnClick="OpenImportModal">CSV 导入</Button>
     </div>
 </div>
 
@@ -87,7 +87,7 @@ else
 }
 
 @* 新增/编辑 Modal *@
-<Modal Visible="_formModalVisible" Title="@_formModalTitle" OnClose="CloseFormModal">
+<Modal IsOpen="_formModalVisible" Title="@_formModalTitle" OnClose="CloseFormModal">
     <ChildContent>
         <div class="form-grid">
             <div class="form-field">
@@ -171,7 +171,7 @@ else
 </Modal>
 
 @* CSV 导入 Modal *@
-<Modal Visible="_importModalVisible" Title="CSV 批量导入" OnClose="CloseImportModal">
+<Modal IsOpen="_importModalVisible" Title="CSV 批量导入" OnClose="CloseImportModal">
     <ChildContent>
         <div class="form-grid form-grid--single">
             <div class="alert alert--info">
@@ -214,7 +214,7 @@ else
 </Modal>
 
 @* 删除确认 Modal *@
-<Modal Visible="_deleteModalVisible" Title="删除确认" OnClose="CloseDeleteModal">
+<Modal IsOpen="_deleteModalVisible" Title="删除确认" OnClose="CloseDeleteModal">
     <ChildContent>
         <div class="alert alert--warning">
             <span class="alert__icon"><Icon Name="alert-triangle" Size="20" /></span>

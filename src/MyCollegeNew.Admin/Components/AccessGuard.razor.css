@@ -1,0 +1,37 @@
+/* ===================================================================
+ * 访问守卫样式
+ * =================================================================== */
+
+.access-guard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-12) var(--space-4);
+    text-align: center;
+}
+
+.access-guard__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-12);
+    height: var(--space-12);
+    margin-bottom: var(--space-4);
+    color: var(--color-text-tertiary);
+    background-color: var(--color-neutral-100);
+    border-radius: 50%;
+}
+
+.access-guard__title {
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-2);
+}
+
+.access-guard__description {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    max-width: var(--space-16);
+}

@@ -1,5 +1,5 @@
-@page "/admin/departments"
-@layout AdminLayout
+﻿@page "/admin/departments"
+@layout AdminMainLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
 @using Larpx.PersonalTools.MyCollegeNew.Shared.Enums
@@ -100,7 +100,7 @@ else
 }
 
 @* 院系新增/编辑 Modal *@
-<Modal Visible="_deptModalVisible" Title="@_deptModalTitle" OnClose="CloseDeptModal">
+<Modal IsOpen="_deptModalVisible" Title="@_deptModalTitle" OnClose="CloseDeptModal">
     <ChildContent>
         <div class="form-grid form-grid--single">
             <div class="form-field">
@@ -116,7 +116,7 @@ else
 </Modal>
 
 @* 专业新增/编辑 Modal *@
-<Modal Visible="_majorModalVisible" Title="@_majorModalTitle" OnClose="CloseMajorModal">
+<Modal IsOpen="_majorModalVisible" Title="@_majorModalTitle" OnClose="CloseMajorModal">
     <ChildContent>
         <div class="form-grid form-grid--single">
             <div class="form-field">
@@ -136,7 +136,7 @@ else
 </Modal>
 
 @* 班级新增/编辑 Modal *@
-<Modal Visible="_classModalVisible" Title="@_classModalTitle" OnClose="CloseClassModal">
+<Modal IsOpen="_classModalVisible" Title="@_classModalTitle" OnClose="CloseClassModal">
     <ChildContent>
         <div class="form-grid">
             <div class="form-field">
@@ -164,7 +164,7 @@ else
 </Modal>
 
 @* 删除确认 Modal *@
-<Modal Visible="_deleteModalVisible" Title="删除确认" OnClose="CloseDeleteModal">
+<Modal IsOpen="_deleteModalVisible" Title="删除确认" OnClose="CloseDeleteModal">
     <ChildContent>
         <div class="alert alert--warning">
             <span class="alert__icon"><Icon Name="alert-triangle" Size="20" /></span>

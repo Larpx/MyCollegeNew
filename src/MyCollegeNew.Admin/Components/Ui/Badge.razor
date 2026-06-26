@@ -1,0 +1,26 @@
+@* 徽章组件：状态标签（成功/警告/错误/中性） *@
+<span class="ui-badge ui-badge--@Variant.ToString().ToLowerInvariant() @Class">
+    @if (!string.IsNullOrEmpty(Icon))
+    {
+        <Icon Name="@Icon" Size="16" />
+    }
+    @ChildContent
+</span>
+
+@code {
+    /// <summary>徽章变体</summary>
+    [Parameter]
+    public BadgeVariant Variant { get; set; } = BadgeVariant.Neutral;
+
+    /// <summary>图标名称</summary>
+    [Parameter]
+    public string? Icon { get; set; }
+
+    /// <summary>自定义 CSS 类</summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>徽章内容</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

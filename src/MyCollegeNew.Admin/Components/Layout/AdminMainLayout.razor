@@ -1,0 +1,61 @@
+@* 管理员端主布局：深色侧边栏 + 桌面限定 *@
+@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+@inject CustomAuthStateProvider AuthStateProvider
+@inject TokenService TokenService
+@inject IApiClient ApiClient
+
+<div class="admin-layout">
+    @* 深色侧边栏 *@
+    <aside class="admin-sidebar">
+        <AdminNavMenu />
+    </aside>
+
+    @* 主区域 *@
+    <div class="admin-main">
+        @* 顶部栏 *@
+        <header class="admin-header">
+            <div class="admin-header__spacer"></div>
+            <AuthorizeView>
+                <Authorized>
+                    <div class="admin-header__user">
+                        <span class="admin-header__greeting">Hallo,</span>
+                        <span class="admin-header__name">@context.User.Identity?.Name</span>
+                        <Badge Variant="BadgeVariant.Primary">管理员</Badge>
+                    </div>
+                    <button type="button" class="admin-header__logout" @onclick="HandleLogout">
+                        <Icon Name="log-out" Size="18" />
+                    </button>
+                </Authorized>
+            </AuthorizeView>
+        </header>
+
+        @* 主内容 *@
+        <main class="admin-content">
+            @Body
+        </main>
+    </div>
+</div>
+
+@* 窗口过小提示 *@
+<div class="admin-min-warning">
+    <Icon Name="monitor" Size="48" />
+    <h2 style="margin-top:var(--space-4)">请在桌面端使用</h2>
+    <p>管理员端需要在屏幕宽度 1024px 以上的设备上操作</p>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">&times;</span>
+</div>
+
+@code {
+    private async Task HandleLogout()
+    {
+        try { await ApiClient.PostNoContentAsync("auth/logout"); } catch { }
+        TokenService.RemoveToken();
+        AuthStateProvider.NotifyUserLogout();
+        NavigationManager.NavigateTo("/login", forceLoad: true);
+    }
+}

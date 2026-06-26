@@ -1,0 +1,88 @@
+@page "/login"
+@layout LoginLayout
+@inject IAntiforgery Antiforgery
+@inject IHttpContextAccessor HttpContextAccessor
+
+<PageTitle>登录 - 管理员端</PageTitle>
+
+@{
+    var httpContext = HttpContextAccessor.HttpContext;
+    var tokenSet = httpContext is not null
+        ? Antiforgery.GetAndStoreTokens(httpContext)
+        : null;
+    var requestToken = tokenSet?.RequestToken ?? string.Empty;
+}
+
+<div class="login-page">
+    @* 左侧品牌展示区 *@
+    <div class="login-page__brand">
+        <div class="login-page__deco login-page__deco--1"></div>
+        <div class="login-page__deco login-page__deco--2"></div>
+        <div class="login-page__deco login-page__deco--3"></div>
+
+        <div class="login-page__brand-content">
+            <div class="login-page__brand-icon">
+                <Icon Name="graduation-cap" Size="40" />
+            </div>
+            <h1 class="login-page__brand-title">考勤管理系统</h1>
+            <p class="login-page__brand-subtitle">管理员端 &middot; 内部系统</p>
+            <p class="login-page__brand-quote">仅限管理员登录</p>
+        </div>
+    </div>
+
+    @* 右侧登录表单区 *@
+    <div class="login-page__form-side">
+        <form method="post" action="/auth/login" class="login-form">
+            <input type="hidden" name="__RequestVerificationToken" value="@requestToken" />
+
+            <div class="login-form__header">
+                <h2 class="login-form__title">管理员登录</h2>
+                <p class="login-form__subtitle">登录管理员账号以继续</p>
+            </div>
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="alert alert--error" role="alert">
+                    <Icon Name="alert-circle" Size="18" />
+                    <span>@_errorMessage</span>
+                </div>
+            }
+
+            <div class="ui-input-wrapper">
+                <span class="ui-input-icon">
+                    <Icon Name="user" Size="18" />
+                </span>
+                <input id="username" name="Username" class="ui-input"
+                       placeholder="管理员账号" required autocomplete="username" />
+            </div>
+
+            <div class="ui-input-wrapper">
+                <span class="ui-input-icon">
+                    <Icon Name="lock" Size="18" />
+                </span>
+                <input id="password" name="Password" type="password" class="ui-input"
+                       placeholder="密码" required autocomplete="current-password" />
+            </div>
+
+            <button type="submit" class="login-form__submit">
+                登录
+            </button>
+        </form>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? ErrorMessage { get; set; }
+    private string? _errorMessage;
+
+    protected override void OnInitialized()
+    {
+        _errorMessage = ErrorMessage switch
+        {
+            "invalid" => "用户名或密码错误",
+            "empty" => "用户名和密码不能为空",
+            _ => null
+        };
+    }
+}

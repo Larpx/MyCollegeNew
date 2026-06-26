@@ -1,4 +1,4 @@
-@page "/teacher/rollcall/{SessionId:long}"
+﻿@page "/teacher/rollcall/{SessionId:long}"
 @layout TeacherLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -51,7 +51,7 @@ else if (_session is not null)
                 <div class="random-pick__id">班级：@_randomPick.ClassName</div>
                 <div class="random-pick__actions">
                     <Button Variant="ButtonVariant.Primary" Icon="check" OnClick="() => MarkRandomPickAsync(true)" Loading="_operating">已回答</Button>
-                    <Button Variant="ButtonVariant.Outline" Icon="x" OnClick="() => MarkRandomPickAsync(false)" Loading="_operating">未回答</Button>
+                    <Button Variant="ButtonVariant.Secondary" Icon="x" OnClick="() => MarkRandomPickAsync(false)" Loading="_operating">未回答</Button>
                     <Button Variant="ButtonVariant.Primary" Icon="shuffle" OnClick="RandomPickAsync" Loading="_operating">再抽一个</Button>
                 </div>
             </div>

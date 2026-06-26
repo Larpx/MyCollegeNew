@@ -1,0 +1,56 @@
+/* ===================================================================
+ * 应用全局补充样式
+ * =================================================================== */
+
+#blazor-error-ui {
+    color-scheme: light only;
+    background: var(--color-warning);
+    color: var(--color-neutral-900);
+    bottom: 0;
+    box-shadow: var(--shadow-md);
+    box-sizing: border-box;
+    display: none;
+    left: 0;
+    padding: var(--space-3) var(--space-4);
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+    font-size: var(--text-sm);
+}
+
+    #blazor-error-ui .reload {
+        color: var(--color-neutral-900);
+        text-decoration: underline;
+        margin-left: var(--space-2);
+    }
+
+    #blazor-error-ui .dismiss {
+        cursor: pointer;
+        position: absolute;
+        right: var(--space-3);
+        top: var(--space-2);
+    }
+
+/* 表单验证样式 */
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid var(--color-success);
+}
+
+.invalid {
+    outline: 1px solid var(--color-error);
+}
+
+.validation-message {
+    color: var(--color-error);
+    font-size: var(--text-xs);
+}
+
+.blazor-error-boundary {
+    background: var(--color-error);
+    padding: var(--space-4);
+    color: #ffffff;
+}
+
+    .blazor-error-boundary::after {
+        content: "An error has occurred.";
+    }

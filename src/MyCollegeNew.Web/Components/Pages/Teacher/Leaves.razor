@@ -1,4 +1,4 @@
-@page "/teacher/leaves"
+﻿@page "/teacher/leaves"
 @layout TeacherLayout
 @attribute [Authorize(Roles = "Counselor")]
 @rendermode InteractiveServer
@@ -70,7 +70,7 @@ else
 }
 
 @* 审批 Modal *@
-<Modal Visible="_reviewModalVisible" Title="@_reviewModalTitle" OnClose="CloseReviewModal">
+<Modal IsOpen="_reviewModalVisible" Title="@_reviewModalTitle" OnClose="CloseReviewModal">
     <ChildContent>
         @if (_reviewingLeave is not null)
         {
@@ -112,7 +112,7 @@ else
     </ChildContent>
     <Footer>
         <Button Variant="ButtonVariant.Secondary" OnClick="CloseReviewModal">取消</Button>
-        <Button Variant="ButtonVariant.Outline" Icon="x" OnClick="() => RejectAsync()" Loading="_operating">驳回</Button>
+        <Button Variant="ButtonVariant.Secondary" Icon="x" OnClick="() => RejectAsync()" Loading="_operating">驳回</Button>
         <Button Variant="ButtonVariant.Primary" Icon="check" OnClick="() => ApproveAsync()" Loading="_operating">通过</Button>
     </Footer>
 </Modal>

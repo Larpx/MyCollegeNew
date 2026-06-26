@@ -1,10 +1,8 @@
-@* 侧边栏导航：根据角色显示不同菜单项 *@
+@* 侧边栏导航：根据角色显示不同菜单项（移除 Admin 分支） *@
 <nav class="nav-menu">
-    <div class="nav-menu__header">
-        <a href="/" class="nav-menu__logo">
-            <Icon Name="graduation-cap" Size="20" />
-            <span>考勤管理系统</span>
-        </a>
+    <div class="nav-menu__brand">
+        <Icon Name="graduation-cap" Size="22" />
+        <span class="nav-menu__brand-text">考勤管理系统</span>
     </div>
 
     <AuthorizeView>
@@ -13,7 +11,8 @@
                 @foreach (var item in GetMenuItems(context.User))
                 {
                     <li class="nav-menu__item">
-                        <NavLink class="nav-menu__link" href="@item.Href" Match="@NavLinkMatch.Prefix">
+                        <NavLink class="nav-menu__link" href="@item.Href" Match="@NavLinkMatch.Prefix"
+                                 ActiveClass="nav-menu__link--active">
                             <Icon Name="@item.Icon" Size="20" />
                             <span>@item.Title</span>
                         </NavLink>
@@ -29,25 +28,10 @@
     private sealed record MenuItem(string Title, string Href, string Icon);
 
     /// <summary>
-    /// 根据当前用户角色返回菜单项
+    /// 根据当前用户角色返回菜单项（Admin 已移至独立项目）
     /// </summary>
-    /// <param name="user">当前认证用户</param>
-    /// <returns>菜单项列表</returns>
     private static List<MenuItem> GetMenuItems(System.Security.Claims.ClaimsPrincipal user)
     {
-        if (user.IsInRole("Admin"))
-        {
-            return new List<MenuItem>
-            {
-                new("仪表盘", "/admin/dashboard", "layout-dashboard"),
-                new("院系管理", "/admin/departments", "building"),
-                new("学生管理", "/admin/students", "users"),
-                new("教师管理", "/admin/teachers", "user"),
-                new("课程管理", "/admin/courses", "book-open"),
-                new("统计报表", "/admin/statistics", "bar-chart")
-            };
-        }
-
         if (user.IsInRole("Teacher") || user.IsInRole("Counselor"))
         {
             var items = new List<MenuItem>
@@ -56,7 +40,6 @@
                 new("我的课程", "/teacher/courses", "book-open"),
                 new("考勤记录", "/teacher/attendance", "clipboard-list")
             };
-            // 仅辅导员显示请假审批
             if (user.IsInRole("Counselor"))
             {
                 items.Add(new("请假审批", "/teacher/leaves", "file-text"));
