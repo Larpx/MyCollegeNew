@@ -1,17 +1,16 @@
 @page "/login"
 @layout LoginLayout
-@inject IAntiforgery Antiforgery
-@inject IHttpContextAccessor HttpContextAccessor
+@rendermode InteractiveServer
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Auth
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Responses
+@using Larpx.PersonalTools.MyCollegeNew.Admin.Services
+@inject IApiClient ApiClient
+@inject TokenService TokenService
+@inject CustomAuthStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@inject ILogger<Login> Logger
 
 <PageTitle>登录 - 管理员端</PageTitle>
-
-@{
-    var httpContext = HttpContextAccessor.HttpContext;
-    var tokenSet = httpContext is not null
-        ? Antiforgery.GetAndStoreTokens(httpContext)
-        : null;
-    var requestToken = tokenSet?.RequestToken ?? string.Empty;
-}
 
 <div class="login-page">
     @* 左侧品牌展示区 *@
@@ -32,9 +31,7 @@
 
     @* 右侧登录表单区 *@
     <div class="login-page__form-side">
-        <form method="post" action="/auth/login" class="login-form">
-            <input type="hidden" name="__RequestVerificationToken" value="@requestToken" />
-
+        <div class="login-form">
             <div class="login-form__header">
                 <h2 class="login-form__title">管理员登录</h2>
                 <p class="login-form__subtitle">登录管理员账号以继续</p>
@@ -52,29 +49,60 @@
                 <span class="ui-input-icon">
                     <Icon Name="user" Size="18" />
                 </span>
-                <input id="username" name="Username" class="ui-input"
-                       placeholder="管理员账号" required autocomplete="username" />
+                <input id="username" @bind="_loginModel.Username" class="ui-input"
+                       placeholder="管理员账号" required autocomplete="username"
+                       disabled="@_isSubmitting" />
             </div>
 
             <div class="ui-input-wrapper">
                 <span class="ui-input-icon">
                     <Icon Name="lock" Size="18" />
                 </span>
-                <input id="password" name="Password" type="password" class="ui-input"
-                       placeholder="密码" required autocomplete="current-password" />
+                <input id="password" type="password" @bind="_loginModel.Password" class="ui-input"
+                       placeholder="密码" required autocomplete="current-password"
+                       disabled="@_isSubmitting" />
             </div>
 
-            <button type="submit" class="login-form__submit">
-                登录
+            @* 滑块验证码 *@
+            <div class="login-form__captcha">
+                <SliderCaptcha OnVerified="OnCaptchaVerified" Disabled="@_isSubmitting" @ref="_captchaRef" />
+            </div>
+
+            <button type="button" class="login-form__submit" @onclick="HandleLogin"
+                    disabled="@(_isSubmitting || string.IsNullOrEmpty(_captchaToken))">
+                @if (_isSubmitting)
+                {
+                    <span class="login-form__spinner"></span>
+                    <span>登录中...</span>
+                }
+                else
+                {
+                    <span>登录</span>
+                }
             </button>
-        </form>
+        </div>
     </div>
 </div>
 
 @code {
+    /// <summary>从查询参数获取错误消息</summary>
     [SupplyParameterFromQuery(Name = "error")]
     public string? ErrorMessage { get; set; }
+
+    /// <summary>滑块验证码组件引用</summary>
+    private SliderCaptcha? _captchaRef;
+
+    /// <summary>滑块验证码 token</summary>
+    private string _captchaToken = string.Empty;
+
+    /// <summary>是否正在提交</summary>
+    private bool _isSubmitting;
+
+    /// <summary>错误消息</summary>
     private string? _errorMessage;
+
+    /// <summary>登录表单模型</summary>
+    private readonly LoginRequest _loginModel = new();
 
     protected override void OnInitialized()
     {
@@ -84,5 +112,90 @@
             "empty" => "用户名和密码不能为空",
             _ => null
         };
+    }
+
+    /// <summary>
+    /// 滑块验证码验证通过回调
+    /// </summary>
+    private void OnCaptchaVerified(string token)
+    {
+        _captchaToken = token;
+    }
+
+    /// <summary>
+    /// 处理登录
+    /// </summary>
+    private async Task HandleLogin()
+    {
+        if (string.IsNullOrWhiteSpace(_loginModel.Username) || string.IsNullOrWhiteSpace(_loginModel.Password))
+        {
+            _errorMessage = "用户名和密码不能为空";
+            return;
+        }
+
+        if (string.IsNullOrEmpty(_captchaToken))
+        {
+            _errorMessage = "请先完成滑块验证";
+            return;
+        }
+
+        _isSubmitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            _loginModel.CaptchaToken = _captchaToken;
+            var result = await ApiClient.PostAsync<LoginResult>("login", _loginModel);
+
+            if (result is not null && !string.IsNullOrEmpty(result.Token))
+            {
+                // Admin 端仅允许 Admin 角色登录
+                if (result.Role != "Admin")
+                {
+                    _errorMessage = "仅限管理员登录";
+                    _captchaToken = string.Empty;
+                    if (_captchaRef is not null)
+                    {
+                        await _captchaRef.ResetAsync();
+                    }
+                    return;
+                }
+
+                // 将 JWT 存入 TokenService
+                TokenService.SetToken(result.Token);
+
+                // 通知认证状态变更
+                var userInfo = new UserInfo(result.UserId, result.UserName, result.Role);
+                AuthStateProvider.NotifyUserLogin(userInfo);
+
+                NavigationManager.NavigateTo("/admin/dashboard", forceLoad: true);
+            }
+            else
+            {
+                _errorMessage = "用户名或密码错误";
+            }
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "登录请求失败");
+            _errorMessage = "登录失败，请稍后重试";
+        }
+        finally
+        {
+            _isSubmitting = false;
+            // 登录失败后重置验证码
+            if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                _captchaToken = string.Empty;
+                if (_captchaRef is not null)
+                {
+                    await _captchaRef.ResetAsync();
+                }
+            }
+        }
     }
 }

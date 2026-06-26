@@ -116,12 +116,32 @@
     cursor: pointer;
     transition: all var(--duration-fast) var(--ease-out);
 }
-.login-form__submit:hover {
+.login-form__submit:hover:not(:disabled) {
     box-shadow: var(--color-primary-glow);
     transform: translateY(-1px);
 }
-.login-form__submit:active {
+.login-form__submit:active:not(:disabled) {
     transform: translateY(0);
+}
+.login-form__submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 滑块验证码区域 */
+.login-form__captcha {
+    margin-bottom: var(--space-4);
+}
+
+/* 登录按钮加载动画 */
+.login-form__spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-text-inverse);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin-right: var(--space-2);
 }
 
 /* ---- 响应式 ---- */

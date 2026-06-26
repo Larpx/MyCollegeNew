@@ -1311,3 +1311,198 @@ textarea.student-form-field__input {
     .dashboard-grid { grid-template-columns: 1fr; }
     .dashboard { grid-template-columns: 1fr; }
 }
+
+/* ===================================================================
+ * 二次验证页
+ * =================================================================== */
+.twofa-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: var(--space-4);
+    background-color: #f8f9fa;
+}
+
+.twofa-card {
+    width: 100%;
+    max-width: 400px;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: var(--space-8);
+}
+
+.twofa-card__header {
+    text-align: center;
+    margin-bottom: var(--space-6);
+}
+
+.twofa-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-16);
+    height: var(--space-16);
+    background-color: var(--color-primary);
+    color: #ffffff;
+    border-radius: 50%;
+    margin-bottom: var(--space-4);
+}
+
+.twofa-card__title {
+    font-size: var(--text-xl);
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 var(--space-2);
+}
+
+.twofa-card__subtitle {
+    font-size: var(--text-sm);
+    color: #6b7280;
+    margin: 0;
+}
+
+.twofa-setup {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.twofa-qr {
+    display: flex;
+    justify-content: center;
+}
+
+.twofa-qr__image {
+    width: 200px;
+    height: 200px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+}
+
+.twofa-secret {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background-color: #f3f4f6;
+    border-radius: 6px;
+    font-size: var(--text-sm);
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.twofa-secret__label {
+    color: #6b7280;
+}
+
+.twofa-secret__value {
+    font-family: monospace;
+    color: #111827;
+    font-size: var(--text-sm);
+    word-break: break-all;
+}
+
+.twofa-hint {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--text-sm);
+    color: #9ca3af;
+    margin: 0;
+}
+
+.twofa-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    width: 100%;
+}
+
+.twofa-input-group {
+    display: flex;
+    justify-content: center;
+}
+
+.twofa-code-input {
+    width: 100%;
+    max-width: 240px;
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--text-xl);
+    font-weight: 600;
+    text-align: center;
+    letter-spacing: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.15s;
+    color: #111827;
+    background: #ffffff;
+}
+
+.twofa-code-input:focus {
+    border-color: var(--color-primary);
+    outline: 2px solid var(--color-primary);
+    outline-offset: -1px;
+}
+
+.twofa-code-input::placeholder {
+    letter-spacing: 2px;
+    font-weight: 400;
+    font-size: var(--text-sm);
+    color: #9ca3af;
+}
+
+.twofa-submit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-3) var(--space-6);
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: #ffffff;
+    background-color: var(--color-primary);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.twofa-submit-btn:hover {
+    opacity: 0.9;
+}
+
+.twofa-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.twofa-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-8) 0;
+    color: #6b7280;
+    font-size: var(--text-sm);
+}
+
+.twofa-back {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-top: var(--space-6);
+    font-size: var(--text-sm);
+    color: #6b7280;
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.twofa-back:hover {
+    color: var(--color-primary);
+}

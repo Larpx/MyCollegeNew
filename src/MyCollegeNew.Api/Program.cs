@@ -2,7 +2,9 @@ using FluentValidation;
 using Larpx.PersonalTools.MyCollegeNew.Api.Behaviors;
 using Larpx.PersonalTools.MyCollegeNew.Api.Exceptions;
 using Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance;
+using Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Captcha;
 using Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Login;
+using Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.TwoFactor;
 using Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses;
 using Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave;
 using Larpx.PersonalTools.MyCollegeNew.Api.Features.Organization;
@@ -63,6 +65,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
             // 注册令牌服务（Singleton：无状态服务）
             builder.Services.AddSingleton<ITokenService, TokenService>();
 
+            // 注册 TOTP 二次验证服务（Singleton：无状态服务）
+            builder.Services.AddSingleton<TotpService>();
+
             // MediatR CQRS：注册所有 Handler 所在程序集
             builder.Services.AddMediatR(cfg =>
             {
@@ -120,6 +125,16 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
                     opt.PermitLimit = 100;
                     opt.Window = TimeSpan.FromMinutes(1);
                 });
+
+                // 登录专用限流：每 IP 每分钟最多 5 次登录请求
+                options.AddFixedWindowLimiter("login", opt =>
+                {
+                    opt.PermitLimit = 5;
+                    opt.Window = TimeSpan.FromMinutes(1);
+                    opt.QueueLimit = 0;
+                });
+
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             });
 
             // Distributed Cache - Redis（生产环境）或 Memory（开发环境）
@@ -201,7 +216,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
             var api = app.MapGroup("/api/v1")
                 .RequireRateLimiting("fixed");
 
+            api.MapCaptchaEndpoints();
             api.MapLoginEndpoint();
+            api.MapTwoFactorEndpoints();
             api.MapChangePasswordEndpoint();
             api.MapStudentEndpoints();
             api.MapTeacherEndpoints();

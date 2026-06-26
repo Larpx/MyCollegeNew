@@ -119,7 +119,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Admin
                     }
 
                     var result = await apiResponse.Content.ReadFromJsonAsync<ApiResponse<LoginResult>>();
-                    if (result?.Data is null || string.IsNullOrEmpty(result.Data.Token))
+                    if (result?.Data is null)
                     {
                         context.Response.Redirect("/login?error=invalid");
                         return;
@@ -127,6 +127,35 @@ namespace Larpx.PersonalTools.MyCollegeNew.Admin
 
                     // Admin 端仅允许 Admin 角色登录
                     if (result.Data.Role != "Admin")
+                    {
+                        context.Response.Redirect("/login?error=invalid");
+                        return;
+                    }
+
+                    // 需要二次验证：将临时令牌存入 Cookie 并跳转
+                    if (result.Data.RequiresTwoFactor && !string.IsNullOrEmpty(result.Data.TwoFactorToken))
+                    {
+                        context.Response.Cookies.Append("2fa_token", result.Data.TwoFactorToken, new CookieOptions
+                        {
+                            HttpOnly = true,
+                            Secure = false,
+                            SameSite = SameSiteMode.Lax,
+                            Expires = DateTimeOffset.UtcNow.AddMinutes(5),
+                            Path = "/"
+                        });
+                        context.Response.Cookies.Append("2fa_has_secret", result.Data.HasTwoFactorSecret ? "1" : "0", new CookieOptions
+                        {
+                            HttpOnly = false,
+                            Secure = false,
+                            SameSite = SameSiteMode.Lax,
+                            Expires = DateTimeOffset.UtcNow.AddMinutes(5),
+                            Path = "/"
+                        });
+                        context.Response.Redirect("/two-factor");
+                        return;
+                    }
+
+                    if (string.IsNullOrEmpty(result.Data.Token))
                     {
                         context.Response.Redirect("/login?error=invalid");
                         return;
@@ -156,6 +185,200 @@ namespace Larpx.PersonalTools.MyCollegeNew.Admin
             {
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 return Results.Ok();
+            });
+
+            // 二次验证完成端点：前端验证通过后调用，写入认证 Cookie 并重定向
+            app.MapPost("/auth/2fa-complete", async (HttpContext context, IHttpClientFactory httpClientFactory) =>
+            {
+                var token = context.Request.Form["Token"].FirstOrDefault();
+                var userId = context.Request.Form["UserId"].FirstOrDefault();
+                var userName = context.Request.Form["UserName"].FirstOrDefault();
+                var role = context.Request.Form["Role"].FirstOrDefault();
+
+                if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
+                {
+                    context.Response.Redirect("/login?error=invalid");
+                    return;
+                }
+
+                // Admin 端仅允许 Admin 登录
+                if (role != "Admin")
+                {
+                    context.Response.Redirect("/login?error=invalid");
+                    return;
+                }
+
+                var claims = new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, userId),
+                    new Claim(ClaimTypes.Name, userName ?? userId),
+                    new Claim(ClaimTypes.Role, role),
+                    new Claim("token", token)
+                };
+                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                var principal = new ClaimsPrincipal(identity);
+                await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+                var cookieOptions = new CookieOptions { Path = "/", SameSite = SameSiteMode.Lax };
+                context.Response.Cookies.Delete("2fa_token", cookieOptions);
+                context.Response.Cookies.Delete("2fa_has_secret", cookieOptions);
+
+                context.Response.Redirect("/admin/dashboard");
+            });
+
+            // 2FA setup 端点：未绑定用户获取二维码
+            app.MapPost("/auth/2fa-setup", async (HttpContext context, IHttpClientFactory httpClientFactory) =>
+            {
+                var twoFactorToken = context.Request.Form["TwoFactorToken"].FirstOrDefault();
+                if (string.IsNullOrEmpty(twoFactorToken))
+                {
+                    context.Response.Redirect("/login?error=expired");
+                    return;
+                }
+
+                try
+                {
+                    var httpClient = httpClientFactory.CreateClient("ApiClient");
+                    var request = new TwoFactorSetupRequest { TwoFactorToken = twoFactorToken };
+                    var apiResponse = await httpClient.PostAsJsonAsync("auth/2fa/setup", request);
+                    var result = await apiResponse.Content.ReadFromJsonAsync<ApiResponse<TwoFactorSetupResult>>();
+
+                    if (result?.Data is null)
+                    {
+                        context.Response.Redirect("/two-factor?error=setup-failed");
+                        return;
+                    }
+
+                    var cookieOptions = new CookieOptions
+                    {
+                        HttpOnly = false,
+                        Secure = false,
+                        SameSite = SameSiteMode.Lax,
+                        Expires = DateTimeOffset.UtcNow.AddMinutes(5),
+                        Path = "/"
+                    };
+                    context.Response.Cookies.Append("2fa_secret", result.Data.Secret, cookieOptions);
+                    context.Response.Cookies.Append("2fa_qr", result.Data.QrCodeBase64, cookieOptions);
+
+                    context.Response.Redirect("/two-factor");
+                }
+                catch
+                {
+                    context.Response.Redirect("/two-factor?error=setup-failed");
+                }
+            });
+
+            // 2FA verify 端点：已绑定用户验证码校验
+            app.MapPost("/auth/2fa-verify", async (HttpContext context, IHttpClientFactory httpClientFactory) =>
+            {
+                var twoFactorToken = context.Request.Form["TwoFactorToken"].FirstOrDefault();
+                var code = context.Request.Form["Code"].FirstOrDefault();
+
+                if (string.IsNullOrEmpty(twoFactorToken) || string.IsNullOrEmpty(code))
+                {
+                    context.Response.Redirect("/login?error=expired");
+                    return;
+                }
+
+                try
+                {
+                    var httpClient = httpClientFactory.CreateClient("ApiClient");
+                    var request = new TwoFactorVerifyRequest { TwoFactorToken = twoFactorToken, Code = code };
+                    var apiResponse = await httpClient.PostAsJsonAsync("auth/2fa/verify", request);
+
+                    if (!apiResponse.IsSuccessStatusCode)
+                    {
+                        context.Response.Redirect("/two-factor?error=invalid");
+                        return;
+                    }
+
+                    var result = await apiResponse.Content.ReadFromJsonAsync<ApiResponse<LoginResult>>();
+                    if (result?.Data is null || string.IsNullOrEmpty(result.Data.Token))
+                    {
+                        context.Response.Redirect("/two-factor?error=invalid");
+                        return;
+                    }
+
+                    var claims = new[]
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, result.Data.UserId),
+                        new Claim(ClaimTypes.Name, result.Data.UserName),
+                        new Claim(ClaimTypes.Role, result.Data.Role),
+                        new Claim("token", result.Data.Token)
+                    };
+                    var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                    var principal = new ClaimsPrincipal(identity);
+                    await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+                    var cookieOptions = new CookieOptions { Path = "/", SameSite = SameSiteMode.Lax };
+                    context.Response.Cookies.Delete("2fa_token", cookieOptions);
+                    context.Response.Cookies.Delete("2fa_has_secret", cookieOptions);
+                    context.Response.Cookies.Delete("2fa_secret", cookieOptions);
+                    context.Response.Cookies.Delete("2fa_qr", cookieOptions);
+
+                    context.Response.Redirect("/admin/dashboard");
+                }
+                catch
+                {
+                    context.Response.Redirect("/two-factor?error=invalid");
+                }
+            });
+
+            // 2FA bind 端点：未绑定用户首次绑定 TOTP
+            app.MapPost("/auth/2fa-bind", async (HttpContext context, IHttpClientFactory httpClientFactory) =>
+            {
+                var twoFactorToken = context.Request.Form["TwoFactorToken"].FirstOrDefault();
+                var code = context.Request.Form["Code"].FirstOrDefault();
+                var secret = context.Request.Form["Secret"].FirstOrDefault();
+
+                if (string.IsNullOrEmpty(twoFactorToken) || string.IsNullOrEmpty(code) || string.IsNullOrEmpty(secret))
+                {
+                    context.Response.Redirect("/login?error=expired");
+                    return;
+                }
+
+                try
+                {
+                    var httpClient = httpClientFactory.CreateClient("ApiClient");
+                    var request = new TwoFactorBindRequest { TwoFactorToken = twoFactorToken, Code = code, Secret = secret };
+                    var apiResponse = await httpClient.PostAsJsonAsync("auth/2fa/bind", request);
+
+                    if (!apiResponse.IsSuccessStatusCode)
+                    {
+                        context.Response.Redirect("/two-factor?error=invalid");
+                        return;
+                    }
+
+                    var result = await apiResponse.Content.ReadFromJsonAsync<ApiResponse<LoginResult>>();
+                    if (result?.Data is null || string.IsNullOrEmpty(result.Data.Token))
+                    {
+                        context.Response.Redirect("/two-factor?error=invalid");
+                        return;
+                    }
+
+                    var claims = new[]
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, result.Data.UserId),
+                        new Claim(ClaimTypes.Name, result.Data.UserName),
+                        new Claim(ClaimTypes.Role, result.Data.Role),
+                        new Claim("token", result.Data.Token)
+                    };
+                    var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                    var principal = new ClaimsPrincipal(identity);
+                    await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+                    var cookieOptions = new CookieOptions { Path = "/", SameSite = SameSiteMode.Lax };
+                    context.Response.Cookies.Delete("2fa_token", cookieOptions);
+                    context.Response.Cookies.Delete("2fa_has_secret", cookieOptions);
+                    context.Response.Cookies.Delete("2fa_secret", cookieOptions);
+                    context.Response.Cookies.Delete("2fa_qr", cookieOptions);
+
+                    context.Response.Redirect("/admin/dashboard");
+                }
+                catch
+                {
+                    context.Response.Redirect("/two-factor?error=invalid");
+                }
             });
 
             app.MapRazorComponents<App>()

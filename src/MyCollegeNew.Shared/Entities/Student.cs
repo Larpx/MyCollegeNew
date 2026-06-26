@@ -1,4 +1,4 @@
-﻿using SqlSugar;
+using SqlSugar;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
 {
@@ -47,5 +47,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
         /// <summary>备注</summary>
         [SugarColumn(Length = 256, IsNullable = true, ColumnDescription = "备注")]
         public string? Remark { get; set; }
+
+        /// <summary>TOTP 二次验证密钥（Base32 编码），null 表示未绑定</summary>
+        [SugarColumn(IsNullable = true, Length = 64, ColumnDescription = "TOTP 二次验证密钥")]
+        public string? TwoFactorSecret { get; set; }
     }
 }

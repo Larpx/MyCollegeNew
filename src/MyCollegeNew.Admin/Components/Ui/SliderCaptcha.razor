@@ -1,0 +1,226 @@
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Auth
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Responses
+@inject IApiClient ApiClient
+
+<div class="slider-captcha" @onpointerup="OnPointerUp" @onpointermove="OnPointerMove">
+    @* 验证码图片区域 *@
+    <div class="slider-captcha__image-area">
+        @if (_isLoading)
+        {
+            <div class="slider-captcha__loading">
+                <span class="slider-captcha__spinner"></span>
+                <span>加载中...</span>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(_backgroundImage))
+        {
+            <img src="@_backgroundImage" alt="验证码背景" class="slider-captcha__bg" draggable="false" />
+            <img src="@_sliderImage"
+                 alt="滑块"
+                 class="slider-captcha__slider-img"
+                 style="left: @(_currentX)px; top: @_sliderTop"
+                 draggable="false" />
+        }
+    </div>
+
+    @* 滑块轨道 *@
+    <div class="slider-captcha__track">
+        <div class="slider-captcha__track-fill" style="width: @(_currentX + 40)px"></div>
+        <div class="slider-captcha__handle"
+             style="left: @(_currentX)px"
+             @onpointerdown="OnPointerDown">
+            <Icon Name="chevrons-right" Size="16" />
+        </div>
+        @if (string.IsNullOrEmpty(_captchaToken))
+        {
+            <span class="slider-captcha__hint">拖动滑块完成验证</span>
+        }
+    </div>
+
+    @* 状态提示 *@
+    @if (!string.IsNullOrEmpty(_statusMessage))
+    {
+        <div class="slider-captcha__status slider-captcha__status--@(_statusType)">
+            @_statusMessage
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>验证成功回调，传递 CaptchaToken</summary>
+    [Parameter]
+    public EventCallback<string> OnVerified { get; set; }
+
+    /// <summary>是否禁用</summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>背景图 Base64</summary>
+    private string _backgroundImage = string.Empty;
+
+    /// <summary>滑块图 Base64</summary>
+    private string _sliderImage = string.Empty;
+
+    /// <summary>滑块垂直偏移</summary>
+    private string _sliderTop = "53px";
+
+    /// <summary>验证码 ID</summary>
+    private string _captchaId = string.Empty;
+
+    /// <summary>滑块当前 X 位置</summary>
+    private int _currentX;
+
+    /// <summary>拖拽起始 X</summary>
+    private int _startX;
+
+    /// <summary>是否正在拖拽</summary>
+    private bool _isDragging;
+
+    /// <summary>加载中状态</summary>
+    private bool _isLoading = true;
+
+    /// <summary>验证码 token（验证通过后设置）</summary>
+    private string _captchaToken = string.Empty;
+
+    /// <summary>状态消息</summary>
+    private string _statusMessage = string.Empty;
+
+    /// <summary>状态类型（success / error）</summary>
+    private string _statusType = "error";
+
+    /// <summary>轨道最大宽度</summary>
+    private const int TrackWidth = 260;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCaptchaAsync();
+    }
+
+    /// <summary>
+    /// 加载验证码
+    /// </summary>
+    private async Task LoadCaptchaAsync()
+    {
+        _isLoading = true;
+        _statusMessage = string.Empty;
+        _currentX = 0;
+        _captchaToken = string.Empty;
+
+        try
+        {
+            var response = await ApiClient.GetAsync<SliderCaptchaResponse>("auth/captcha/slider");
+            if (response is not null)
+            {
+                _captchaId = response.CaptchaId;
+                _backgroundImage = response.BackgroundImage;
+                _sliderImage = response.SliderImage;
+            }
+        }
+        catch
+        {
+            _statusMessage = "验证码加载失败，请重试";
+            _statusType = "error";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// 拖拽开始
+    /// </summary>
+    private void OnPointerDown(PointerEventArgs e)
+    {
+        if (Disabled || !string.IsNullOrEmpty(_captchaToken) || _isLoading)
+            return;
+
+        _isDragging = true;
+        _startX = (int)e.ClientX;
+        _statusMessage = string.Empty;
+    }
+
+    /// <summary>
+    /// 拖拽移动
+    /// </summary>
+    private void OnPointerMove(PointerEventArgs e)
+    {
+        if (!_isDragging)
+            return;
+
+        var deltaX = (int)e.ClientX - _startX;
+        _currentX = Math.Max(0, Math.Min(deltaX, TrackWidth));
+    }
+
+    /// <summary>
+    /// 拖拽结束
+    /// </summary>
+    private async Task OnPointerUp(PointerEventArgs e)
+    {
+        if (!_isDragging)
+            return;
+
+        _isDragging = false;
+
+        if (_currentX < 5)
+        {
+            _currentX = 0;
+            return;
+        }
+
+        // 调用后端校验
+        try
+        {
+            var verifyRequest = new SliderCaptchaVerifyRequest
+            {
+                CaptchaId = _captchaId,
+                SliderX = _currentX
+            };
+
+            var result = await ApiClient.PostAsync<SliderCaptchaVerifyResponse>("auth/captcha/slider/verify", verifyRequest);
+
+            if (result is not null && result.Success)
+            {
+                _captchaToken = result.Token ?? string.Empty;
+                _statusMessage = "验证通过";
+                _statusType = "success";
+
+                // 通知父组件
+                if (OnVerified.HasDelegate)
+                {
+                    await OnVerified.InvokeAsync(_captchaToken);
+                }
+            }
+            else
+            {
+                _statusMessage = result?.ErrorMessage ?? "验证失败，请重试";
+                _statusType = "error";
+                await ResetAndReloadAsync();
+            }
+        }
+        catch
+        {
+            _statusMessage = "验证请求失败，请重试";
+            _statusType = "error";
+            await ResetAndReloadAsync();
+        }
+    }
+
+    /// <summary>
+    /// 重置并重新加载验证码
+    /// </summary>
+    private async Task ResetAndReloadAsync()
+    {
+        _currentX = 0;
+        await Task.Delay(800);
+        await LoadCaptchaAsync();
+    }
+
+    /// <summary>
+    /// 重置验证码（供外部调用）
+    /// </summary>
+    public async Task ResetAsync()
+    {
+        await LoadCaptchaAsync();
+    }
+}

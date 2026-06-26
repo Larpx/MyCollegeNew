@@ -1,38 +1,106 @@
 @page "/"
-@inject NavigationManager NavigationManager
-@inject TokenService TokenService
+@layout PortalLayout
 
-@* 根路径：根据登录角色重定向到对应首页 *@
-<PageTitle>跳转中…</PageTitle>
+<PageTitle>考勤管理系统 - 智能考勤，高效管理</PageTitle>
 
-<div class="redirect-loading">
-    <span class="redirect-loading__spinner" aria-hidden="true"></span>
-    <span>正在跳转…</span>
+<div class="portal">
+    @* 顶部导航栏：半透明毛玻璃效果 *@
+    <header class="portal-nav">
+        <div class="portal-nav__inner">
+            <div class="portal-nav__brand">
+                <Icon Name="graduation-cap" Size="24" />
+                <span class="portal-nav__title">考勤管理系统</span>
+            </div>
+            <div class="portal-nav__actions">
+                <a href="/login?role=teacher" class="portal-nav__btn portal-nav__btn--secondary">
+                    <Icon Name="book-open" Size="16" />
+                    教师登录
+                </a>
+                <a href="/login?role=student" class="portal-nav__btn portal-nav__btn--primary">
+                    <Icon Name="scan-line" Size="16" />
+                    学生登录
+                </a>
+            </div>
+        </div>
+    </header>
+
+    @* Hero 区域 *@
+    <section class="portal-hero">
+        <div class="portal-hero__bg" aria-hidden="true"></div>
+        <div class="portal-hero__content">
+            <h1 class="portal-hero__title">智能考勤，高效管理</h1>
+            <p class="portal-hero__subtitle">让每一次考勤都有迹可循</p>
+            <div class="portal-hero__cards">
+                <a href="/login?role=teacher" class="portal-entry-card portal-entry-card--teacher">
+                    <div class="portal-entry-card__icon">
+                        <Icon Name="book-open" Size="32" />
+                    </div>
+                    <div class="portal-entry-card__body">
+                        <h3 class="portal-entry-card__title">教师入口</h3>
+                        <p class="portal-entry-card__desc">发起考勤、管理课程、审批请假</p>
+                    </div>
+                    <Icon Name="arrow-right" Size="20" Class="portal-entry-card__arrow" />
+                </a>
+                <a href="/login?role=student" class="portal-entry-card portal-entry-card--student">
+                    <div class="portal-entry-card__icon">
+                        <Icon Name="scan-line" Size="32" />
+                    </div>
+                    <div class="portal-entry-card__body">
+                        <h3 class="portal-entry-card__title">学生入口</h3>
+                        <p class="portal-entry-card__desc">扫码签到、查看考勤、在线请假</p>
+                    </div>
+                    <Icon Name="arrow-right" Size="20" Class="portal-entry-card__arrow" />
+                </a>
+            </div>
+        </div>
+    </section>
+
+    @* 功能特色区域 *@
+    <section class="portal-features">
+        <div class="portal-features__inner">
+            <h2 class="portal-features__heading">核心功能</h2>
+            <div class="portal-features__grid">
+                <div class="portal-feature-card">
+                    <div class="portal-feature-card__icon portal-feature-card__icon--primary">
+                        <Icon Name="qr-code" Size="24" />
+                    </div>
+                    <h4 class="portal-feature-card__title">二维码动态签到</h4>
+                    <p class="portal-feature-card__desc">30 秒自动刷新，安全可靠</p>
+                </div>
+                <div class="portal-feature-card">
+                    <div class="portal-feature-card__icon portal-feature-card__icon--success">
+                        <Icon Name="users" Size="24" />
+                    </div>
+                    <h4 class="portal-feature-card__title">一键 / 随机点名</h4>
+                    <p class="portal-feature-card__desc">高效课堂互动</p>
+                </div>
+                <div class="portal-feature-card">
+                    <div class="portal-feature-card__icon portal-feature-card__icon--warning">
+                        <Icon Name="file-text" Size="24" />
+                    </div>
+                    <h4 class="portal-feature-card__title">请假审批闭环</h4>
+                    <p class="portal-feature-card__desc">学生申请 → 辅导员审批 → 考勤联动</p>
+                </div>
+                <div class="portal-feature-card">
+                    <div class="portal-feature-card__icon portal-feature-card__icon--primary">
+                        <Icon Name="bar-chart" Size="24" />
+                    </div>
+                    <h4 class="portal-feature-card__title">多维度统计报表</h4>
+                    <p class="portal-feature-card__desc">院系 / 班级 / 个人，支持 Excel 导出</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @* 底部 Footer *@
+    <footer class="portal-footer">
+        <div class="portal-footer__inner">
+            <span class="portal-footer__version">v1.0</span>
+            <div class="portal-footer__tags">
+                <span class="portal-footer__tag">.NET 10</span>
+                <span class="portal-footer__tag">Blazor</span>
+                <span class="portal-footer__tag">SqlSugar</span>
+            </div>
+        </div>
+    </footer>
 </div>
-
-@code {
-    /// <summary>
-    /// 组件初始化时根据 Token 中的角色重定向到对应首页
-    /// 未登录则跳转到登录页
-    /// </summary>
-    protected override void OnInitialized()
-    {
-        var userInfo = TokenService.GetUserInfo();
-        if (userInfo is null)
-        {
-            NavigationManager.NavigateTo("/login", forceLoad: true);
-            return;
-        }
-
-        var targetUrl = userInfo.Role switch
-        {
-            "Admin" => "/admin/dashboard",
-            "Teacher" => "/teacher/dashboard",
-            "Counselor" => "/teacher/dashboard",
-            "Student" => "/student/home",
-            _ => "/login"
-        };
-
-        NavigationManager.NavigateTo(targetUrl, forceLoad: true);
-    }
-}

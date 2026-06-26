@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Auth
 {
@@ -16,6 +16,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Auth
         [Required(ErrorMessage = "密码不能为空")]
         [StringLength(128, MinimumLength = 6, ErrorMessage = "密码长度需在 6-128 个字符之间")]
         public string Password { get; set; } = string.Empty;
+
+        /// <summary>滑块验证码 Token</summary>
+        public string? CaptchaToken { get; set; }
     }
 
     /// <summary>
@@ -23,7 +26,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Auth
     /// </summary>
     public class LoginResult
     {
-        /// <summary>JWT 令牌</summary>
+        /// <summary>JWT 令牌（二次验证通过后才有值）</summary>
         public string Token { get; set; } = string.Empty;
 
         /// <summary>用户ID</summary>
@@ -34,5 +37,14 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Auth
 
         /// <summary>用户角色</summary>
         public string Role { get; set; } = string.Empty;
+
+        /// <summary>是否需要二次验证</summary>
+        public bool RequiresTwoFactor { get; set; }
+
+        /// <summary>是否已绑定 TOTP 二次验证（RequiresTwoFactor 为 true 时有效）</summary>
+        public bool HasTwoFactorSecret { get; set; }
+
+        /// <summary>二次验证临时令牌（用于后续验证请求）</summary>
+        public string? TwoFactorToken { get; set; }
     }
 }

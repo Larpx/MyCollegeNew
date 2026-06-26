@@ -1,10 +1,12 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Login;
+using Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Login;
 using Larpx.PersonalTools.MyCollegeNew.Infrastructure.Auth;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Auth;
 using Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Tests.Auth
 {
@@ -23,7 +25,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Auth
         {
             _dbContext = new TestDbContext();
             var tokenService = new TokenService(TestJwtConfigFactory.Create(), NullLogger<TokenService>.Instance);
-            _loginHandler = new LoginHandler(_dbContext, tokenService, NullLogger<LoginHandler>.Instance);
+            var cache = Mock.Of<IDistributedCache>();
+            _loginHandler = new LoginHandler(_dbContext, tokenService, cache, NullLogger<LoginHandler>.Instance);
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using SqlSugar;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
@@ -28,5 +28,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
         /// <summary>真实姓名</summary>
         [SugarColumn(Length = 32, ColumnDescription = "真实姓名")]
         public string RealName { get; set; } = string.Empty;
+
+        /// <summary>TOTP 二次验证密钥（Base32 编码），null 表示未绑定</summary>
+        [SugarColumn(IsNullable = true, Length = 64, ColumnDescription = "TOTP 二次验证密钥")]
+        public string? TwoFactorSecret { get; set; }
     }
 }
