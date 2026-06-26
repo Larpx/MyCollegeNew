@@ -31,6 +31,10 @@ namespace Larpx.PersonalTools.MyCollegeNew.AppHost
             builder.AddProject<MyCollegeNew_Web>("web")
                 .WithReference(api);
 
+            // 管理员端服务
+            builder.AddProject<MyCollegeNew_Admin>("Admin")
+                .WithReference(api);
+
             builder.Build().Run();
         }
     }

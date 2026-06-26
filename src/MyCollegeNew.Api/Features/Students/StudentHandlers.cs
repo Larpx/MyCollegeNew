@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
@@ -86,7 +86,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Students
                     Status = s.Status,
                     Remark = s.Remark
                 })
-                .OrderBy(it => it.Id)
+                .OrderBy(s => s.Id)
                 .Skip((query.PageIndex - 1) * query.PageSize)
                 .Take(query.PageSize)
                 .ToListAsync();

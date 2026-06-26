@@ -168,7 +168,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
             using (var scope = app.Services.CreateScope())
             {
                 var initializer = scope.ServiceProvider.GetRequiredService<DbInitializer>();
-                await initializer.InitializeAsync();
+                initializer.Initialize();
                 await initializer.SeedAsync();
             }
 

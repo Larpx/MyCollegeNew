@@ -25,9 +25,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data
         }
 
         /// <summary>
-        /// 异步初始化数据库，使用 SqlSugar CodeFirst 自动创建所有实体表
+        /// 初始化数据库，使用 SqlSugar CodeFirst 自动创建所有实体表
         /// </summary>
-        public async Task InitializeAsync(CancellationToken cancellationToken = default)
+        public void Initialize(CancellationToken cancellationToken = default)
         {
             var db = _dbContext.Client;
             _logger.LogInformation("开始执行 CodeFirst 自动建表");

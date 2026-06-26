@@ -2,6 +2,28 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Aspire AppHost",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-apphost",
+      "program": "${workspaceFolder}/src/MyCollegeNew.AppHost/bin/Debug/net10.0/MyCollegeNew.AppHost.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/MyCollegeNew.AppHost",
+      "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+        "uriFormat": "http://localhost:18888"
+      },
+      "env": {
+        "DEBUG_SESSION_PORT": "5555",
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "http://localhost:18889",
+        "ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL": "http://localhost:18890",
+        "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true",
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    },
+    {
       "name": "API 服务",
       "type": "coreclr",
       "request": "launch",

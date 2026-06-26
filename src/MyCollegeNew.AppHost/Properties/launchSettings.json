@@ -4,12 +4,38 @@
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/",
       "applicationUrl": "https://localhost:17179;http://localhost:15096",
-      "launchUrl": "scalar/v1",
       "environmentVariables": {
         "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "http://localhost:18889",
         "ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL": "http://localhost:18890",
-        "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true"
+        "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true",
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    },
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/",
+      "applicationUrl": "http://localhost:15096",
+      "environmentVariables": {
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "http://localhost:18889",
+        "ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL": "http://localhost:18890",
+        "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true",
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/",
+      "applicationUrl": "https://localhost:17179",
+      "environmentVariables": {
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "http://localhost:18889",
+        "ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL": "http://localhost:18890",
+        "DOTNET_ENVIRONMENT": "Development"
       }
     }
   }

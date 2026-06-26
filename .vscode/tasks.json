@@ -5,7 +5,10 @@
       "label": "build",
       "command": "dotnet",
       "type": "process",
-      "args": ["build", "${workspaceFolder}/src/MyCollegeNew.sln"],
+      "args": [
+        "build",
+        "${workspaceFolder}/src/MyCollegeNew.sln"
+      ],
       "problemMatcher": "$msCompile",
       "group": {
         "kind": "build",
@@ -16,28 +19,45 @@
       "label": "build-api",
       "command": "dotnet",
       "type": "process",
-      "args": ["build", "${workspaceFolder}/src/MyCollegeNew.Api/MyCollegeNew.Api.csproj", "--no-incremental"],
+      "args": [
+        "build",
+        "${workspaceFolder}/src/MyCollegeNew.Api/MyCollegeNew.Api.csproj",
+        "--no-incremental"
+      ],
       "problemMatcher": "$msCompile"
     },
     {
       "label": "build-web",
       "command": "dotnet",
       "type": "process",
-      "args": ["build", "${workspaceFolder}/src/MyCollegeNew.Web/MyCollegeNew.Web.csproj", "--no-incremental"],
+      "args": [
+        "build",
+        "${workspaceFolder}/src/MyCollegeNew.Web/MyCollegeNew.Web.csproj",
+        "--no-incremental"
+      ],
       "problemMatcher": "$msCompile"
     },
     {
       "label": "build-tests",
       "command": "dotnet",
       "type": "process",
-      "args": ["build", "${workspaceFolder}/src/MyCollegeNew.Tests/MyCollegeNew.Tests.csproj", "--no-incremental"],
+      "args": [
+        "build",
+        "${workspaceFolder}/src/MyCollegeNew.Tests/MyCollegeNew.Tests.csproj",
+        "--no-incremental"
+      ],
       "problemMatcher": "$msCompile"
     },
     {
       "label": "test",
       "command": "dotnet",
       "type": "process",
-      "args": ["test", "${workspaceFolder}/src/MyCollegeNew.Tests/MyCollegeNew.Tests.csproj", "--logger", "console;verbosity=detailed"],
+      "args": [
+        "test",
+        "${workspaceFolder}/src/MyCollegeNew.Tests/MyCollegeNew.Tests.csproj",
+        "--logger",
+        "console;verbosity=detailed"
+      ],
       "problemMatcher": "$msCompile",
       "group": {
         "kind": "test",
@@ -48,14 +68,32 @@
       "label": "clean",
       "command": "dotnet",
       "type": "process",
-      "args": ["clean", "${workspaceFolder}/src/MyCollegeNew.sln"],
+      "args": [
+        "clean",
+        "${workspaceFolder}/src/MyCollegeNew.sln"
+      ],
       "problemMatcher": "$msCompile"
     },
     {
       "label": "restore",
       "command": "dotnet",
       "type": "process",
-      "args": ["restore", "${workspaceFolder}/src/MyCollegeNew.sln"],
+      "args": [
+        "restore",
+        "${workspaceFolder}/src/MyCollegeNew.sln"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build-apphost",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "${workspaceFolder}/src/MyCollegeNew.AppHost/MyCollegeNew.AppHost.csproj",
+        "-configuration",
+        "Debug"
+      ],
       "problemMatcher": "$msCompile"
     }
   ]

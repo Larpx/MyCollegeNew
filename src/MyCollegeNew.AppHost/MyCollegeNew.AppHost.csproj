@@ -15,5 +15,6 @@
   <ItemGroup>
     <ProjectReference Include="..\MyCollegeNew.Api\MyCollegeNew.Api.csproj" />
     <ProjectReference Include="..\MyCollegeNew.Web\MyCollegeNew.Web.csproj" />
+    <ProjectReference Include="..\MyCollegeNew.Admin\MyCollegeNew.Admin.csproj" />
   </ItemGroup>
 </Project>
