@@ -44,9 +44,18 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
             // HttpClient 调用后端 API（BaseAddress 末尾需带 /，追加 api/v1 路由前缀）
             var apiBaseUrl = builder.Configuration["Api:BaseUrl"] ?? "http://localhost:5144";
             var apiBase = apiBaseUrl.EndsWith("/") ? apiBaseUrl : apiBaseUrl + "/";
+            var apiBaseAddress = apiBase + "api/v1/";
+
+            // 类型客户端（供 Blazor 组件注入 IApiClient 使用）
             builder.Services.AddHttpClient<ApiClient>(client =>
             {
-                client.BaseAddress = new Uri(apiBase + "api/v1/");
+                client.BaseAddress = new Uri(apiBaseAddress);
+            });
+
+            // 命名客户端（供 Program.cs 中的代理端点使用）
+            builder.Services.AddHttpClient("ApiClient", client =>
+            {
+                client.BaseAddress = new Uri(apiBaseAddress);
             });
 
             builder.Services.AddScoped<IApiClient>(sp => sp.GetRequiredService<ApiClient>());
@@ -194,6 +203,49 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 return Results.Ok();
             });
+
+            // 验证码端点：代理到后端 API（无需登录，无需 antiforgery）
+            app.MapGet("/auth/captcha/slider", async (IHttpClientFactory httpClientFactory) =>
+            {
+                try
+                {
+                    var httpClient = httpClientFactory.CreateClient("ApiClient");
+                    var apiResponse = await httpClient.GetAsync("auth/captcha/slider");
+
+                    if (!apiResponse.IsSuccessStatusCode)
+                    {
+                        return Results.StatusCode((int)apiResponse.StatusCode);
+                    }
+
+                    var content = await apiResponse.Content.ReadAsStringAsync();
+                    return Results.Text(content, "application/json");
+                }
+                catch
+                {
+                    return Results.StatusCode(503);
+                }
+            }).DisableAntiforgery();
+
+            app.MapPost("/auth/captcha/slider/verify", async (HttpContext context, IHttpClientFactory httpClientFactory) =>
+            {
+                try
+                {
+                    var httpClient = httpClientFactory.CreateClient("ApiClient");
+                    var body = await context.Request.ReadFromJsonAsync<SliderCaptchaVerifyRequest>();
+                    if (body is null)
+                    {
+                        return Results.BadRequest();
+                    }
+
+                    var apiResponse = await httpClient.PostAsJsonAsync("auth/captcha/slider/verify", body);
+                    var content = await apiResponse.Content.ReadAsStringAsync();
+                    return Results.Text(content, "application/json");
+                }
+                catch
+                {
+                    return Results.StatusCode(503);
+                }
+            }).DisableAntiforgery();
 
             // 二次验证完成端点：前端验证通过后调用，写入认证 Cookie 并重定向
             app.MapPost("/auth/2fa-complete", async (HttpContext context, IHttpClientFactory httpClientFactory) =>

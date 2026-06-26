@@ -1,6 +1,7 @@
 @using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Auth
 @using Larpx.PersonalTools.MyCollegeNew.Shared.Responses
-@inject IApiClient ApiClient
+@using System.Text.Json
+@inject IJSRuntime JSRuntime
 
 <div class="slider-captcha" @onpointerup="OnPointerUp" @onpointermove="OnPointerMove">
     @* 验证码图片区域 *@
@@ -91,13 +92,16 @@
     /// <summary>轨道最大宽度</summary>
     private const int TrackWidth = 260;
 
+    /// <summary>JSON 序列化选项</summary>
+    private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
+
     protected override async Task OnInitializedAsync()
     {
         await LoadCaptchaAsync();
     }
 
     /// <summary>
-    /// 加载验证码
+    /// 加载验证码（通过 Admin 项目代理端点，避免直连 API）
     /// </summary>
     private async Task LoadCaptchaAsync()
     {
@@ -108,12 +112,18 @@
 
         try
         {
-            var response = await ApiClient.GetAsync<SliderCaptchaResponse>("auth/captcha/slider");
-            if (response is not null)
+            var json = await JSRuntime.InvokeAsync<string>("fetchCaptcha");
+            var apiResponse = JsonSerializer.Deserialize<ApiResponse<SliderCaptchaResponse>>(json, _jsonOptions);
+            if (apiResponse?.Data is not null)
             {
-                _captchaId = response.CaptchaId;
-                _backgroundImage = response.BackgroundImage;
-                _sliderImage = response.SliderImage;
+                _captchaId = apiResponse.Data.CaptchaId;
+                _backgroundImage = apiResponse.Data.BackgroundImage;
+                _sliderImage = apiResponse.Data.SliderImage;
+            }
+            else
+            {
+                _statusMessage = "验证码加载失败，请重试";
+                _statusType = "error";
             }
         }
         catch
@@ -168,16 +178,11 @@
             return;
         }
 
-        // 调用后端校验
         try
         {
-            var verifyRequest = new SliderCaptchaVerifyRequest
-            {
-                CaptchaId = _captchaId,
-                SliderX = _currentX
-            };
-
-            var result = await ApiClient.PostAsync<SliderCaptchaVerifyResponse>("auth/captcha/slider/verify", verifyRequest);
+            var json = await JSRuntime.InvokeAsync<string>("verifyCaptcha", _captchaId, _currentX);
+            var apiResponse = JsonSerializer.Deserialize<ApiResponse<SliderCaptchaVerifyResponse>>(json, _jsonOptions);
+            var result = apiResponse?.Data;
 
             if (result is not null && result.Success)
             {
@@ -185,7 +190,6 @@
                 _statusMessage = "验证通过";
                 _statusType = "success";
 
-                // 通知父组件
                 if (OnVerified.HasDelegate)
                 {
                     await OnVerified.InvokeAsync(_captchaToken);
