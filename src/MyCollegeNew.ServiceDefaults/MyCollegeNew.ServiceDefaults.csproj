@@ -7,10 +7,16 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.7.0" />
     <PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="9.3.1" />
+    <!-- OpenTelemetry 核心 -->
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.12.0" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0" />
+    <!-- 链路追踪：ASP.NET Core 请求 / HttpClient 出站调用 / SQL 数据库 / Redis 缓存 -->
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.SqlClient" Version="1.16.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.StackExchangeRedis" Version="1.16.0-beta.1" />
+    <!-- 指标：运行时 GC/JIT/线程池 / 进程内存 CPU -->
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Process" Version="1.16.0-beta.1" />
   </ItemGroup>
 </Project>

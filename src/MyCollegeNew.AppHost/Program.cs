@@ -15,15 +15,17 @@ namespace Larpx.PersonalTools.MyCollegeNew.AppHost
         {
             var builder = DistributedApplication.CreateBuilder(args);
 
-            // Redis 缓存服务
-            var redis = builder.AddRedis("redis");
+            // 注：开发环境当前无 Docker，不启动 Redis 容器。
+            // API 项目 Program.cs 检测到 ConnectionStrings:redis 为空时，
+            // 会自动回退到 DistributedMemoryCache（进程内分布式缓存）。
+            // 生产环境如需启用 Redis，可在此恢复 builder.AddRedis("redis")
+            // 并通过 .WithReference(redis) 注入到 api 服务。
 
             // SQL Server 数据库（生产环境使用，开发环境用 SQLite）
             // var sqlServer = builder.AddSqlServer("sqlserver").AddDatabase("attendance");
 
             // API 服务
             var api = builder.AddProject<MyCollegeNew_Api>("api")
-                .WithReference(redis)
                 .WithEnvironment("Db__ProviderType", "SQLite")  // 开发环境默认 SQLite
                 .WithEnvironment("Db__ConnectionString", "DataSource=attendance.db");
 

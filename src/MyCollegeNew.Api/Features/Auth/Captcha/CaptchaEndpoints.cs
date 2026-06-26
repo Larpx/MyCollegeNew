@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Caching.Distributed;
 using SkiaSharp;
+using System.Reflection;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Captcha
 {
@@ -35,6 +36,30 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Captcha
 
         /// <summary>缓存过期时间（分钟）</summary>
         private const int CacheExpirationMinutes = 5;
+
+        /// <summary>嵌入资源中默认背景图的逻辑名称</summary>
+        private const string DefaultBackgroundResourceName = "captcha-bg-default.jpg";
+
+        /// <summary>
+        /// 默认背景图（懒加载，全进程共享只读实例）
+        /// </summary>
+        private static readonly Lazy<SKBitmap?> _defaultBackground = new(LoadDefaultBackground);
+
+        /// <summary>
+        /// 从嵌入资源加载默认背景图
+        /// </summary>
+        /// <returns>解码后的 SKBitmap，加载失败返回 null</returns>
+        private static SKBitmap? LoadDefaultBackground()
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            using var stream = assembly.GetManifestResourceStream(DefaultBackgroundResourceName);
+            if (stream is null)
+            {
+                return null;
+            }
+
+            return SKBitmap.Decode(stream);
+        }
 
         /// <summary>
         /// 映射滑块验证码相关端点
@@ -70,56 +95,55 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Captcha
 
             // 拼图缺口的 X 位置（60-220 之间，确保两侧有足够空间）
             var targetX = random.Next(60, ImageWidth - PuzzleSize - 40);
+            var puzzleY = ImageHeight / 2 - PuzzleSize / 2;
 
-            using var backgroundSurface = SKSurface.Create(new SKImageInfo(ImageWidth, ImageHeight));
+            // 预渲染一份背景画布（背景图 + 拼图缺口）
+            using var backgroundSurface = SKSurface.Create(new SKImageInfo(ImageWidth, ImageHeight, SKColorType.Rgba8888, SKAlphaType.Premul));
             var bgCanvas = backgroundSurface.Canvas;
+            bgCanvas.Clear(SKColors.White);
 
-            // 绘制渐变背景
-            DrawRandomBackground(bgCanvas, random, ImageWidth, ImageHeight);
+            // 绘制默认背景图（缩放裁剪至 300x150），失败时回退到随机渐变
+            DrawBackground(bgCanvas, random);
 
-            // 绘制拼图缺口阴影
-            DrawPuzzleHole(bgCanvas, targetX, ImageHeight / 2 - PuzzleSize / 2);
+            // 在背景图上绘制拼图缺口（半透明遮罩 + 边框）
+            DrawPuzzleHole(bgCanvas, targetX, puzzleY);
 
             using var backgroundImage = backgroundSurface.Snapshot();
             using var bgData = backgroundImage.Encode(SKEncodedImageFormat.Png, 80);
             var bgBase64 = Convert.ToBase64String(bgData.AsSpan());
 
-            // 生成滑块图（仅拼图块，背景透明）
+            // 生成滑块图：全尺寸 300×150 透明画布，仅拼图块区域有像素
+            // 这样与背景图同尺寸，前端 CSS 渲染 1:1 对应，位置和大小完全匹配
             using var sliderSurface = SKSurface.Create(new SKImageInfo(ImageWidth, ImageHeight, SKColorType.Rgba8888, SKAlphaType.Premul));
             var sliderCanvas = sliderSurface.Canvas;
             sliderCanvas.Clear(SKColors.Transparent);
 
-            DrawRandomBackground(sliderCanvas, random, ImageWidth, ImageHeight);
-            DrawPuzzlePiece(sliderCanvas, targetX, ImageHeight / 2 - PuzzleSize / 2);
-
-            // 裁剪出仅包含拼图块的区域
-            var cropLeft = Math.Max(0, targetX - PuzzleBumpRadius - 2);
-            var cropWidth = Math.Min(PuzzleSize + PuzzleBumpRadius * 2 + 4, ImageWidth - cropLeft);
-            using var sliderFullImage = sliderSurface.Snapshot();
-            var croppedBitmap = new SKBitmap(cropWidth, ImageHeight);
-            sliderFullImage.ReadPixels(croppedBitmap.Info, croppedBitmap.GetPixels(), cropWidth * 4, cropLeft, 0);
-
-            // 二次裁剪：只保留拼图块高度区域
-            var puzzleY = ImageHeight / 2 - PuzzleSize / 2;
-            var cropTop = Math.Max(0, puzzleY - PuzzleBumpRadius - 2);
-            var cropHeight = Math.Min(PuzzleSize + PuzzleBumpRadius * 2 + 4, ImageHeight - cropTop);
-
-            var finalBitmap = new SKBitmap(cropWidth, cropHeight);
-            using var finalSurface = SKSurface.Create(new SKImageInfo(cropWidth, cropHeight, SKColorType.Rgba8888, SKAlphaType.Premul));
-            var finalCanvas = finalSurface.Canvas;
-            finalCanvas.Clear(SKColors.Transparent);
-
-            // 绘制拼图形状蒙版区域
+            // 用拼图路径做蒙版，只保留拼图块区域内的背景像素
             using (var paint = new SKPaint { IsAntialias = true })
             {
-                // 只保留拼图块区域内的像素
-                var puzzlePath = BuildPuzzlePath(targetX - cropLeft, puzzleY - cropTop);
-                finalCanvas.ClipPath(puzzlePath, SKClipOperation.Intersect, true);
-                finalCanvas.DrawBitmap(croppedBitmap, 0, -cropTop, SKSamplingOptions.Default);
+                var puzzlePath = BuildPuzzlePath(targetX, puzzleY);
+                sliderCanvas.ClipPath(puzzlePath, SKClipOperation.Intersect, true);
+                // 从未标记缺口的原始背景中取色（重新绘制一次不含缺口阴影的背景）
+                using var cleanSurface = SKSurface.Create(new SKImageInfo(ImageWidth, ImageHeight, SKColorType.Rgba8888, SKAlphaType.Premul));
+                var cleanCanvas = cleanSurface.Canvas;
+                cleanCanvas.Clear(SKColors.White);
+                DrawBackground(cleanCanvas, random);
+                using var cleanImage = cleanSurface.Snapshot();
+                sliderCanvas.DrawImage(cleanImage, 0, 0, SKSamplingOptions.Default);
             }
 
-            using var finalImage = finalSurface.Snapshot();
-            using var sliderData = finalImage.Encode(SKEncodedImageFormat.Png, 80);
+            // 为拼图块添加白色描边，提升可辨识度
+            using var borderPaint = new SKPaint
+            {
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = 2,
+                Color = new SKColor(255, 255, 255, 220)
+            };
+            sliderCanvas.DrawPath(BuildPuzzlePath(targetX, puzzleY), borderPaint);
+
+            using var sliderImage = sliderSurface.Snapshot();
+            using var sliderData = sliderImage.Encode(SKEncodedImageFormat.Png, 80);
             var sliderBase64 = Convert.ToBase64String(sliderData.AsSpan());
 
             // 将正确位置存入缓存，5 分钟过期
@@ -141,6 +165,64 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Captcha
                 SliderImage = "data:image/png;base64," + sliderBase64,
                 SliderX = 0
             }));
+        }
+
+        /// <summary>
+        /// 绘制验证码背景：优先使用嵌入的默认背景图（缩放裁剪至目标尺寸），
+        /// 加载失败时回退到随机渐变 + 噪点。
+        /// </summary>
+        /// <param name="canvas">目标画布</param>
+        /// <param name="random">随机数生成器（回退时使用）</param>
+        private static void DrawBackground(SKCanvas canvas, Random random)
+        {
+            var defaultBg = _defaultBackground.Value;
+            if (defaultBg is not null)
+            {
+                // 等比缩放并居中裁剪，填满 300x150 区域
+                var srcRect = ComputeCropRect(defaultBg.Width, defaultBg.Height, ImageWidth, ImageHeight);
+                var destRect = new SKRect(0, 0, ImageWidth, ImageHeight);
+                // SkiaSharp 4.x 弃用了 DrawBitmap+SKPaint 重载，改用 DrawImage + SKSamplingOptions
+                using var defaultImg = SKImage.FromBitmap(defaultBg);
+                canvas.DrawImage(defaultImg, srcRect, destRect, SKSamplingOptions.Default);
+                return;
+            }
+
+            // 回退：随机渐变 + 噪点
+            DrawRandomBackground(canvas, random, ImageWidth, ImageHeight);
+        }
+
+        /// <summary>
+        /// 计算等比裁剪矩形：从源图中裁剪出与目标宽高比一致的最大区域
+        /// </summary>
+        /// <param name="srcW">源图宽度</param>
+        /// <param name="srcH">源图高度</param>
+        /// <param name="dstW">目标宽度</param>
+        /// <param name="dstH">目标高度</param>
+        /// <returns>源图中的裁剪矩形</returns>
+        private static SKRect ComputeCropRect(int srcW, int srcH, int dstW, int dstH)
+        {
+            var srcRatio = (double)srcW / srcH;
+            var dstRatio = (double)dstW / dstH;
+
+            int cropW, cropH, cropX, cropY;
+            if (srcRatio > dstRatio)
+            {
+                // 源图更宽：按高度裁剪，左右各切一部分
+                cropH = srcH;
+                cropW = (int)(srcH * dstRatio);
+                cropX = (srcW - cropW) / 2;
+                cropY = 0;
+            }
+            else
+            {
+                // 源图更高：按宽度裁剪，上下各切一部分
+                cropW = srcW;
+                cropH = (int)(srcW / dstRatio);
+                cropX = 0;
+                cropY = (srcH - cropH) / 2;
+            }
+
+            return new SKRect(cropX, cropY, cropX + cropW, cropY + cropH);
         }
 
         /// <summary>
@@ -301,32 +383,6 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Captcha
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 1.5f,
                 Color = new SKColor(255, 255, 255, 120)
-            };
-            canvas.DrawPath(path, borderPaint);
-        }
-
-        /// <summary>
-        /// 绘制拼图块（用于滑块图）
-        /// </summary>
-        private static void DrawPuzzlePiece(SKCanvas canvas, int x, int y)
-        {
-            var path = BuildPuzzlePath(x, y);
-
-            // 拼图块填充
-            using var fillPaint = new SKPaint
-            {
-                IsAntialias = true,
-                Color = new SKColor(255, 255, 255, 180)
-            };
-            canvas.DrawPath(path, fillPaint);
-
-            // 拼图块边框
-            using var borderPaint = new SKPaint
-            {
-                IsAntialias = true,
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = 2,
-                Color = new SKColor(255, 255, 255, 200)
             };
             canvas.DrawPath(path, borderPaint);
         }

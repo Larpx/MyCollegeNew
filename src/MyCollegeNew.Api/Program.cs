@@ -22,6 +22,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Serilog;
+using System.Diagnostics;
 using System.Text;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Api
@@ -42,6 +43,11 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
             // .NET Aspire 服务默认配置：服务发现、OpenTelemetry、健康检查、弹性策略
             builder.AddServiceDefaults();
 
+            // 自定义 ActivitySource：用于在业务 Handler 中创建自定义 Span（链路追踪片段）
+            // 名称与 ServiceDefaults 中 tracing.AddSource(ApplicationName) 对应
+            var apiActivitySource = new ActivitySource(builder.Environment.ApplicationName);
+            builder.Services.AddSingleton(apiActivitySource);
+
             // Serilog 结构化日志
             builder.Host.UseSerilog((context, config) =>
             {
@@ -57,6 +63,10 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
             // 注册数据库上下文与初始化器（Scoped：每请求独立连接上下文）
             builder.Services.AddScoped<IDbContext, SqlSugarDbContext>();
             builder.Services.AddScoped<DbInitializer>();
+
+            // 数据库健康检查探针：验证 SqlSugar 能否成功连接并执行简单查询
+            builder.Services.AddHealthChecks()
+                .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
 
             // 注册 HttpContext 访问器与当前用户上下文（Scoped）
             builder.Services.AddHttpContextAccessor();
@@ -137,8 +147,13 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             });
 
-            // Distributed Cache - Redis（生产环境）或 Memory（开发环境）
+            // Distributed Cache - DEBUG 模式或未配置 Redis 时使用进程内内存缓存；
+            // Release 模式且配置了 ConnectionStrings:redis 时才启用 Redis
             var redisConnectionString = builder.Configuration.GetConnectionString("redis");
+#if DEBUG
+            // DEBUG 模式默认使用内存缓存，避免开发环境对 Redis 容器的依赖
+            builder.Services.AddDistributedMemoryCache();
+#else
             if (!string.IsNullOrEmpty(redisConnectionString))
             {
                 builder.Services.AddStackExchangeRedisCache(options =>
@@ -150,6 +165,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
             {
                 builder.Services.AddDistributedMemoryCache();
             }
+#endif
 
             // 输出缓存
             builder.Services.AddOutputCache(options =>

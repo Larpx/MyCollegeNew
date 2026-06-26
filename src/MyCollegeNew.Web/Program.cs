@@ -205,12 +205,13 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
             });
 
             // 验证码端点：代理到后端 API（无需登录，无需 antiforgery）
+            // 注意：API 端点注册在 /api/v1/captcha/slider（无 auth 前缀），代理路径需对应
             app.MapGet("/auth/captcha/slider", async (IHttpClientFactory httpClientFactory) =>
             {
                 try
                 {
                     var httpClient = httpClientFactory.CreateClient("ApiClient");
-                    var apiResponse = await httpClient.GetAsync("auth/captcha/slider");
+                    var apiResponse = await httpClient.GetAsync("captcha/slider");
 
                     if (!apiResponse.IsSuccessStatusCode)
                     {
@@ -237,7 +238,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
                         return Results.BadRequest();
                     }
 
-                    var apiResponse = await httpClient.PostAsJsonAsync("auth/captcha/slider/verify", body);
+                    var apiResponse = await httpClient.PostAsJsonAsync("captcha/slider/verify", body);
                     var content = await apiResponse.Content.ReadAsStringAsync();
                     return Results.Text(content, "application/json");
                 }
@@ -308,7 +309,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
                 {
                     var httpClient = httpClientFactory.CreateClient("ApiClient");
                     var request = new TwoFactorSetupRequest { TwoFactorToken = twoFactorToken };
-                    var apiResponse = await httpClient.PostAsJsonAsync("auth/2fa/setup", request);
+                    var apiResponse = await httpClient.PostAsJsonAsync("2fa/setup", request);
                     var result = await apiResponse.Content.ReadFromJsonAsync<ApiResponse<TwoFactorSetupResult>>();
 
                     if (result?.Data is null)
@@ -353,7 +354,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
                 {
                     var httpClient = httpClientFactory.CreateClient("ApiClient");
                     var request = new TwoFactorVerifyRequest { TwoFactorToken = twoFactorToken, Code = code };
-                    var apiResponse = await httpClient.PostAsJsonAsync("auth/2fa/verify", request);
+                    var apiResponse = await httpClient.PostAsJsonAsync("2fa/verify", request);
 
                     if (!apiResponse.IsSuccessStatusCode)
                     {
@@ -418,7 +419,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
                 {
                     var httpClient = httpClientFactory.CreateClient("ApiClient");
                     var request = new TwoFactorBindRequest { TwoFactorToken = twoFactorToken, Code = code, Secret = secret };
-                    var apiResponse = await httpClient.PostAsJsonAsync("auth/2fa/bind", request);
+                    var apiResponse = await httpClient.PostAsJsonAsync("2fa/bind", request);
 
                     if (!apiResponse.IsSuccessStatusCode)
                     {
