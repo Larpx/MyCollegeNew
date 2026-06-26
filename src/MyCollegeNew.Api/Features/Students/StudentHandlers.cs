@@ -74,6 +74,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Students
 
             var total = await q.CountAsync();
             var rows = await q
+                .OrderBy((s, d, m, c) => s.Id)
                 .Select<StudentResponseDto>((s, d, m, c) => new StudentResponseDto
                 {
                     Id = s.Id,
@@ -86,7 +87,6 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Students
                     Status = s.Status,
                     Remark = s.Remark
                 })
-                .OrderBy(s => s.Id)
                 .Skip((query.PageIndex - 1) * query.PageSize)
                 .Take(query.PageSize)
                 .ToListAsync();

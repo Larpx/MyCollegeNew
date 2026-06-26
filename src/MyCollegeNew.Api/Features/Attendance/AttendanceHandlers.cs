@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Constants;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
@@ -155,6 +155,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
             var rows = await db.Queryable<AttendanceSession, Course, Class, Teacher>((s, c, cls, t) =>
                     new JoinQueryInfos(JoinType.Left, s.CourseId == c.Id, JoinType.Left, s.ClassId == cls.Id, JoinType.Left, s.TeacherId == t.Id))
                 .Where((s, c, cls, t) => s.TeacherId == query.TeacherId && s.Status == SessionStatus.Active && !s.IsDeleted)
+                .OrderBy((s, c, cls, t) => s.StartTime, OrderByType.Desc)
                 .Select((s, c, cls, t) => new SessionResponseDto
                 {
                     Id = s.Id,
@@ -170,7 +171,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
                     Status = s.Status,
                     QrToken = s.QrToken,
                     CreateTime = s.CreateTime
-                }).OrderBy(it => it.StartTime, OrderByType.Desc).ToListAsync();
+                }).ToListAsync();
 
             return ApiResponse<List<SessionResponseDto>>.Success(rows);
         }
@@ -194,22 +195,24 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
             }
 
             var total = await q.CountAsync();
-            var rows = await q.Select((s, c, cls, t) => new SessionResponseDto
-            {
-                Id = s.Id,
-                CourseId = s.CourseId,
-                CourseName = c.Name,
-                ClassId = s.ClassId,
-                ClassName = cls.Name,
-                TeacherId = s.TeacherId,
-                TeacherName = t.Name,
-                ScheduleId = s.ScheduleId,
-                StartTime = s.StartTime,
-                EndTime = s.EndTime,
-                Status = s.Status,
-                QrToken = s.QrToken,
-                CreateTime = s.CreateTime
-            }).OrderBy(it => it.StartTime, OrderByType.Desc)
+            var rows = await q
+                .OrderBy((s, c, cls, t) => s.StartTime, OrderByType.Desc)
+                .Select((s, c, cls, t) => new SessionResponseDto
+                {
+                    Id = s.Id,
+                    CourseId = s.CourseId,
+                    CourseName = c.Name,
+                    ClassId = s.ClassId,
+                    ClassName = cls.Name,
+                    TeacherId = s.TeacherId,
+                    TeacherName = t.Name,
+                    ScheduleId = s.ScheduleId,
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime,
+                    Status = s.Status,
+                    QrToken = s.QrToken,
+                    CreateTime = s.CreateTime
+                })
               .Skip((query.PageIndex - 1) * query.PageSize).Take(query.PageSize).ToListAsync();
 
             return ApiResponse<PagedResult<SessionResponseDto>>.Success(

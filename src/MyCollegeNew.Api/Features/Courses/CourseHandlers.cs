@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
@@ -79,7 +79,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
             }
 
             var total = await q.CountAsync();
-            var rows = await q.Select((c, t) => new CourseResponseDto
+            var rows = await q
+                .OrderBy((c, t) => c.Id)
+                .Select((c, t) => new CourseResponseDto
             {
                 Id = c.Id,
                 Name = c.Name,
@@ -87,7 +89,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
                 TeacherName = t.Name,
                 Credit = c.Credit,
                 Remark = c.Remark
-            }).OrderBy(c => c.Id).Skip((query.PageIndex - 1) * query.PageSize).Take(query.PageSize).ToListAsync();
+            }).Skip((query.PageIndex - 1) * query.PageSize).Take(query.PageSize).ToListAsync();
 
             return ApiResponse<PagedResult<CourseResponseDto>>.Success(
                 PagedResult<CourseResponseDto>.Create(rows, total, query.PageIndex, query.PageSize));
@@ -227,7 +229,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
             }
 
             var total = await q.CountAsync();
-            var rows = await q.Select(ScheduleSelector).OrderBy(s => s.Id)
+            var rows = await q
+                .OrderBy((s, c, cls, t) => s.Id)
+                .Select(ScheduleSelector)
                 .Skip((query.PageIndex - 1) * query.PageSize).Take(query.PageSize).ToListAsync();
 
             return ApiResponse<PagedResult<ScheduleResponseDto>>.Success(
@@ -372,7 +376,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
             var schedules = await db.Queryable<CourseSchedule, Course, Class, Teacher>((s, c, cls, t) =>
                     new JoinQueryInfos(JoinType.Left, s.CourseId == c.Id, JoinType.Left, s.ClassId == cls.Id, JoinType.Left, s.TeacherId == t.Id))
                 .Where((s, c, cls, t) => !s.IsDeleted && s.TeacherId == query.TeacherId && s.StartWeek <= query.Week && s.EndWeek >= query.Week)
-                .Select(ScheduleSelector).OrderBy(s => s.DayOfWeek).OrderBy(s => s.StartSection).ToListAsync();
+                .OrderBy((s, c, cls, t) => s.DayOfWeek).OrderBy((s, c, cls, t) => s.StartSection)
+                .Select(ScheduleSelector).ToListAsync();
 
             return ApiResponse<WeeklyScheduleDto>.Success(BuildWeeklySchedule(query.Week, schedules));
         }
@@ -397,7 +402,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
             var schedules = await db.Queryable<CourseSchedule, Course, Class, Teacher>((s, c, cls, t) =>
                     new JoinQueryInfos(JoinType.Left, s.CourseId == c.Id, JoinType.Left, s.ClassId == cls.Id, JoinType.Left, s.TeacherId == t.Id))
                 .Where((s, c, cls, t) => !s.IsDeleted && s.ClassId == query.ClassId && s.StartWeek <= query.Week && s.EndWeek >= query.Week)
-                .Select(ScheduleSelector).OrderBy(s => s.DayOfWeek).OrderBy(s => s.StartSection).ToListAsync();
+                .OrderBy((s, c, cls, t) => s.DayOfWeek).OrderBy((s, c, cls, t) => s.StartSection)
+                .Select(ScheduleSelector).ToListAsync();
 
             return ApiResponse<WeeklyScheduleDto>.Success(BuildWeeklySchedule(query.Week, schedules));
         }

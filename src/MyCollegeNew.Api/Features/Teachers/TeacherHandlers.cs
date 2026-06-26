@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
@@ -60,6 +60,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers
 
             var total = await q.CountAsync();
             var rows = await q
+                .OrderBy((t, d, m) => t.Id)
                 .Select<TeacherResponseDto>((t, d, m) => new TeacherResponseDto
                 {
                     Id = t.Id,
@@ -70,7 +71,6 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers
                     Role = t.Role,
                     Remark = t.Remark
                 })
-                .OrderBy(it => it.Id)
                 .Skip((query.PageIndex - 1) * query.PageSize)
                 .Take(query.PageSize)
                 .ToListAsync();

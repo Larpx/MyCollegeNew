@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Leave;
@@ -108,7 +108,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave
                 .Where((l, s, t) => l.StudentId == query.StudentId && !l.IsDeleted);
 
             var total = await q.CountAsync();
-            var rows = await q.Select(LeaveSelector).OrderBy(it => it.CreateTime, OrderByType.Desc)
+            var rows = await q
+                .OrderBy((l, s, t) => l.CreateTime, OrderByType.Desc)
+                .Select(LeaveSelector)
                 .Skip((query.PageIndex - 1) * query.PageSize).Take(query.PageSize).ToListAsync();
 
             return ApiResponse<PagedResult<LeaveResponseDto>>.Success(
@@ -129,7 +131,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave
             }
 
             var total = await q.CountAsync();
-            var rows = await q.Select(LeaveSelector).OrderBy(it => it.CreateTime, OrderByType.Desc)
+            var rows = await q
+                .OrderBy((l, s, t) => l.CreateTime, OrderByType.Desc)
+                .Select(LeaveSelector)
                 .Skip((query.PageIndex - 1) * query.PageSize).Take(query.PageSize).ToListAsync();
 
             return ApiResponse<PagedResult<LeaveResponseDto>>.Success(
@@ -221,7 +225,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave
                     new JoinQueryInfos(JoinType.Left, l.StudentId == s.Id, JoinType.Left, l.CounselorId == t.Id))
                 .Where((l, s, t) => s.ClassId == query.ClassId && !l.IsDeleted && !s.IsDeleted
                     && l.StartTime <= query.EndDate && l.EndTime >= query.StartDate)
-                .Select(LeaveSelector).OrderBy(it => it.StartTime, OrderByType.Desc).ToListAsync();
+                .OrderBy((l, s, t) => l.StartTime, OrderByType.Desc)
+                .Select(LeaveSelector).ToListAsync();
 
             return ApiResponse<List<LeaveResponseDto>>.Success(rows);
         }
