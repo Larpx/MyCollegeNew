@@ -37,6 +37,14 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
         [SugarColumn(ColumnDescription = "教师角色")]
         public TeacherRole Role { get; set; }
 
+        /// <summary>是否为系主任（可同时为任课教师/辅导员，获得排课与调换课管理权限）</summary>
+        [SugarColumn(ColumnDescription = "是否为系主任")]
+        public bool IsDepartmentHead { get; set; }
+
+        /// <summary>系主任所管辖院系 Id（非系主任为 null）</summary>
+        [SugarColumn(IsNullable = true, ColumnDescription = "系主任所管辖院系 Id")]
+        public long? HeadDepartmentId { get; set; }
+
         /// <summary>备注</summary>
         [SugarColumn(Length = 256, IsNullable = true, ColumnDescription = "备注")]
         public string? Remark { get; set; }

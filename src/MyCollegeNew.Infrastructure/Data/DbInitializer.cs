@@ -40,6 +40,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data
                 typeof(Teacher),
                 typeof(Course),
                 typeof(CourseSchedule),
+                typeof(CourseScheduleOverride),    // 新增：调课覆盖记录
+                typeof(CourseAssignment),           // 新增：接课分配记录
+                typeof(CourseSwapRequest),         // 新增：调换课申请
                 typeof(AttendanceSession),
                 typeof(AttendanceRecord),
                 typeof(LeaveRequest),
@@ -77,11 +80,11 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data
             var eeMajorId = await SeedMajorAsync(db, "电子信息工程", eeDeptId);
             var accMajorId = await SeedMajorAsync(db, "会计学", mgDeptId);
 
-            // 任课教师
-            var t001 = await SeedTeacherAsync(db, "T001", "张明", "男", csDeptId, seMajorId, TeacherRole.Teacher);
+            // 任课教师（t001 同时为计算机学院系主任）
+            var t001 = await SeedTeacherAsync(db, "T001", "张明", "男", csDeptId, seMajorId, TeacherRole.Teacher, isDepartmentHead: true, headDepartmentId: csDeptId);
             var t002 = await SeedTeacherAsync(db, "T002", "刘芳", "女", csDeptId, csMajorId, TeacherRole.Teacher);
-            var t003 = await SeedTeacherAsync(db, "T003", "陈伟", "男", eeDeptId, eeMajorId, TeacherRole.Teacher);
-            var t004 = await SeedTeacherAsync(db, "T004", "赵丽", "女", mgDeptId, accMajorId, TeacherRole.Teacher);
+            var t003 = await SeedTeacherAsync(db, "T003", "陈伟", "男", eeDeptId, eeMajorId, TeacherRole.Teacher, isDepartmentHead: true, headDepartmentId: eeDeptId);
+            var t004 = await SeedTeacherAsync(db, "T004", "赵丽", "女", mgDeptId, accMajorId, TeacherRole.Teacher, isDepartmentHead: true, headDepartmentId: mgDeptId);
             var t005 = await SeedTeacherAsync(db, "T005", "王强", "男", csDeptId, seMajorId, TeacherRole.Teacher);
 
             // 辅导员
@@ -249,10 +252,11 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data
         }
 
         /// <summary>
-        /// 播种教师，返回工号
+        /// 播种教师，返回工号。可选参数 isDepartmentHead / headDepartmentId 用于标记系主任身份
         /// </summary>
         private async Task<string> SeedTeacherAsync(ISqlSugarClient db, string id, string name,
-            string gender, long departmentId, long? majorId, TeacherRole role)
+            string gender, long departmentId, long? majorId, TeacherRole role,
+            bool isDepartmentHead = false, long? headDepartmentId = null)
         {
             var exists = await db.Queryable<Teacher>().AnyAsync(t => t.Id == id);
             if (exists) return id;
@@ -266,6 +270,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data
                 DepartmentId = departmentId,
                 MajorId = majorId,
                 Role = role,
+                IsDepartmentHead = isDepartmentHead,
+                HeadDepartmentId = headDepartmentId,
                 CreateTime = DateTime.UtcNow
             }).ExecuteCommandAsync();
             _logger.LogInformation("已播种教师 {Id}「{Name}」", id, name);
@@ -330,6 +336,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data
             {
                 Name = name,
                 TeacherId = teacherId,
+                CreatorId = teacherId,
+                Status = CourseStatus.OpenForPick,  // 默认开放接课
                 Credit = credit,
                 CreateTime = DateTime.UtcNow
             }).ExecuteReturnIdentityAsync();
@@ -344,6 +352,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data
             string teacherId, int dayOfWeek, int startSection, int endSection,
             int startWeek, int endWeek, string classroom)
         {
+            // 兼容旧字段 ClassId，同时填充新字段 ClassIds 以支持合班课
             var exists = await db.Queryable<CourseSchedule>().AnyAsync(s =>
                 s.CourseId == courseId && s.ClassId == classId && s.DayOfWeek == dayOfWeek
                 && s.StartSection == startSection && s.StartWeek == startWeek);
@@ -353,6 +362,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data
             {
                 CourseId = courseId,
                 ClassId = classId,
+                ClassIds = classId.ToString(),  // 单班场景填充为单个 Id 字符串
                 TeacherId = teacherId,
                 DayOfWeek = dayOfWeek,
                 StartSection = startSection,
@@ -372,10 +382,12 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data
         private async Task<long> SeedAttendanceSessionAsync(ISqlSugarClient db, long courseId,
             long classId, string teacherId, DateTime startTime, DateTime endTime, SessionStatus status)
         {
+            // 兼容旧字段 ClassId，同时填充新字段 ClassIds 以支持合班课
             var id = await db.Insertable(new AttendanceSession
             {
                 CourseId = courseId,
                 ClassId = classId,
+                ClassIds = classId.ToString(),  // 单班场景填充为单个 Id 字符串
                 TeacherId = teacherId,
                 StartTime = startTime,
                 EndTime = endTime,

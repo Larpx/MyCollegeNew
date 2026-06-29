@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using SqlSugar;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
@@ -17,9 +17,13 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
         [SugarColumn(ColumnDescription = "课程 Id")]
         public long CourseId { get; set; }
 
-        /// <summary>班级 Id</summary>
+        /// <summary>班级 Id（兼容旧代码；新代码请用 ClassIds 支持合班课）</summary>
         [SugarColumn(ColumnDescription = "班级 Id")]
         public long ClassId { get; set; }
+
+        /// <summary>班级 Id 列表（逗号分隔，支持合班课，如 "1,2,3"）</summary>
+        [SugarColumn(Length = 128, ColumnDescription = "班级 Id 列表（合班课逗号分隔）")]
+        public string ClassIds { get; set; } = string.Empty;
 
         /// <summary>发起教师工号（关联 Teacher.Id）</summary>
         [SugarColumn(Length = 32, ColumnDescription = "发起教师工号")]
