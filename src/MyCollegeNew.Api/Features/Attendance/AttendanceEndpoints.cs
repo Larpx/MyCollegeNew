@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Attendance;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Attendance;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using MediatR;
@@ -73,9 +73,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
             .WithName("GenerateQrCode").WithSummary("生成二维码").RequireAuthorization("RequireTeacher")
             .Produces<ApiResponse<QrCodeResult>>(StatusCodes.Status200OK);
 
-            group.MapPost("/sessions/{id:long}/checkin", async (long id, string token, IMediator mediator, ICurrentUser currentUser) =>
+            group.MapPost("/sessions/{id:long}/checkin", async (long id, CheckInRequestDto dto, IMediator mediator, ICurrentUser currentUser) =>
             {
-                var result = await mediator.Send(new CheckInCommand(id, token, currentUser.UserId));
+                var result = await mediator.Send(new CheckInCommand(id, dto.Token, currentUser.UserId));
                 return Results.Ok(result);
             })
             .WithName("CheckIn").WithSummary("学生扫码签到").RequireAuthorization("RequireStudent")

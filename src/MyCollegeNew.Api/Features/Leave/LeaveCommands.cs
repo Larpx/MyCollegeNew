@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Contracts;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Contracts;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Leave;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
@@ -12,15 +12,15 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave
     /// <summary>学生分页查询请假记录</summary>
     public record GetLeavesByStudentQuery : PagedQuery, IRequest<ApiResponse<PagedResult<LeaveResponseDto>>>
     {
-        /// <summary>学生学号</summary>
-        public string StudentId { get; init; } = string.Empty;
+        /// <summary>学生学号（由端点从当前用户填充，前端无需传递）</summary>
+        public string? StudentId { get; init; }
     }
 
     /// <summary>辅导员分页查询请假记录</summary>
     public record GetLeavesByCounselorQuery : PagedQuery, IRequest<ApiResponse<PagedResult<LeaveResponseDto>>>
     {
-        /// <summary>辅导员工号</summary>
-        public string CounselorId { get; init; } = string.Empty;
+        /// <summary>辅导员工号（由端点从当前用户填充，前端无需传递）</summary>
+        public string? CounselorId { get; init; }
 
         /// <summary>请假状态</summary>
         public LeaveStatus? Status { get; init; }

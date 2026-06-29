@@ -1280,6 +1280,7 @@ textarea.student-form-field__input {
 .gap-4 { gap: var(--space-4); }
 
 .text-secondary { color: var(--color-text-secondary); }
+.text-pre-wrap { white-space: pre-wrap; word-break: break-all; }
 .text-tertiary { color: var(--color-text-tertiary); }
 .text-sm { font-size: var(--text-sm); }
 .text-xs { font-size: var(--text-xs); }

@@ -1,0 +1,463 @@
+@page "/admin/system-users"
+@layout AdminMainLayout
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Enums
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
+@inject IApiClient ApiClient
+@inject ILogger<Components.Pages.Admin.SystemUsers> Logger
+
+<PageTitle>系统用户 - 考勤管理系统</PageTitle>
+
+<PageHeader Title="系统用户" Icon="shield" Subtitle="管理系统管理员账号与登录密码">
+    <Actions>
+        <Button Variant="ButtonVariant.Secondary" Icon="refresh-cw" OnClick="LoadUsersAsync" Loading="_loading">刷新</Button>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert--error">
+        <span class="alert__icon"><Icon Name="alert-circle" Size="20" /></span>
+        <span class="alert__body">@_errorMessage</span>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <div class="alert alert--success">
+        <span class="alert__icon"><Icon Name="check-circle" Size="20" /></span>
+        <span class="alert__body">@_successMessage</span>
+    </div>
+}
+
+@* 过滤器工具栏 *@
+<div class="page-filters">
+    <div class="page-filters__field">
+        <label class="page-filters__label">关键字</label>
+        <InputText @bind-Value="_keyword" placeholder="用户名 / 真实姓名" class="form-field__input" />
+    </div>
+    <div class="page-filters__actions">
+        <Button Variant="ButtonVariant.Secondary" Icon="search" OnClick="SearchAsync">查询</Button>
+        <Button Variant="ButtonVariant.Primary" Icon="plus" OnClick="OpenCreateModal">新增用户</Button>
+    </div>
+</div>
+
+@* 用户列表 *@
+@if (_loading && _users is null)
+{
+    <div class="loading-state">
+        <span class="loading-state__spinner"></span>
+        <span>加载中...</span>
+    </div>
+}
+else
+{
+    <Card>
+        <Table T="SystemUserResponseDto"
+               Items="_users?.Items"
+               Columns="_columns"
+               ShowPagination="true"
+               PageIndex="_pageIndex"
+               PageSize="_pageSize"
+               TotalCount="(int)(_users?.Total ?? 0)"
+               PageChanged="OnPageChanged" />
+    </Card>
+}
+
+@* 新增/编辑 Modal *@
+<Modal IsOpen="_formModalVisible" Title="@_formModalTitle" OnClose="CloseFormModal">
+    <ChildContent>
+        <div class="form-grid">
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">用户名</label>
+                <input class="form-field__input" @bind="_form.Username" placeholder="请输入用户名" maxlength="64" disabled="@_isEdit" />
+            </div>
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">真实姓名</label>
+                <input class="form-field__input" @bind="_form.RealName" placeholder="请输入真实姓名" maxlength="32" />
+            </div>
+            @if (!_isEdit)
+            {
+                <div class="form-field">
+                    <label class="form-field__label form-field__label--required">登录密码</label>
+                    <input type="password" class="form-field__input" @bind="_form.Password" placeholder="至少 6 位" maxlength="128" />
+                </div>
+            }
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">用户角色</label>
+                <select class="form-field__input" @bind="_form.Role">
+                    <option value="@UserRole.Admin">管理员</option>
+                </select>
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" OnClick="CloseFormModal">取消</Button>
+        <Button Variant="ButtonVariant.Primary" Icon="save" OnClick="SaveAsync" Loading="_saving">保存</Button>
+    </Footer>
+</Modal>
+
+@* 重置密码 Modal *@
+<Modal IsOpen="_resetPasswordModalVisible" Title="重置密码" OnClose="CloseResetPasswordModal">
+    <ChildContent>
+        <div class="alert alert--warning">
+            <span class="alert__icon"><Icon Name="alert-triangle" Size="20" /></span>
+            <span class="alert__body">将重置用户「@_resettingUser?.RealName」（@_resettingUser?.Username）的登录密码，并清空已绑定的二次验证，需重新设置 2FA。</span>
+        </div>
+        <div class="form-grid">
+            <div class="form-field form-field--full">
+                <label class="form-field__label form-field__label--required">新密码</label>
+                <input type="password" class="form-field__input" @bind="_newPassword" placeholder="至少 6 位" maxlength="128" />
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" OnClick="CloseResetPasswordModal">取消</Button>
+        <Button Variant="ButtonVariant.Primary" Icon="key" OnClick="ConfirmResetPasswordAsync" Loading="_saving">确认重置</Button>
+    </Footer>
+</Modal>
+
+@* 删除确认 Modal *@
+<Modal IsOpen="_deleteModalVisible" Title="删除确认" OnClose="CloseDeleteModal">
+    <ChildContent>
+        <div class="alert alert--warning">
+            <span class="alert__icon"><Icon Name="alert-triangle" Size="20" /></span>
+            <span class="alert__body">确定删除用户「@_deletingUser?.RealName」（@_deletingUser?.Username）吗？该操作为软删除，后续可恢复。</span>
+        </div>
+    </ChildContent>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" OnClick="CloseDeleteModal">取消</Button>
+        <Button Variant="ButtonVariant.Danger" Icon="trash" OnClick="ConfirmDeleteAsync" Loading="_saving">确认删除</Button>
+    </Footer>
+</Modal>
+
+@code {
+    private PagedResult<SystemUserResponseDto>? _users;
+
+    private int _pageIndex = 1;
+    private int _pageSize = 10;
+    private string _keyword = string.Empty;
+
+    private bool _loading;
+    private bool _saving;
+    private string? _errorMessage;
+    private string? _successMessage;
+
+    // 表单状态
+    private bool _formModalVisible;
+    private string _formModalTitle = string.Empty;
+    private bool _isEdit;
+    private long? _editingId;
+    private SystemUserForm _form = new();
+
+    // 重置密码状态
+    private bool _resetPasswordModalVisible;
+    private SystemUserResponseDto? _resettingUser;
+    private string _newPassword = string.Empty;
+
+    // 删除状态
+    private bool _deleteModalVisible;
+    private SystemUserResponseDto? _deletingUser;
+
+    private List<Table<SystemUserResponseDto>.Column<SystemUserResponseDto>> _columns = new();
+
+    /// <summary>系统用户表单</summary>
+    private sealed class SystemUserForm
+    {
+        public string Username { get; set; } = string.Empty;
+        public string RealName { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public UserRole Role { get; set; } = UserRole.Admin;
+    }
+
+    /// <summary>页面初始化</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        BuildColumns();
+        await LoadUsersAsync();
+    }
+
+    /// <summary>构建表格列</summary>
+    private void BuildColumns()
+    {
+        _columns = new List<Table<SystemUserResponseDto>.Column<SystemUserResponseDto>>
+        {
+            new() { Title = "用户名", Template = item => @<span class="font-medium">@item.Username</span> },
+            new() { Title = "真实姓名", Template = item => @<span>@item.RealName</span> },
+            new() { Title = "角色", Template = item => RenderRoleBadge(item.Role) },
+            new() { Title = "2FA 状态", Template = item => RenderTwoFactorBadge(item.HasTwoFactor) },
+            new() { Title = "创建时间", Template = item => @<span>@item.CreateTime.ToString("yyyy-MM-dd HH:mm")</span> },
+            new() { Title = "操作", Template = item => RenderActions(item) }
+        };
+    }
+
+    /// <summary>渲染角色徽章</summary>
+    private RenderFragment RenderRoleBadge(UserRole role)
+    {
+        var (text, variant) = role switch
+        {
+            UserRole.Admin => ("管理员", BadgeVariant.Primary),
+            _ => (role.ToString(), BadgeVariant.Neutral)
+        };
+        return @<Badge Variant="variant">@text</Badge>;
+    }
+
+    /// <summary>渲染 2FA 状态徽章</summary>
+    private RenderFragment RenderTwoFactorBadge(bool hasTwoFactor)
+    {
+        var (text, variant) = hasTwoFactor
+            ? ("已绑定", BadgeVariant.Success)
+            : ("未绑定", BadgeVariant.Neutral);
+        return @<Badge Variant="variant">@text</Badge>;
+    }
+
+    /// <summary>渲染行操作按钮</summary>
+    private RenderFragment RenderActions(SystemUserResponseDto item) => @<span class="table-actions">
+        <button type="button" class="table-action-btn" @onclick="() => OpenEditModal(item)" title="编辑" aria-label="编辑">
+            <Icon Name="edit" Size="16" />
+        </button>
+        <button type="button" class="table-action-btn" @onclick="() => OpenResetPasswordModal(item)" title="重置密码" aria-label="重置密码">
+            <Icon Name="key" Size="16" />
+        </button>
+        <button type="button" class="table-action-btn table-action-btn--danger" @onclick="() => OpenDeleteModal(item)" title="删除" aria-label="删除">
+            <Icon Name="trash" Size="16" />
+        </button>
+    </span>;
+
+    /// <summary>加载系统用户分页数据</summary>
+    private async Task LoadUsersAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            var url = $"system-users?pageIndex={_pageIndex}&pageSize={_pageSize}";
+            if (!string.IsNullOrWhiteSpace(_keyword)) url += $"&keyword={Uri.EscapeDataString(_keyword.Trim())}";
+            _users = await ApiClient.GetAsync<PagedResult<SystemUserResponseDto>>(url);
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载用户列表失败，请稍后重试";
+            Logger.LogError(ex, "加载系统用户列表异常");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>查询按钮：重置页码后加载</summary>
+    private async Task SearchAsync()
+    {
+        _pageIndex = 1;
+        await LoadUsersAsync();
+    }
+
+    /// <summary>分页变更</summary>
+    private async Task OnPageChanged(int newPage)
+    {
+        _pageIndex = newPage;
+        await LoadUsersAsync();
+    }
+
+    // ---------- 新增/编辑表单 ----------
+
+    /// <summary>打开新增 Modal</summary>
+    private void OpenCreateModal()
+    {
+        _isEdit = false;
+        _editingId = null;
+        _formModalTitle = "新增系统用户";
+        _form = new SystemUserForm { Role = UserRole.Admin };
+        _formModalVisible = true;
+    }
+
+    /// <summary>打开编辑 Modal</summary>
+    private void OpenEditModal(SystemUserResponseDto user)
+    {
+        _isEdit = true;
+        _editingId = user.Id;
+        _formModalTitle = "编辑系统用户";
+        _form = new SystemUserForm
+        {
+            Username = user.Username,
+            RealName = user.RealName,
+            Role = user.Role
+        };
+        _formModalVisible = true;
+    }
+
+    /// <summary>关闭表单 Modal</summary>
+    private void CloseFormModal() => _formModalVisible = false;
+
+    /// <summary>保存系统用户</summary>
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Username) && !_isEdit)
+        {
+            _errorMessage = "用户名不能为空";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_form.RealName))
+        {
+            _errorMessage = "真实姓名不能为空";
+            return;
+        }
+        if (!_isEdit && _form.Password.Length < 6)
+        {
+            _errorMessage = "密码长度至少 6 位";
+            return;
+        }
+
+        _saving = true;
+        _errorMessage = null;
+        _successMessage = null;
+        try
+        {
+            if (_isEdit && _editingId.HasValue)
+            {
+                var dto = new SystemUserUpdateDto
+                {
+                    RealName = _form.RealName.Trim(),
+                    Role = _form.Role
+                };
+                await ApiClient.PutAsync<SystemUserResponseDto>($"system-users/{_editingId.Value}", dto);
+                _successMessage = "用户信息已更新";
+            }
+            else
+            {
+                var dto = new SystemUserCreateDto
+                {
+                    Username = _form.Username.Trim(),
+                    Password = _form.Password,
+                    RealName = _form.RealName.Trim(),
+                    Role = _form.Role
+                };
+                await ApiClient.PostAsync<SystemUserResponseDto>("system-users", dto);
+                _successMessage = "用户创建成功";
+            }
+            _formModalVisible = false;
+            await LoadUsersAsync();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "保存用户失败，请稍后重试";
+            Logger.LogError(ex, "保存系统用户异常");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    // ---------- 重置密码 ----------
+
+    /// <summary>打开重置密码 Modal</summary>
+    private void OpenResetPasswordModal(SystemUserResponseDto user)
+    {
+        _resettingUser = user;
+        _newPassword = string.Empty;
+        _resetPasswordModalVisible = true;
+    }
+
+    /// <summary>关闭重置密码 Modal</summary>
+    private void CloseResetPasswordModal()
+    {
+        _resetPasswordModalVisible = false;
+        _resettingUser = null;
+        _newPassword = string.Empty;
+    }
+
+    /// <summary>确认重置密码</summary>
+    private async Task ConfirmResetPasswordAsync()
+    {
+        if (_resettingUser is null) return;
+        if (_newPassword.Length < 6)
+        {
+            _errorMessage = "新密码长度至少 6 位";
+            return;
+        }
+
+        _saving = true;
+        _errorMessage = null;
+        _successMessage = null;
+        try
+        {
+            var dto = new ResetPasswordDto { NewPassword = _newPassword };
+            await ApiClient.PostAsync<object>($"system-users/{_resettingUser.Id}/reset-password", dto);
+            _resetPasswordModalVisible = false;
+            _resettingUser = null;
+            _newPassword = string.Empty;
+            _successMessage = "密码已重置";
+            await LoadUsersAsync();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "重置密码失败，请稍后重试";
+            Logger.LogError(ex, "重置系统用户密码异常");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    // ---------- 删除 ----------
+
+    /// <summary>打开删除确认</summary>
+    private void OpenDeleteModal(SystemUserResponseDto user)
+    {
+        _deletingUser = user;
+        _deleteModalVisible = true;
+    }
+
+    /// <summary>关闭删除确认</summary>
+    private void CloseDeleteModal()
+    {
+        _deleteModalVisible = false;
+        _deletingUser = null;
+    }
+
+    /// <summary>确认删除</summary>
+    private async Task ConfirmDeleteAsync()
+    {
+        if (_deletingUser is null) return;
+        _saving = true;
+        _errorMessage = null;
+        _successMessage = null;
+        try
+        {
+            await ApiClient.DeleteAsync<object>($"system-users/{_deletingUser.Id}");
+            _deleteModalVisible = false;
+            _deletingUser = null;
+            _successMessage = "用户已删除";
+            await LoadUsersAsync();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "删除失败，请稍后重试";
+            Logger.LogError(ex, "删除系统用户异常");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

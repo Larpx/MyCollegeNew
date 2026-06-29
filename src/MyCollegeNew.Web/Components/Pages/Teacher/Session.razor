@@ -1,8 +1,9 @@
-﻿@page "/teacher/session/{SessionId:long}"
+@page "/teacher/session/{SessionId:long}"
 @page "/teacher/session/new"
 @layout TeacherLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
+@using System.Threading
 @using Larpx.PersonalTools.MyCollegeNew.Shared.Enums
 @using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Attendance
 @inject IApiClient ApiClient
@@ -10,6 +11,7 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 @inject ILogger<Components.Pages.Teacher.Session> Logger
+@implements IDisposable
 
 <PageTitle>考勤会话 - 考勤管理系统</PageTitle>
 
@@ -86,7 +88,10 @@ else if (_session is not null)
                                 <span>剩余有效时间：</span>
                                 <span class="qr-display__countdown-value">@_countdown 秒</span>
                             </div>
-                            <Button Variant="ButtonVariant.Secondary" Icon="refresh-cw" OnClick="RefreshQrCodeAsync" Loading="_operating">立即刷新</Button>
+                            <div class="flex gap-2">
+                                <Button Variant="ButtonVariant.Primary" Icon="maximize" OnClick="ToggleLargeQr">大屏展示</Button>
+                                <Button Variant="ButtonVariant.Secondary" Icon="refresh-cw" OnClick="RefreshQrCodeAsync" Loading="_operating">刷新</Button>
+                            </div>
                         </div>
                     }
                     else
@@ -162,13 +167,50 @@ else if (_session is not null)
                 }
                 else
                 {
-                    <div class="mb-4 text-sm text-secondary">
-                        已签到：@_records.Count(r => r.Status != AttendanceStatus.Absent) / @_records.Count 人
+                    <div class="session-stats-bar">
+                        <div class="session-stats-bar__item">
+                            <span>总人数：</span>
+                            <span class="session-stats-bar__value">@_records.Count</span>
+                        </div>
+                        <div class="session-stats-bar__item">
+                            <span>正常：</span>
+                            <span class="session-stats-bar__value session-stats-bar__value--success">@_records.Count(r => r.Status == AttendanceStatus.Present)</span>
+                        </div>
+                        <div class="session-stats-bar__item">
+                            <span>迟到：</span>
+                            <span class="session-stats-bar__value session-stats-bar__value--warning">@_records.Count(r => r.Status == AttendanceStatus.Late)</span>
+                        </div>
+                        <div class="session-stats-bar__item">
+                            <span>缺勤：</span>
+                            <span class="session-stats-bar__value session-stats-bar__value--error">@_records.Count(r => r.Status == AttendanceStatus.Absent)</span>
+                        </div>
+                        <div class="session-stats-bar__item">
+                            <span>请假：</span>
+                            <span class="session-stats-bar__value session-stats-bar__value--primary">@_records.Count(r => r.Status == AttendanceStatus.Leave)</span>
+                        </div>
                     </div>
                     <Table T="AttendanceRecordResponseDto" Items="_records" Columns="_recordColumns" />
                 }
             </Card>
         </div>
+    </div>
+}
+
+@* 大二维码全屏展示 *@
+@if (_showLargeQr && _qrCode is not null && _session is not null)
+{
+    <div class="qr-large-overlay">
+        <div class="qr-large-overlay__close">
+            <Button Variant="ButtonVariant.Secondary" Icon="x" OnClick="ToggleLargeQr">关闭</Button>
+        </div>
+        <div class="qr-large-overlay__title">扫码签到</div>
+        <div class="qr-large-overlay__course">@_session.CourseName - @_session.ClassName</div>
+        <img class="qr-large-overlay__image" src="data:image/png;base64,@_qrCode.Base64Image" alt="签到二维码" />
+        @if (_countdown > 0)
+        {
+            <div class="qr-large-overlay__countdown">剩余 @_countdown 秒</div>
+        }
+        <div class="qr-large-overlay__course">已签到 @(_records?.Count(r => r.Status != AttendanceStatus.Absent) ?? 0) 人</div>
     </div>
 }
 
@@ -183,8 +225,10 @@ else if (_session is not null)
     private bool _loading;
     private bool _operating;
     private bool _exporting;
+    private bool _showLargeQr;
     private string? _errorMessage;
     private string? _successMessage;
+    private Timer? _pollingTimer;
 
     // 新建会话相关
     private bool _isNew;
@@ -263,10 +307,11 @@ else if (_session is not null)
         {
             _session = await ApiClient.GetAsync<SessionResponseDto>($"sessions/{SessionId}");
             await LoadRecordsAsync();
-            // 若会话进行中且已有 token，自动生成二维码
+            // 若会话进行中且已有 token，自动生成二维码并启动轮询
             if (_session is not null && _session.Status == SessionStatus.Active)
             {
                 await GenerateQrCodeAsync();
+                StartPolling();
             }
         }
         catch (ApiException ex)
@@ -383,7 +428,7 @@ else if (_session is not null)
         _errorMessage = null;
         try
         {
-            await ApiClient.PostAsync<object>($"sessions/{_session.Id}/roll-call-all", null);
+            await ApiClient.PostAsync<object>($"sessions/{_session.Id}/rollcall", null);
             _successMessage = "一键点名完成";
             await LoadRecordsAsync();
         }
@@ -412,7 +457,7 @@ else if (_session is not null)
         try
         {
             var dto = new UpdateRecordStatusDto { Status = newStatus };
-            await ApiClient.PutAsync<object>($"sessions/records/{record.Id}", dto);
+            await ApiClient.PutAsync<object>($"records/{record.Id}/status", dto);
             await LoadRecordsAsync();
         }
         catch (ApiException ex)
@@ -440,6 +485,7 @@ else if (_session is not null)
         {
             await ApiClient.PostAsync<object>($"sessions/{_session.Id}/close", null);
             _successMessage = "会话已关闭";
+            StopPolling();
             await LoadSessionAsync();
         }
         catch (ApiException ex)
@@ -509,5 +555,48 @@ else if (_session is not null)
     {
         var base64 = Convert.ToBase64String(bytes);
         await JSRuntime.InvokeVoidAsync("eval", $"var a=document.createElement('a');a.href='data:application/octet-stream;base64,{base64}';a.download='{fileName}';a.click();");
+    }
+
+    /// <summary>启动签到记录轮询（每 5 秒刷新一次）</summary>
+    private void StartPolling()
+    {
+        StopPolling();
+        _pollingTimer = new Timer(async _ => await PollRecordsAsync(), null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    }
+
+    /// <summary>停止轮询</summary>
+    private void StopPolling()
+    {
+        _pollingTimer?.Dispose();
+        _pollingTimer = null;
+    }
+
+    /// <summary>轮询签到记录（Timer 回调，需 InvokeAsync 切回 UI 线程）</summary>
+    private async Task PollRecordsAsync()
+    {
+        if (_session is null || _session.Status != SessionStatus.Active) return;
+        try
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadRecordsAsync();
+                StateHasChanged();
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "轮询签到记录失败");
+        }
+    }
+
+    /// <summary>切换大二维码全屏展示</summary>
+    private void ToggleLargeQr()
+    {
+        _showLargeQr = !_showLargeQr;
+    }
+
+    public void Dispose()
+    {
+        StopPolling();
     }
 }

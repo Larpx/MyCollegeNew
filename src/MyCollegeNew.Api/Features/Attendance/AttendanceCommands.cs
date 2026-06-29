@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Contracts;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Contracts;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Attendance;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
@@ -18,8 +18,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
     /// <summary>分页查询教师历史会话</summary>
     public record GetSessionsByTeacherQuery : PagedQuery, IRequest<ApiResponse<PagedResult<SessionResponseDto>>>
     {
-        /// <summary>教师工号</summary>
-        public string TeacherId { get; init; } = string.Empty;
+        /// <summary>教师工号（由端点从当前用户填充，前端无需传递）</summary>
+        public string? TeacherId { get; init; }
 
         /// <summary>开始日期</summary>
         public DateTime? StartDate { get; init; }

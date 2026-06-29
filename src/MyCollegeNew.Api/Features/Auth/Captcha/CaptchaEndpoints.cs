@@ -97,39 +97,36 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Captcha
             var targetX = random.Next(60, ImageWidth - PuzzleSize - 40);
             var puzzleY = ImageHeight / 2 - PuzzleSize / 2;
 
-            // 预渲染一份背景画布（背景图 + 拼图缺口）
-            using var backgroundSurface = SKSurface.Create(new SKImageInfo(ImageWidth, ImageHeight, SKColorType.Rgba8888, SKAlphaType.Premul));
-            var bgCanvas = backgroundSurface.Canvas;
-            bgCanvas.Clear(SKColors.White);
+            // 预渲染原始背景画布（不含缺口），供背景图和滑块图复用
+            // 只绘制一次，避免两次 DrawBackground 在回退随机渐变时因 random 序列推进产生不一致
+            using var baseSurface = SKSurface.Create(new SKImageInfo(ImageWidth, ImageHeight, SKColorType.Rgba8888, SKAlphaType.Premul));
+            var baseCanvas = baseSurface.Canvas;
+            baseCanvas.Clear(SKColors.White);
+            DrawBackground(baseCanvas, random);
+            using var baseImage = baseSurface.Snapshot();
 
-            // 绘制默认背景图（缩放裁剪至 300x150），失败时回退到随机渐变
-            DrawBackground(bgCanvas, random);
-
-            // 在背景图上绘制拼图缺口（半透明遮罩 + 边框）
+            // 生成背景图：复制原始背景，再绘制拼图缺口（半透明遮罩 + 边框）
+            using var bgSurface = SKSurface.Create(new SKImageInfo(ImageWidth, ImageHeight, SKColorType.Rgba8888, SKAlphaType.Premul));
+            var bgCanvas = bgSurface.Canvas;
+            bgCanvas.DrawImage(baseImage, 0, 0, SKSamplingOptions.Default);
             DrawPuzzleHole(bgCanvas, targetX, puzzleY);
-
-            using var backgroundImage = backgroundSurface.Snapshot();
-            using var bgData = backgroundImage.Encode(SKEncodedImageFormat.Png, 80);
+            using var bgImage = bgSurface.Snapshot();
+            using var bgData = bgImage.Encode(SKEncodedImageFormat.Png, 80);
             var bgBase64 = Convert.ToBase64String(bgData.AsSpan());
 
-            // 生成滑块图：全尺寸 300×150 透明画布，仅拼图块区域有像素
-            // 这样与背景图同尺寸，前端 CSS 渲染 1:1 对应，位置和大小完全匹配
+            // 生成滑块图：全尺寸 300×150 透明画布，拼图块绘制在左侧 (0, puzzleY) 起始位置
+            // 前端初始 left:0 时拼图块在画布最左侧，用户拖动到 _currentX=targetX 时拼图块正好对齐缺口
             using var sliderSurface = SKSurface.Create(new SKImageInfo(ImageWidth, ImageHeight, SKColorType.Rgba8888, SKAlphaType.Premul));
             var sliderCanvas = sliderSurface.Canvas;
             sliderCanvas.Clear(SKColors.Transparent);
 
-            // 用拼图路径做蒙版，只保留拼图块区域内的背景像素
+            // 用拼图路径做蒙版（拼图块在 x=0 起始位置），只保留拼图块区域内的像素
+            // 从原始背景取色，背景图向左偏移 targetX，使滑块图 x=0 区域对应背景图的 targetX 区域
             using (var paint = new SKPaint { IsAntialias = true })
             {
-                var puzzlePath = BuildPuzzlePath(targetX, puzzleY);
+                var puzzlePath = BuildPuzzlePath(0, puzzleY);
                 sliderCanvas.ClipPath(puzzlePath, SKClipOperation.Intersect, true);
-                // 从未标记缺口的原始背景中取色（重新绘制一次不含缺口阴影的背景）
-                using var cleanSurface = SKSurface.Create(new SKImageInfo(ImageWidth, ImageHeight, SKColorType.Rgba8888, SKAlphaType.Premul));
-                var cleanCanvas = cleanSurface.Canvas;
-                cleanCanvas.Clear(SKColors.White);
-                DrawBackground(cleanCanvas, random);
-                using var cleanImage = cleanSurface.Snapshot();
-                sliderCanvas.DrawImage(cleanImage, 0, 0, SKSamplingOptions.Default);
+                sliderCanvas.DrawImage(baseImage, -targetX, 0, SKSamplingOptions.Default);
             }
 
             // 为拼图块添加白色描边，提升可辨识度
@@ -140,7 +137,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Captcha
                 StrokeWidth = 2,
                 Color = new SKColor(255, 255, 255, 220)
             };
-            sliderCanvas.DrawPath(BuildPuzzlePath(targetX, puzzleY), borderPaint);
+            sliderCanvas.DrawPath(BuildPuzzlePath(0, puzzleY), borderPaint);
 
             using var sliderImage = sliderSurface.Snapshot();
             using var sliderData = sliderImage.Encode(SKEncodedImageFormat.Png, 80);

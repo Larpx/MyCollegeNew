@@ -11,6 +11,8 @@ using Larpx.PersonalTools.MyCollegeNew.Api.Features.Organization;
 using Larpx.PersonalTools.MyCollegeNew.Api.Features.Profile.ChangePassword;
 using Larpx.PersonalTools.MyCollegeNew.Api.Features.Statistics;
 using Larpx.PersonalTools.MyCollegeNew.Api.Features.Students;
+using Larpx.PersonalTools.MyCollegeNew.Api.Features.SystemAdmin;
+using Larpx.PersonalTools.MyCollegeNew.Api.Features.SystemUsers;
 using Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers;
 using Larpx.PersonalTools.MyCollegeNew.Api.Middleware;
 using Larpx.PersonalTools.MyCollegeNew.Infrastructure.Auth;
@@ -243,6 +245,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
             api.MapAttendanceEndpoints();
             api.MapLeaveEndpoints();
             api.MapStatisticsEndpoints();
+            api.MapSystemUserEndpoints();
+            api.MapSystemAdminEndpoints();
 
             await app.RunAsync();
         }

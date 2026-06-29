@@ -1,4 +1,4 @@
-﻿@page "/admin/teachers"
+@page "/admin/teachers"
 @layout AdminMainLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -346,7 +346,7 @@ else
     }
 
     /// <summary>打开编辑 Modal</summary>
-    private void OpenEditModal(TeacherResponseDto teacher)
+    private async Task OpenEditModal(TeacherResponseDto teacher)
     {
         _isEdit = true;
         _editingId = teacher.Id;
@@ -356,12 +356,26 @@ else
             Id = teacher.Id,
             Name = teacher.Name,
             Gender = teacher.Gender,
+            DepartmentId = teacher.DepartmentId,
+            MajorId = teacher.MajorId,
             Role = teacher.Role,
             Remark = teacher.Remark
         };
         _formMajors.Clear();
         _formModalVisible = true;
-        // 院系/专业需要管理员重新选择（响应 DTO 未返回 Id）
+
+        // 根据已选院系加载专业下拉，保证编辑表单能正确回显
+        if (teacher.DepartmentId > 0)
+        {
+            try
+            {
+                _formMajors = await ApiClient.GetAsync<List<MajorResponseDto>>($"departments/{teacher.DepartmentId}/majors") ?? new();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "加载专业列表失败");
+            }
+        }
     }
 
     /// <summary>关闭表单 Modal</summary>

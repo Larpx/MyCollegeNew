@@ -1,0 +1,496 @@
+@page "/admin/system"
+@layout AdminMainLayout
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.System
+@inject IApiClient ApiClient
+@inject ILogger<Components.Pages.Admin.SystemAdmin> Logger
+
+<PageTitle>系统运维 - 考勤管理系统</PageTitle>
+
+<PageHeader Title="系统运维" Icon="settings" Subtitle="系统信息、健康状态、日志查看与缓存管理">
+    <Actions>
+        <Button Variant="ButtonVariant.Secondary" Icon="refresh-cw" OnClick="RefreshCurrentTabAsync" Loading="_loading">刷新</Button>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert--error">
+        <span class="alert__icon"><Icon Name="alert-circle" Size="20" /></span>
+        <span class="alert__body">@_errorMessage</span>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <div class="alert alert--success">
+        <span class="alert__icon"><Icon Name="check-circle" Size="20" /></span>
+        <span class="alert__body">@_successMessage</span>
+    </div>
+}
+
+@* 标签页导航 *@
+<nav class="tabs-nav" role="tablist">
+    <button type="button" class="tabs-nav__item @(_activeTab == "info" ? "tabs-nav__item--active" : "")" @onclick='() => SwitchTabAsync("info")'>
+        <Icon Name="cpu" Size="16" /> 系统信息
+    </button>
+    <button type="button" class="tabs-nav__item @(_activeTab == "health" ? "tabs-nav__item--active" : "")" @onclick='() => SwitchTabAsync("health")'>
+        <Icon Name="activity" Size="16" /> 健康状态
+    </button>
+    <button type="button" class="tabs-nav__item @(_activeTab == "logs" ? "tabs-nav__item--active" : "")" @onclick='() => SwitchTabAsync("logs")'>
+        <Icon Name="file-text" Size="16" /> 日志查看
+    </button>
+    <button type="button" class="tabs-nav__item @(_activeTab == "cache" ? "tabs-nav__item--active" : "")" @onclick='() => SwitchTabAsync("cache")'>
+        <Icon Name="trash-2" Size="16" /> 缓存管理
+    </button>
+</nav>
+
+@* 系统信息面板 *@
+@if (_activeTab == "info")
+{
+    @if (_loading && _systemInfo is null)
+    {
+        <div class="loading-state">
+            <span class="loading-state__spinner"></span>
+            <span>加载中...</span>
+        </div>
+    }
+    else if (_systemInfo is not null)
+    {
+        <Card Title="系统信息">
+            <div class="form-grid">
+                <div class="form-field">
+                    <label class="form-field__label">机器名</label>
+                    <div class="form-field__input">@_systemInfo.MachineName</div>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label">操作系统</label>
+                    <div class="form-field__input">@_systemInfo.OSVersion</div>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label">.NET 版本</label>
+                    <div class="form-field__input">@_systemInfo.DotNetVersion</div>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label">CPU 核数</label>
+                    <div class="form-field__input">@_systemInfo.CpuCount</div>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label">应用名称</label>
+                    <div class="form-field__input">@_systemInfo.AppName</div>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label">应用版本</label>
+                    <div class="form-field__input">@_systemInfo.AppVersion</div>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label">运行环境</label>
+                    <div class="form-field__input">@_systemInfo.Environment</div>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label">内存占用</label>
+                    <div class="form-field__input">@FormatMemory(_systemInfo.WorkingSet)</div>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label">启动时间</label>
+                    <div class="form-field__input">@_systemInfo.StartTime.ToString("yyyy-MM-dd HH:mm:ss")</div>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label">运行时长</label>
+                    <div class="form-field__input">@_systemInfo.Uptime</div>
+                </div>
+            </div>
+        </Card>
+    }
+}
+
+@* 健康状态面板 *@
+@if (_activeTab == "health")
+{
+    @if (_loading && _healthStatus is null)
+    {
+        <div class="loading-state">
+            <span class="loading-state__spinner"></span>
+            <span>加载中...</span>
+        </div>
+    }
+    else if (_healthStatus is not null)
+    {
+        var usedBytes = Math.Max(0, _healthStatus.DiskTotalBytes - _healthStatus.DiskFreeBytes);
+        var usedPercent = _healthStatus.DiskTotalBytes > 0 ? usedBytes * 100.0 / _healthStatus.DiskTotalBytes : 0;
+        var fillVariant = usedPercent < 70 ? "success" : usedPercent < 90 ? "warning" : "error";
+
+        <Card Title="数据库状态" Class="mb-6">
+            <div class="form-grid">
+                <div class="form-field">
+                    <label class="form-field__label">连接状态</label>
+                    <div class="form-field__input">
+                        @if (_healthStatus.DatabaseHealthy)
+                        {
+                            <Badge Variant="BadgeVariant.Success" Icon="check-circle">正常</Badge>
+                        }
+                        else
+                        {
+                            <Badge Variant="BadgeVariant.Error" Icon="alert-circle">异常</Badge>
+                        }
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label">响应延迟</label>
+                    <div class="form-field__input">@(_healthStatus.DatabaseLatencyMs) ms</div>
+                </div>
+            </div>
+        </Card>
+
+        <Card Title="磁盘使用（C 盘）" Class="mb-6">
+            <div class="student-progress">
+                <div class="student-progress__header">
+                    <span class="student-progress__name">已用空间</span>
+                    <span class="student-progress__value">
+                        @FormatDisk(usedBytes) / @FormatDisk(_healthStatus.DiskTotalBytes)
+                        （@usedPercent.ToString("F1")%）
+                    </span>
+                </div>
+                <div class="student-progress__track">
+                    <div class="student-progress__fill student-progress__fill--@fillVariant" style="width: @usedPercent.ToString("F1")%"></div>
+                </div>
+                <div class="form-field__hint">可用空间：@FormatDisk(_healthStatus.DiskFreeBytes)</div>
+            </div>
+        </Card>
+
+        <Card Title="业务数据统计">
+            <div class="dashboard-grid">
+                <Card>
+                    <div class="stat-card">
+                        <span class="stat-card__icon"><Icon Name="shield" Size="24" /></span>
+                        <div class="stat-card__body">
+                            <div class="stat-card__label">系统用户</div>
+                            <div class="stat-card__value">@_healthStatus.TotalUsers</div>
+                        </div>
+                    </div>
+                </Card>
+                <Card>
+                    <div class="stat-card">
+                        <span class="stat-card__icon stat-card__icon--success"><Icon Name="users" Size="24" /></span>
+                        <div class="stat-card__body">
+                            <div class="stat-card__label">学生</div>
+                            <div class="stat-card__value">@_healthStatus.TotalStudents</div>
+                        </div>
+                    </div>
+                </Card>
+                <Card>
+                    <div class="stat-card">
+                        <span class="stat-card__icon stat-card__icon--warning"><Icon Name="user-check" Size="24" /></span>
+                        <div class="stat-card__body">
+                            <div class="stat-card__label">教师</div>
+                            <div class="stat-card__value">@_healthStatus.TotalTeachers</div>
+                        </div>
+                    </div>
+                </Card>
+                <Card>
+                    <div class="stat-card">
+                        <span class="stat-card__icon stat-card__icon--success"><Icon Name="building" Size="24" /></span>
+                        <div class="stat-card__body">
+                            <div class="stat-card__label">院系</div>
+                            <div class="stat-card__value">@_healthStatus.TotalDepartments</div>
+                        </div>
+                    </div>
+                </Card>
+            </div>
+        </Card>
+    }
+}
+
+@* 日志查看面板 *@
+@if (_activeTab == "logs")
+{
+    <div class="page-filters">
+        <div class="page-filters__field">
+            <label class="page-filters__label">级别</label>
+            <select class="page-filters__select" @bind="_logLevel">
+                <option value="">全部</option>
+                <option value="INFO">INFO</option>
+                <option value="WARN">WARN</option>
+                <option value="ERROR">ERROR</option>
+            </select>
+        </div>
+        <div class="page-filters__field">
+            <label class="page-filters__label">分类</label>
+            <input type="text" class="form-field__input" @bind="_logCategory" placeholder="分类关键字" />
+        </div>
+        <div class="page-filters__field">
+            <label class="page-filters__label">关键字</label>
+            <input type="text" class="form-field__input" @bind="_logKeyword" placeholder="消息/异常关键字" />
+        </div>
+        <div class="page-filters__field">
+            <label class="page-filters__label">条数</label>
+            <input type="number" class="form-field__input" @bind="_logLimit" min="1" max="500" />
+        </div>
+        <div class="page-filters__actions">
+            <Button Variant="ButtonVariant.Secondary" Icon="search" OnClick="SearchLogsAsync">查询</Button>
+        </div>
+    </div>
+
+    @if (_logsLoading)
+    {
+        <div class="loading-state">
+            <span class="loading-state__spinner"></span>
+            <span>加载中...</span>
+        </div>
+    }
+    else if (_logs is null || _logs.Count == 0)
+    {
+        <Card>
+            <EmptyState Title="暂无日志" Description="没有符合条件的日志记录，或日志目录尚未生成" Icon="file-text" />
+        </Card>
+    }
+    else
+    {
+        <Card Title="@($"日志记录（最近 {_logs.Count} 条）")">
+            <Table T="LogEntryDto" Items="_logs" Columns="_logColumns" />
+        </Card>
+    }
+}
+
+@* 缓存管理面板 *@
+@if (_activeTab == "cache")
+{
+    <Card Title="缓存管理">
+        <div class="form-field__hint mb-4">
+            分布式缓存（DistributedMemoryCache / Redis）用于存储验证码、二次验证令牌等短期数据。
+            由于分布式缓存接口不支持批量清空，执行清理将记录最近一次清理时间，便于多实例协同感知。
+        </div>
+        <div class="page-filters__actions">
+            <Button Variant="ButtonVariant.Danger" Icon="trash-2" OnClick="ClearCacheAsync" Loading="_clearing">清除缓存</Button>
+        </div>
+        @if (_cacheResult is not null)
+        {
+            <div class="alert @(_cacheResult.Success ? "alert--success" : "alert--error") mt-4">
+                <span class="alert__icon">
+                    <Icon Name="@(_cacheResult.Success ? "check-circle" : "alert-circle")" Size="20" />
+                </span>
+                <span class="alert__body">
+                    @_cacheResult.Message
+                    （清理时间：@_cacheResult.ClearedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")）
+                </span>
+            </div>
+        }
+    </Card>
+}
+
+@code {
+    private string _activeTab = "info";
+
+    private SystemInfoDto? _systemInfo;
+    private HealthStatusDto? _healthStatus;
+    private List<LogEntryDto>? _logs;
+    private CacheClearResultDto? _cacheResult;
+
+    private bool _loading;
+    private bool _logsLoading;
+    private bool _clearing;
+    private string? _errorMessage;
+    private string? _successMessage;
+
+    // 日志过滤条件
+    private string _logLevel = string.Empty;
+    private string _logCategory = string.Empty;
+    private string _logKeyword = string.Empty;
+    private int _logLimit = 100;
+
+    private List<Table<LogEntryDto>.Column<LogEntryDto>> _logColumns = new();
+
+    /// <summary>页面初始化：构建日志表格列并并行加载系统信息与健康状态</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        BuildLogColumns();
+        await LoadSystemInfoAndHealthAsync();
+    }
+
+    /// <summary>构建日志表格列定义</summary>
+    private void BuildLogColumns()
+    {
+        _logColumns = new List<Table<LogEntryDto>.Column<LogEntryDto>>
+        {
+            new() { Title = "时间", Template = item => @<span>@item.Timestamp.ToLocalTime().ToString("MM-dd HH:mm:ss")</span> },
+            new() { Title = "级别", Template = item => RenderLevelBadge(item.Level) },
+            new() { Title = "分类", Template = item => @<span>@(string.IsNullOrEmpty(item.Category) ? "—" : item.Category)</span> },
+            new() { Title = "消息", Template = item => @<span>@item.Message</span> },
+            new() { Title = "异常", Template = item => RenderException(item.Exception) }
+        };
+    }
+
+    /// <summary>渲染日志级别徽章</summary>
+    private RenderFragment RenderLevelBadge(string level)
+    {
+        var upper = level.ToUpperInvariant();
+        var variant = upper switch
+        {
+            "ERROR" or "ERR" or "FTL" or "FATAL" => BadgeVariant.Error,
+            "WARN" or "WRN" or "WARNING" => BadgeVariant.Warning,
+            "INFO" or "INF" or "INFORMATION" => BadgeVariant.Primary,
+            _ => BadgeVariant.Neutral
+        };
+        return @<Badge Variant="variant">@upper</Badge>;
+    }
+
+    /// <summary>渲染异常信息（为空时显示占位符）</summary>
+    private RenderFragment RenderException(string? exception)
+    {
+        if (string.IsNullOrEmpty(exception))
+        {
+            return @<span class="form-field__hint">—</span>;
+        }
+        return @<span class="form-field__hint text-pre-wrap">@exception</span>;
+    }
+
+    /// <summary>切换标签页：切换到日志面板时按需加载日志</summary>
+    private async Task SwitchTabAsync(string tab)
+    {
+        if (_activeTab == tab)
+        {
+            return;
+        }
+        _activeTab = tab;
+        _errorMessage = null;
+        _successMessage = null;
+
+        if (tab == "logs" && _logs is null)
+        {
+            await LoadLogsAsync();
+        }
+    }
+
+    /// <summary>刷新当前标签页数据</summary>
+    private async Task RefreshCurrentTabAsync()
+    {
+        switch (_activeTab)
+        {
+            case "info":
+            case "health":
+                await LoadSystemInfoAndHealthAsync();
+                break;
+            case "logs":
+                await LoadLogsAsync();
+                break;
+            case "cache":
+                _cacheResult = null;
+                _successMessage = null;
+                break;
+        }
+    }
+
+    /// <summary>并行加载系统信息与健康状态</summary>
+    private async Task LoadSystemInfoAndHealthAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            var infoTask = ApiClient.GetAsync<SystemInfoDto>("system/info");
+            var healthTask = ApiClient.GetAsync<HealthStatusDto>("system/health");
+            await Task.WhenAll(infoTask, healthTask);
+            _systemInfo = infoTask.Result;
+            _healthStatus = healthTask.Result;
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+            Logger.LogWarning(ex, "加载系统信息/健康状态失败");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载数据失败，请稍后重试";
+            Logger.LogError(ex, "加载系统信息/健康状态异常");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>查询日志：按级别/分类/关键字/条数过滤</summary>
+    private Task SearchLogsAsync() => LoadLogsAsync();
+
+    /// <summary>加载日志列表</summary>
+    private async Task LoadLogsAsync()
+    {
+        _logsLoading = true;
+        _errorMessage = null;
+        try
+        {
+            var limit = _logLimit <= 0 ? 100 : Math.Min(_logLimit, 500);
+            var url = $"system/logs?limit={limit}";
+            if (!string.IsNullOrWhiteSpace(_logLevel))
+            {
+                url += $"&level={Uri.EscapeDataString(_logLevel)}";
+            }
+            if (!string.IsNullOrWhiteSpace(_logCategory))
+            {
+                url += $"&category={Uri.EscapeDataString(_logCategory.Trim())}";
+            }
+            if (!string.IsNullOrWhiteSpace(_logKeyword))
+            {
+                url += $"&keyword={Uri.EscapeDataString(_logKeyword.Trim())}";
+            }
+            _logs = await ApiClient.GetAsync<List<LogEntryDto>>(url) ?? new List<LogEntryDto>();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+            Logger.LogWarning(ex, "加载日志失败");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载日志失败，请稍后重试";
+            Logger.LogError(ex, "加载日志异常");
+        }
+        finally
+        {
+            _logsLoading = false;
+        }
+    }
+
+    /// <summary>清除缓存</summary>
+    private async Task ClearCacheAsync()
+    {
+        _clearing = true;
+        _errorMessage = null;
+        _successMessage = null;
+        try
+        {
+            _cacheResult = await ApiClient.PostAsync<CacheClearResultDto>("system/cache/clear");
+            if (_cacheResult is not null && _cacheResult.Success)
+            {
+                _successMessage = "缓存清理完成";
+            }
+            else if (_cacheResult is not null)
+            {
+                _errorMessage = _cacheResult.Message;
+            }
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+            Logger.LogWarning(ex, "清除缓存失败");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "清除缓存失败，请稍后重试";
+            Logger.LogError(ex, "清除缓存异常");
+        }
+        finally
+        {
+            _clearing = false;
+        }
+    }
+
+    /// <summary>格式化内存占用为 MB</summary>
+    private static string FormatMemory(long bytes)
+        => ((double)bytes / 1024 / 1024).ToString("F2") + " MB";
+
+    /// <summary>格式化磁盘字节数为 GB</summary>
+    private static string FormatDisk(long bytes)
+        => ((double)bytes / 1024 / 1024 / 1024).ToString("F2") + " GB";
+}

@@ -1,4 +1,4 @@
-﻿@page "/admin/students"
+@page "/admin/students"
 @layout AdminMainLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -476,6 +476,9 @@ else
             Id = student.Id,
             Name = student.Name,
             Gender = student.Gender,
+            DepartmentId = student.DepartmentId,
+            MajorId = student.MajorId,
+            ClassId = student.ClassId,
             Grade = student.Grade,
             Status = student.Status,
             Remark = student.Remark
@@ -484,8 +487,29 @@ else
         _formClasses.Clear();
         _formModalVisible = true;
 
-        // 由于 StudentResponseDto 不含 DepartmentId/MajorId/ClassId，需要根据名称匹配
-        // 这里简化处理：让管理员重新选择院系/专业/班级
+        // 根据已选院系/专业加载级联下拉，保证编辑表单能正确回显
+        if (student.DepartmentId > 0)
+        {
+            try
+            {
+                _formMajors = await ApiClient.GetAsync<List<MajorResponseDto>>($"departments/{student.DepartmentId}/majors") ?? new();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "加载专业列表失败");
+            }
+        }
+        if (student.MajorId > 0)
+        {
+            try
+            {
+                _formClasses = await ApiClient.GetAsync<List<ClassResponseDto>>($"majors/{student.MajorId}/classes") ?? new();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "加载班级列表失败");
+            }
+        }
     }
 
     /// <summary>关闭表单 Modal</summary>

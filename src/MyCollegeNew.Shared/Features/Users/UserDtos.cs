@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
@@ -77,6 +77,12 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
         public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string Gender { get; set; } = string.Empty;
+        /// <summary>院系 Id（用于编辑表单回显）</summary>
+        public long DepartmentId { get; set; }
+        /// <summary>专业 Id（用于编辑表单回显）</summary>
+        public long MajorId { get; set; }
+        /// <summary>班级 Id（用于编辑表单回显）</summary>
+        public long ClassId { get; set; }
         public string DepartmentName { get; set; } = string.Empty;
         public string MajorName { get; set; } = string.Empty;
         public string ClassName { get; set; } = string.Empty;
@@ -148,6 +154,10 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
         public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string Gender { get; set; } = string.Empty;
+        /// <summary>院系 Id（用于编辑表单回显）</summary>
+        public long DepartmentId { get; set; }
+        /// <summary>专业 Id（用于编辑表单回显，null 表示未关联）</summary>
+        public long? MajorId { get; set; }
         public string DepartmentName { get; set; } = string.Empty;
         public string? MajorName { get; set; }
         public TeacherRole Role { get; set; }

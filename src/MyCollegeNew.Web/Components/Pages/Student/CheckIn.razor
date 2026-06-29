@@ -3,16 +3,19 @@
 @attribute [Authorize(Roles = "Student")]
 @rendermode InteractiveServer
 @using System.IdentityModel.Tokens.Jwt
+@using Microsoft.JSInterop
 @using Larpx.PersonalTools.MyCollegeNew.Shared.Enums
 @using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Attendance
 @inject IApiClient ApiClient
 @inject TokenService TokenService
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 @inject ILogger<Components.Pages.Student.CheckIn> Logger
+@implements IDisposable
 
 <PageTitle>快捷签到 - 考勤管理系统</PageTitle>
 
-<PageHeader Title="快捷签到" Icon="qr-code" Subtitle="输入签到码完成考勤签到" />
+<PageHeader Title="快捷签到" Icon="qr-code" Subtitle="扫码或输入签到码完成考勤签到" />
 
 @if (!string.IsNullOrEmpty(_errorMessage))
 {
@@ -23,26 +26,49 @@
 }
 
 <Card>
-    <div class="student-form-field">
-        <label class="student-form-field__label student-form-field__label--required">签到码</label>
-        <input class="student-checkin-input"
-               type="text"
-               placeholder="请输入签到码"
-               value="@_token"
-               @oninput="OnTokenChanged"
-               autocomplete="off"
-               maxlength="512" />
-        <span class="student-form-field__hint">请输入教师展示的二维码签到码</span>
+    @* 扫码签到区域 *@
+    <div class="qr-scanner-area">
+        @if (_scanning)
+        {
+            <video id="qr-video" class="qr-scanner-area__video" autoplay playsinline muted></video>
+            <div class="qr-scanner-area__hint">将摄像头对准教师屏幕上的二维码</div>
+            <Button Variant="ButtonVariant.Secondary" Icon="x" OnClick="StopScannerAsync">取消扫码</Button>
+        }
+        else
+        {
+            <Button Variant="ButtonVariant.Primary" Icon="camera" OnClick="StartScannerAsync" Loading="_scannerStarting">
+                扫码签到
+            </Button>
+            <div class="qr-scanner-area__hint">点击按钮使用摄像头扫描二维码</div>
+            <div class="student-checkin-divider">
+                <span>或手动输入签到码</span>
+            </div>
+        }
     </div>
 
-    <Button Variant="ButtonVariant.Primary"
-            Icon="check-circle"
-            OnClick="CheckInAsync"
-            Loading="_submitting"
-            Disabled="string.IsNullOrWhiteSpace(_token)"
-            Class="student-btn-large">
-        签到
-    </Button>
+    @* 手动输入签到码 *@
+    @if (!_scanning)
+    {
+        <div class="student-form-field">
+            <label class="student-form-field__label">签到码</label>
+            <input class="student-checkin-input"
+                   type="text"
+                   placeholder="请输入签到码"
+                   value="@_token"
+                   @oninput="OnTokenChanged"
+                   autocomplete="off"
+                   maxlength="512" />
+        </div>
+
+        <Button Variant="ButtonVariant.Primary"
+                Icon="check-circle"
+                OnClick="CheckInAsync"
+                Loading="_submitting"
+                Disabled="string.IsNullOrWhiteSpace(_token)"
+                Class="student-btn-large">
+            签到
+        </Button>
+    }
 
     @* 签到结果反馈 *@
     @if (_checkInResult is not null)
@@ -72,13 +98,13 @@
 @code {
     private string _token = string.Empty;
     private bool _submitting;
+    private bool _scanning;
+    private bool _scannerStarting;
     private string? _errorMessage;
     private CheckInResult? _checkInResult;
     private string _studentId = string.Empty;
+    private DotNetObjectReference<Components.Pages.Student.CheckIn>? _dotNetRef;
 
-    /// <summary>
-    /// 页面初始化：获取当前学生学号
-    /// </summary>
     protected override void OnInitialized()
     {
         var userInfo = TokenService.GetUserInfo();
@@ -87,22 +113,78 @@
             NavigationManager.NavigateTo("/login", forceLoad: true);
             return;
         }
-
         _studentId = userInfo.UserId;
+    }
+
+    /// <summary>启动摄像头扫码</summary>
+    private async Task StartScannerAsync()
+    {
+        _scannerStarting = true;
+        _errorMessage = null;
+        try
+        {
+            // 先检查浏览器是否支持
+            var supported = await JSRuntime.InvokeAsync<bool>("qrScanner.isSupported");
+            if (!supported)
+            {
+                _errorMessage = "当前浏览器不支持扫码功能，请使用 Chrome 或 Edge 浏览器，或手动输入签到码";
+                return;
+            }
+
+            _scanning = true;
+            _dotNetRef ??= DotNetObjectReference.Create(this);
+
+            // 等待 video 元素渲染
+            await Task.Delay(100);
+
+            var result = await JSRuntime.InvokeAsync<ScannerResult>("qrScanner.start", "qr-video", _dotNetRef);
+            if (!result.Success)
+            {
+                _scanning = false;
+                _errorMessage = result.Error;
+            }
+        }
+        catch (Exception ex)
+        {
+            _scanning = false;
+            _errorMessage = "启动扫码失败：" + ex.Message;
+            Logger.LogError(ex, "启动扫码异常");
+        }
+        finally
+        {
+            _scannerStarting = false;
+        }
+    }
+
+    /// <summary>停止扫码</summary>
+    private async Task StopScannerAsync()
+    {
+        await JSRuntime.InvokeVoidAsync("qrScanner.stop");
+        _scanning = false;
+    }
+
+    /// <summary>JS 回调：扫码成功</summary>
+    [JSInvokable]
+    public async Task OnQrCodeScanned(string token)
+    {
+        _scanning = false;
+        _token = token;
+        _checkInResult = null;
+        _errorMessage = null;
+        StateHasChanged();
+        // 扫码成功后自动签到
+        await CheckInAsync();
     }
 
     /// <summary>签到码输入变更</summary>
     private void OnTokenChanged(ChangeEventArgs e)
     {
         _token = e.Value?.ToString() ?? string.Empty;
-        // 输入新签到码时清除上次结果
         _checkInResult = null;
         _errorMessage = null;
     }
 
-    /// <summary>
-    /// 执行签到：从签到码（JWT）中解析 sessionId，调用签到接口
-    /// </summary>
+    /// <summary>执行签到</summary>
     private async Task CheckInAsync()
     {
         if (string.IsNullOrWhiteSpace(_token))
@@ -117,7 +199,6 @@
 
         try
         {
-            // 从 JWT token 中解析 sessionId（签到码即二维码中的 JWT）
             var sessionId = ExtractSessionIdFromToken(_token);
             if (sessionId is null)
             {
@@ -125,7 +206,6 @@
                 return;
             }
 
-            // 调用签到接口
             var request = new CheckInRequestDto { Token = _token };
             _checkInResult = await ApiClient.PostAsync<CheckInResult>($"sessions/{sessionId.Value}/checkin", request);
         }
@@ -145,12 +225,7 @@
         }
     }
 
-    /// <summary>
-    /// 从 JWT 签到码中解析会话 ID
-    /// 签到码 JWT 包含 session_id claim
-    /// </summary>
-    /// <param name="token">签到码（JWT）</param>
-    /// <returns>会话 ID；解析失败返回 null</returns>
+    /// <summary>从 JWT 签到码中解析会话 ID</summary>
     private static long? ExtractSessionIdFromToken(string token)
     {
         try
@@ -179,4 +254,20 @@
         AttendanceStatus.Leave => "请假",
         _ => "未知"
     };
+
+    public void Dispose()
+    {
+        if (_scanning)
+        {
+            _ = JSRuntime.InvokeVoidAsync("qrScanner.stop");
+        }
+        _dotNetRef?.Dispose();
+    }
+
+    /// <summary>JS 扫码结果返回结构</summary>
+    private sealed class ScannerResult
+    {
+        public bool Success { get; set; }
+        public string Error { get; set; } = string.Empty;
+    }
 }
