@@ -49,8 +49,11 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Auth
             // Assert
             Assert.Equal(200, result.Code);
             Assert.NotNull(result.Data);
-            Assert.False(string.IsNullOrEmpty(result.Data!.Token));
-            Assert.Equal("admin", result.Data.UserId);
+            // 密码校验通过后进入二次验证流程，返回 2FA 临时令牌而非 JWT
+            Assert.True(result.Data!.RequiresTwoFactor);
+            Assert.False(string.IsNullOrEmpty(result.Data.TwoFactorToken));
+            // 管理员 userId 为 SystemUser 自增主键的字符串形式
+            Assert.Equal("1", result.Data.UserId);
             Assert.Equal(UserRole.Admin.ToString(), result.Data.Role);
         }
 
@@ -117,7 +120,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Auth
             // Assert
             Assert.Equal(200, result.Code);
             Assert.NotNull(result.Data);
-            Assert.False(string.IsNullOrEmpty(result.Data!.Token));
+            // 密码校验通过后进入二次验证流程，返回 2FA 临时令牌而非 JWT
+            Assert.True(result.Data!.RequiresTwoFactor);
+            Assert.False(string.IsNullOrEmpty(result.Data.TwoFactorToken));
             Assert.Equal("20220101", result.Data.UserId);
             Assert.Equal(UserRole.Student.ToString(), result.Data.Role);
         }

@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Attendance
@@ -89,6 +89,12 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Attendance
         public AttendanceStatus Status { get; set; }
         public DateTime? CheckInTime { get; set; }
         public string? Remark { get; set; }
+
+        /// <summary>请假事由（当存在已批准请假时叠加返回）</summary>
+        public string? LeaveReason { get; set; }
+
+        /// <summary>请假审批备注（辅导员填写）</summary>
+        public string? LeaveRemark { get; set; }
     }
 
     /// <summary>

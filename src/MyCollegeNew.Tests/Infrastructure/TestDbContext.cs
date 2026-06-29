@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using Microsoft.Extensions.Options;
 using SqlSugar;
@@ -89,6 +89,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure
                 Grade INTEGER NOT NULL,
                 Status INTEGER NOT NULL,
                 Remark TEXT,
+                TwoFactorSecret TEXT,
                 CreateTime TEXT NOT NULL,
                 UpdateTime TEXT,
                 IsDeleted INTEGER NOT NULL DEFAULT 0
@@ -104,7 +105,10 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure
                 DepartmentId INTEGER NOT NULL,
                 MajorId INTEGER,
                 Role INTEGER NOT NULL,
+                IsDepartmentHead INTEGER NOT NULL DEFAULT 0,
+                HeadDepartmentId INTEGER,
                 Remark TEXT,
+                TwoFactorSecret TEXT,
                 CreateTime TEXT NOT NULL,
                 UpdateTime TEXT,
                 IsDeleted INTEGER NOT NULL DEFAULT 0
@@ -116,6 +120,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 Name TEXT NOT NULL,
                 TeacherId TEXT NOT NULL,
+                CreatorId TEXT NOT NULL DEFAULT '',
+                Status INTEGER NOT NULL DEFAULT 0,
                 Credit REAL NOT NULL,
                 Remark TEXT,
                 CreateTime TEXT NOT NULL,
@@ -129,6 +135,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 CourseId INTEGER NOT NULL,
                 ClassId INTEGER NOT NULL,
+                ClassIds TEXT NOT NULL DEFAULT '',
                 TeacherId TEXT NOT NULL,
                 DayOfWeek INTEGER NOT NULL,
                 StartSection INTEGER NOT NULL,
@@ -147,6 +154,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 CourseId INTEGER NOT NULL,
                 ClassId INTEGER NOT NULL,
+                ClassIds TEXT NOT NULL DEFAULT '',
                 TeacherId TEXT NOT NULL,
                 ScheduleId INTEGER,
                 StartTime TEXT NOT NULL,
@@ -199,6 +207,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure
                 Password TEXT NOT NULL,
                 Role INTEGER NOT NULL,
                 RealName TEXT NOT NULL,
+                TwoFactorSecret TEXT,
                 CreateTime TEXT NOT NULL,
                 UpdateTime TEXT,
                 IsDeleted INTEGER NOT NULL DEFAULT 0

@@ -1,4 +1,4 @@
-﻿namespace Larpx.PersonalTools.MyCollegeNew.Shared.Constants
+namespace Larpx.PersonalTools.MyCollegeNew.Shared.Constants
 {
     /// <summary>
     /// 消息常量集中定义
@@ -50,6 +50,8 @@
             public const string LeaveApprovedRemark = "请假审批通过自动更新";
             public const string EndTimeMustAfterStart = "签到结束时间必须晚于开始时间";
             public const string ClassNoStudents = "班级中暂无学生";
+            public const string RandomPickRequiresSession = "缺少会话参数，无法确定已签到学生";
+            public const string NoPresentStudents = "当前无已签到学生，无法发起随机提问";
             public const string OnlyOwnSession = "仅可操作自己发起的考勤会话";
             public const string QrTokenEmpty = "签到令牌不能为空";
             public const string QrTokenInvalid = "签到令牌无效";

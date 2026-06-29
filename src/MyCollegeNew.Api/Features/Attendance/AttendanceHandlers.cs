@@ -261,23 +261,48 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
             return ApiResponse<object>.Success("会话已关闭");
         }
 
-        /// <summary>查询会话签到记录</summary>
+        /// <summary>查询会话签到记录（叠加已批准请假信息，便于教师端查看）</summary>
         public async Task<ApiResponse<List<AttendanceRecordResponseDto>>> Handle(GetSessionRecordsQuery query, CancellationToken cancellationToken)
         {
             var db = _dbContext.Client;
-            var rows = await db.Queryable<AttendanceRecord>()
+
+            // 查询会话信息，用于匹配请假时间范围
+            var session = await db.Queryable<AttendanceSession>()
+                .FirstAsync(s => s.Id == query.SessionId && !s.IsDeleted, cancellationToken);
+            if (session is null)
+            {
+                return ApiResponse<List<AttendanceRecordResponseDto>>.Fail(Msg.Common.EntityNotFound("考勤会话"), 404);
+            }
+
+            // 查询该会话的全部考勤记录
+            var records = await db.Queryable<AttendanceRecord>()
                 .Where(r => r.SessionId == query.SessionId && !r.IsDeleted)
                 .OrderBy(r => r.StudentId)
-                .Select(r => new AttendanceRecordResponseDto
+                .ToListAsync();
+
+            // 查询覆盖该会话时间范围（StartTime ≤ 会话开始 且 EndTime ≥ 会话结束）的已批准请假
+            var approvedLeaves = await db.Queryable<LeaveRequest>()
+                .Where(l => l.Status == LeaveStatus.Approved && !l.IsDeleted)
+                .Where(l => l.StartTime <= session.StartTime && l.EndTime >= session.EndTime)
+                .ToListAsync();
+
+            // 同一学生可能存在多条已批准请假，取首条用于展示
+            var leaveByStudentId = approvedLeaves
+                .GroupBy(l => l.StudentId)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            // 组装响应 DTO，命中已批准请假的学生自动置为 Leave 状态并携带请假原因与审批备注
+            var rows = records.Select(r =>
+            {
+                var dto = ToRecordDto(r);
+                if (leaveByStudentId.TryGetValue(r.StudentId, out var leave))
                 {
-                    Id = r.Id,
-                    SessionId = r.SessionId,
-                    StudentId = r.StudentId,
-                    StudentName = r.StudentName,
-                    Status = r.Status,
-                    CheckInTime = r.CheckInTime,
-                    Remark = r.Remark
-                }).ToListAsync();
+                    dto.Status = AttendanceStatus.Leave;
+                    dto.LeaveReason = leave.Reason;
+                    dto.LeaveRemark = leave.ReviewRemark;
+                }
+                return dto;
+            }).ToList();
 
             return ApiResponse<List<AttendanceRecordResponseDto>>.Success(rows);
         }
@@ -480,33 +505,44 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
             return ApiResponse<AttendanceRecordResponseDto>.Success(ToRecordDto(record));
         }
 
-        /// <summary>随机点名</summary>
+        /// <summary>随机点名（仅从已签到学生中抽取）</summary>
         public async Task<ApiResponse<RandomPickResult>> Handle(RandomPickQuery query, CancellationToken cancellationToken)
         {
             var db = _dbContext.Client;
+
+            // 必须提供会话 Id，才能确定已签到学生范围
+            if (!query.SessionId.HasValue)
+            {
+                return ApiResponse<RandomPickResult>.Fail(Msg.Attendance.RandomPickRequiresSession, 400);
+            }
+
+            var sessionId = query.SessionId.Value;
+
+            // 校验班级存在并获取班级名称（响应中需返回）
             var cls = await db.Queryable<Class>().FirstAsync(c => c.Id == query.ClassId && !c.IsDeleted, cancellationToken);
             if (cls is null)
             {
                 return ApiResponse<RandomPickResult>.Fail(Msg.Common.EntityNotFound($"班级 {query.ClassId}"), 404);
             }
 
-            var students = await db.Queryable<Student>().Where(s => s.ClassId == query.ClassId && !s.IsDeleted).ToListAsync();
-            if (students.Count == 0)
+            // 仅查询该会话下已签到（Present）的学生，未签到/请假/迟到/缺席不参与随机提问
+            var presentStudents = await db.Queryable<AttendanceRecord>()
+                .Where(r => r.SessionId == sessionId && r.Status == AttendanceStatus.Present && !r.IsDeleted)
+                .Select(r => new { r.StudentId, r.StudentName })
+                .ToListAsync();
+
+            if (presentStudents.Count == 0)
             {
-                return ApiResponse<RandomPickResult>.Fail(Msg.Attendance.ClassNoStudents, 400);
+                return ApiResponse<RandomPickResult>.Fail(Msg.Attendance.NoPresentStudents, 400);
             }
 
-            List<string>? recentPicks = null;
-            if (query.SessionId.HasValue)
-            {
-                recentPicks = _randomPickHistory.GetValueOrDefault(query.SessionId.Value, new List<string>());
-            }
-
-            var candidates = students;
-            if (recentPicks is { Count: > 0 })
+            // 排除本会话最近已回答的学生，避免重复点名
+            var recentPicks = _randomPickHistory.GetValueOrDefault(sessionId, new List<string>());
+            var candidates = presentStudents;
+            if (recentPicks.Count > 0)
             {
                 var recentSet = new HashSet<string>(recentPicks);
-                var filtered = students.Where(s => !recentSet.Contains(s.Id)).ToList();
+                var filtered = presentStudents.Where(s => !recentSet.Contains(s.StudentId)).ToList();
                 if (filtered.Count > 0)
                 {
                     candidates = filtered;
@@ -514,10 +550,12 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
             }
 
             var picked = candidates[Random.Shared.Next(candidates.Count)];
+            _logger.LogInformation("会话 {SessionId} 随机提问抽中学生 {StudentId}", sessionId, picked.StudentId);
+
             return ApiResponse<RandomPickResult>.Success(new RandomPickResult
             {
-                StudentId = picked.Id,
-                StudentName = picked.Name,
+                StudentId = picked.StudentId,
+                StudentName = picked.StudentName,
                 ClassId = query.ClassId,
                 ClassName = cls.Name
             });

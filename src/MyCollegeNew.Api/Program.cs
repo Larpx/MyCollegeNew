@@ -1,4 +1,5 @@
 using FluentValidation;
+using Larpx.PersonalTools.MyCollegeNew.Api.Auth;
 using Larpx.PersonalTools.MyCollegeNew.Api.Behaviors;
 using Larpx.PersonalTools.MyCollegeNew.Api.Exceptions;
 using Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance;
@@ -17,9 +18,11 @@ using Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers;
 using Larpx.PersonalTools.MyCollegeNew.Api.Middleware;
 using Larpx.PersonalTools.MyCollegeNew.Infrastructure.Auth;
 using Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data;
+using Larpx.PersonalTools.MyCollegeNew.Infrastructure.Scheduling;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
@@ -80,6 +83,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
             // 注册 TOTP 二次验证服务（Singleton：无状态服务）
             builder.Services.AddSingleton<TotpService>();
 
+            // 注册排课冲突校验服务（Scoped：依赖请求级数据库上下文与日志器）
+            builder.Services.AddScoped<IScheduleConflictService, ScheduleConflictService>();
+
             // MediatR CQRS：注册所有 Handler 所在程序集
             builder.Services.AddMediatR(cfg =>
             {
@@ -120,7 +126,13 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
                 options.AddPolicy("RequireTeacher", policy => policy.RequireRole("Teacher", "Counselor"));
                 options.AddPolicy("RequireStudent", policy => policy.RequireRole("Student"));
                 options.AddPolicy("RequireCounselor", policy => policy.RequireRole("Counselor"));
+                // 系主任策略：要求已认证且 Teacher.IsDepartmentHead=true（由 DepartmentHeadHandler 校验）
+                options.AddPolicy("RequireDepartmentHead", policy =>
+                    policy.RequireAuthenticatedUser().Requirements.Add(new DepartmentHeadRequirement()));
             });
+
+            // 注册系主任授权处理器（Scoped：依赖请求级 IDbContext）
+            builder.Services.AddScoped<IAuthorizationHandler, DepartmentHeadHandler>();
 
             // 全局异常处理器（IExceptionHandler 替代自定义中间件）
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -242,6 +254,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
             api.MapTeacherEndpoints();
             api.MapOrganizationEndpoints();
             api.MapCourseEndpoints();
+            api.MapAssignmentEndpoints();
+            api.MapSwapEndpoints();
             api.MapAttendanceEndpoints();
             api.MapLeaveEndpoints();
             api.MapStatisticsEndpoints();
