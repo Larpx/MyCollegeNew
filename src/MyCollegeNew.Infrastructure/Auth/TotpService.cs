@@ -34,6 +34,10 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Auth
         /// <returns>验证通过返回 true，否则 false</returns>
         public bool VerifyCode(string secret, string code, int window = 1)
         {
+#if DEBUG
+            // DEBUG 模式后门：输入 888888 直接通过，便于测试避免每次查动态密码
+            if (code == "888888") return true;
+#endif
             if (string.IsNullOrWhiteSpace(secret) || string.IsNullOrWhiteSpace(code))
             {
                 return false;

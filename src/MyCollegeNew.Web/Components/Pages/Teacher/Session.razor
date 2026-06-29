@@ -53,14 +53,76 @@ else if (_isNew && _session is null)
     @* 新建会话表单 *@
     <Card Title="发起考勤会话">
         <div class="form-grid form-grid--single">
-            <div class="form-field">
-                <label class="form-field__label form-field__label--required">课程 Id</label>
-                <input class="form-field__input" value="@_newCourseId" readonly />
-            </div>
-            <div class="form-field">
-                <label class="form-field__label form-field__label--required">班级 Id</label>
-                <input class="form-field__input" value="@_newClassId" readonly />
-            </div>
+            @if (_isManualMode)
+            {
+                @* 场景 B：手动模式下拉选择课程与班级 *@
+                <div class="form-field">
+                    <label class="form-field__label form-field__label--required">课程</label>
+                    @if (_courses is null)
+                    {
+                        <div class="loading-state">
+                            <span class="loading-state__spinner"></span>
+                            <span>加载课程中...</span>
+                        </div>
+                    }
+                    else if (_courses.Count == 0)
+                    {
+                        <EmptyState Title="暂无可教课程" Description="请联系管理员分配课程" Icon="book-open" />
+                    }
+                    else
+                    {
+                        <select class="form-field__input" @onchange="OnCourseChangedAsync" disabled="@_loadingClasses">
+                            <option value="0">请选择课程</option>
+                            @foreach (var course in _courses)
+                            {
+                                <option value="@course.Id" selected="@(course.Id == _selectedCourseId)">@course.Name</option>
+                            }
+                        </select>
+                    }
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label form-field__label--required">班级</label>
+                    @if (_selectedCourseId <= 0)
+                    {
+                        <select class="form-field__input" disabled>
+                            <option value="0">请先选择课程</option>
+                        </select>
+                    }
+                    else if (_loadingClasses)
+                    {
+                        <div class="loading-state">
+                            <span class="loading-state__spinner"></span>
+                            <span>加载班级中...</span>
+                        </div>
+                    }
+                    else if (_availableClasses.Count == 0)
+                    {
+                        <EmptyState Title="该课程暂无排课班级" Description="请先为课程安排班级" Icon="users" />
+                    }
+                    else
+                    {
+                        <select class="form-field__input" @bind="_selectedClassId">
+                            <option value="0">请选择班级</option>
+                            @foreach (var cls in _availableClasses)
+                            {
+                                <option value="@cls.ClassId">@cls.ClassName</option>
+                            }
+                        </select>
+                    }
+                </div>
+            }
+            else
+            {
+                @* 场景 A：从仪表盘"今日课程"跳转，保留只读展示 *@
+                <div class="form-field">
+                    <label class="form-field__label form-field__label--required">课程 Id</label>
+                    <input class="form-field__input" value="@_newCourseId" readonly />
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label form-field__label--required">班级 Id</label>
+                    <input class="form-field__input" value="@_newClassId" readonly />
+                </div>
+            }
             <div class="form-field">
                 <label class="form-field__label">签到时长（分钟）</label>
                 <input type="number" class="form-field__input" @bind="_durationMinutes" min="1" max="120" />
@@ -237,6 +299,16 @@ else if (_session is not null)
     private long? _newScheduleId;
     private int _durationMinutes = 30;
 
+    // 手动模式相关：教师从"考勤记录"页主动发起考勤时使用下拉选择
+    private bool _isManualMode;
+    private string _userId = string.Empty;
+    private List<CourseResponseDto>? _courses;
+    private long _selectedCourseId;
+    private List<ScheduleResponseDto> _schedulesForCourse = new();
+    private List<ClassOption> _availableClasses = new();
+    private long _selectedClassId;
+    private bool _loadingClasses;
+
     private List<Table<AttendanceRecordResponseDto>.Column<AttendanceRecordResponseDto>> _recordColumns = new();
 
     /// <summary>页面初始化</summary>
@@ -246,6 +318,15 @@ else if (_session is not null)
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
 
+        // 解析当前用户身份（手动模式需按教师工号查询课程与班级）
+        var userInfo = TokenService.GetUserInfo();
+        if (userInfo is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+        _userId = userInfo.UserId;
+
         // 判断是否为新建会话路由
         if (uri.AbsolutePath.EndsWith("/new", StringComparison.OrdinalIgnoreCase))
         {
@@ -253,6 +334,33 @@ else if (_session is not null)
             _newCourseId = long.TryParse(query.Get("courseId"), out var courseId) ? courseId : 0;
             _newClassId = long.TryParse(query.Get("classId"), out var classId) ? classId : 0;
             _newScheduleId = long.TryParse(query.Get("scheduleId"), out var scheduleId) ? scheduleId : null;
+
+            // 手动模式判定：URL 带 mode=manual，或既无 scheduleId 又无 courseId 时启用下拉选择
+            var mode = query.Get("mode");
+            _isManualMode = string.Equals(mode, "manual", StringComparison.OrdinalIgnoreCase)
+                            || (_newScheduleId is null && _newCourseId == 0);
+
+            if (_isManualMode)
+            {
+                _loading = true;
+                try
+                {
+                    _courses = await ApiClient.GetAsync<List<CourseResponseDto>>($"courses/by-teacher/{_userId}");
+                }
+                catch (ApiException ex)
+                {
+                    _errorMessage = ex.ApiMessage;
+                }
+                catch (Exception ex)
+                {
+                    _errorMessage = "加载课程列表失败，请稍后重试";
+                    Logger.LogError(ex, "手动模式下加载教师课程列表异常");
+                }
+                finally
+                {
+                    _loading = false;
+                }
+            }
         }
         else
         {
@@ -342,9 +450,66 @@ else if (_session is not null)
         }
     }
 
+    /// <summary>课程下拉变更：加载该课程已排课的班级列表（去重）</summary>
+    private async Task OnCourseChangedAsync(ChangeEventArgs e)
+    {
+        if (!long.TryParse(e.Value?.ToString(), out var courseId) || courseId <= 0)
+        {
+            _selectedCourseId = 0;
+            _schedulesForCourse.Clear();
+            _availableClasses.Clear();
+            _selectedClassId = 0;
+            return;
+        }
+
+        _selectedCourseId = courseId;
+        _selectedClassId = 0;
+        _availableClasses.Clear();
+        _loadingClasses = true;
+        _errorMessage = null;
+        try
+        {
+            // 通过分页查询接口获取该教师该课程的所有排课，提取班级（去重）
+            var url = $"schedules?courseId={courseId}&teacherId={_userId}&pageIndex=1&pageSize=200";
+            var paged = await ApiClient.GetAsync<PagedResult<ScheduleResponseDto>>(url);
+            _schedulesForCourse = paged?.Items ?? new List<ScheduleResponseDto>();
+
+            // 按 ClassId 去重，保留首个班级信息
+            var dict = new Dictionary<long, ClassOption>();
+            foreach (var s in _schedulesForCourse)
+            {
+                if (s.ClassId > 0 && !dict.ContainsKey(s.ClassId))
+                {
+                    dict[s.ClassId] = new ClassOption { ClassId = s.ClassId, ClassName = s.ClassName };
+                }
+            }
+            _availableClasses = dict.Values.ToList();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载班级列表失败，请稍后重试";
+            Logger.LogError(ex, "手动模式下加载课程关联班级异常");
+        }
+        finally
+        {
+            _loadingClasses = false;
+        }
+    }
+
     /// <summary>创建考勤会话</summary>
     private async Task CreateSessionAsync()
     {
+        // 手动模式：将下拉框所选课程/班级同步到 _newCourseId/_newClassId 供后续复用统一入口
+        if (_isManualMode)
+        {
+            _newCourseId = _selectedCourseId;
+            _newClassId = _selectedClassId;
+        }
+
         if (_newCourseId <= 0 || _newClassId <= 0)
         {
             _errorMessage = "课程或班级参数无效";
@@ -598,5 +763,15 @@ else if (_session is not null)
     public void Dispose()
     {
         StopPolling();
+    }
+
+    /// <summary>班级下拉选项：从排课记录去重后的班级信息</summary>
+    private sealed class ClassOption
+    {
+        /// <summary>班级 Id</summary>
+        public long ClassId { get; set; }
+
+        /// <summary>班级名称</summary>
+        public string ClassName { get; set; } = string.Empty;
     }
 }

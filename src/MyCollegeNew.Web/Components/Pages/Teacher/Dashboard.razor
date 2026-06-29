@@ -193,7 +193,7 @@ else
             // 并行加载统计、进行中会话、今日课表
             var statsTask = ApiClient.GetAsync<TeacherStatisticsDto>($"statistics/teacher/{_userId}");
             var activeTask = ApiClient.GetAsync<List<SessionResponseDto>>("sessions/active");
-            var scheduleTask = ApiClient.GetAsync<WeeklyScheduleDto>($"schedules/by-teacher/{_userId}?week=1");
+            var scheduleTask = ApiClient.GetAsync<WeeklyScheduleDto>($"schedules/weekly/teacher/{_userId}?week=1");
 
             await Task.WhenAll(statsTask, activeTask, scheduleTask);
 

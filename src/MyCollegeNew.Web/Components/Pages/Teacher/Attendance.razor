@@ -14,6 +14,7 @@
 
 <PageHeader Title="考勤记录" Icon="clipboard-list" Subtitle="查询历史考勤会话与记录">
     <Actions>
+        <Button Variant="ButtonVariant.Primary" Icon="plus" OnClick="StartNewSession">发起考勤</Button>
         <Button Variant="ButtonVariant.Secondary" Icon="refresh-cw" OnClick="LoadSessionsAsync" Loading="_loading">刷新</Button>
     </Actions>
 </PageHeader>
@@ -181,6 +182,12 @@ else
     private void ViewSession(long sessionId)
     {
         NavigationManager.NavigateTo($"/teacher/session/{sessionId}");
+    }
+
+    /// <summary>跳转到新建会话页（手动选择课程与班级）</summary>
+    private void StartNewSession()
+    {
+        NavigationManager.NavigateTo("/teacher/session/new?mode=manual");
     }
 
     /// <summary>导出会话考勤记录为 Excel</summary>
