@@ -1,4 +1,9 @@
-@* 侧边栏导航：根据角色显示不同菜单项（移除 Admin 分支） *@
+@* 侧边栏导航：根据角色与系主任标记位动态显示菜单项（Admin 已移至独立项目） *@
+@inject IApiClient ApiClient
+@inject TokenService TokenService
+@inject ILogger<NavMenu> Logger
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
+
 <nav class="nav-menu">
     <div class="nav-menu__brand">
         <Icon Name="graduation-cap" Size="22" />
@@ -27,10 +32,38 @@
     /// <summary>菜单项定义</summary>
     private sealed record MenuItem(string Title, string Href, string Icon);
 
+    /// <summary>当前教师是否为系主任（用于动态渲染系主任专属菜单）</summary>
+    private bool _isDepartmentHead;
+
     /// <summary>
-    /// 根据当前用户角色返回菜单项（Admin 已移至独立项目）
+    /// 初始化：若当前用户为教师/辅导员，调用 GET /api/v1/teachers/me 查询 IsDepartmentHead 标记位，
+    /// 查询失败不影响基础菜单展示，仅系主任专属菜单不渲染
     /// </summary>
-    private static List<MenuItem> GetMenuItems(System.Security.Claims.ClaimsPrincipal user)
+    protected override async Task OnInitializedAsync()
+    {
+        // 学生角色不查系主任身份，直接跳过
+        var userInfo = TokenService.GetUserInfo();
+        if (userInfo is null || userInfo.Role == "Student")
+        {
+            return;
+        }
+
+        try
+        {
+            var teacher = await ApiClient.GetAsync<TeacherResponseDto>("teachers/me");
+            _isDepartmentHead = teacher?.IsDepartmentHead ?? false;
+        }
+        catch (Exception ex)
+        {
+            // 加载失败时静默降级：仅不展示系主任专属菜单，避免阻塞侧边栏渲染
+            Logger.LogWarning(ex, "加载当前教师身份信息失败，系主任专属菜单暂不可用");
+        }
+    }
+
+    /// <summary>
+    /// 根据当前用户角色与系主任标记位返回菜单项（Admin 已移至独立项目）
+    /// </summary>
+    private List<MenuItem> GetMenuItems(System.Security.Claims.ClaimsPrincipal user)
     {
         if (user.IsInRole("Teacher") || user.IsInRole("Counselor"))
         {
@@ -38,8 +71,18 @@
             {
                 new("仪表盘", "/teacher/dashboard", "layout-dashboard"),
                 new("我的课程", "/teacher/courses", "book-open"),
-                new("考勤记录", "/teacher/attendance", "clipboard-list")
+                new("我的课表", "/teacher/schedule", "calendar"),
+                new("考勤记录", "/teacher/attendance", "clipboard-list"),
+                new("调换课申请", "/teacher/swaps", "shuffle")
             };
+
+            // 系主任专属菜单：排课工作台 + 接课审批
+            if (_isDepartmentHead)
+            {
+                items.Add(new("排课工作台", "/teacher/scheduling", "calendar-days"));
+                items.Add(new("接课审批", "/teacher/assignments/review", "inbox"));
+            }
+
             if (user.IsInRole("Counselor"))
             {
                 items.Add(new("请假审批", "/teacher/leaves", "file-text"));

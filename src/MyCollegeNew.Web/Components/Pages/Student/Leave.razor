@@ -242,8 +242,9 @@ else
             _startTime = DateTime.UtcNow.ToLocalTime();
             _endTime = DateTime.UtcNow.ToLocalTime().AddHours(2);
 
-            // 刷新历史记录
+            // 刷新历史记录并切换到列表标签页，便于查看新提交的记录
             _leaves = null;
+            _activeTab = "history";
             await LoadLeavesAsync();
         }
         catch (ApiException ex)

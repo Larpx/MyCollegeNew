@@ -15,6 +15,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers
     public class TeacherHandlers :
         IRequestHandler<GetTeachersQuery, ApiResponse<PagedResult<TeacherResponseDto>>>,
         IRequestHandler<GetTeacherByIdQuery, ApiResponse<TeacherResponseDto>>,
+        IRequestHandler<GetCurrentTeacherQuery, ApiResponse<TeacherResponseDto>>,
         IRequestHandler<CreateTeacherCommand, ApiResponse<TeacherResponseDto>>,
         IRequestHandler<UpdateTeacherCommand, ApiResponse<TeacherResponseDto>>,
         IRequestHandler<DeleteTeacherCommand, ApiResponse<object>>
@@ -71,7 +72,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers
                     DepartmentName = d.Name,
                     MajorName = m.Name,
                     Role = t.Role,
-                    Remark = t.Remark
+                    Remark = t.Remark,
+                    IsDepartmentHead = t.IsDepartmentHead,
+                    HeadDepartmentId = t.HeadDepartmentId
                 })
                 .Skip((query.PageIndex - 1) * query.PageSize)
                 .Take(query.PageSize)
@@ -84,12 +87,49 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers
         /// <summary>根据工号查询教师</summary>
         public async Task<ApiResponse<TeacherResponseDto>> Handle(GetTeacherByIdQuery query, CancellationToken cancellationToken)
         {
+            var dto = await LoadTeacherDtoAsync(query.Id);
+            if (dto is null)
+            {
+                return ApiResponse<TeacherResponseDto>.Fail(Msg.Common.EntityNotFound($"教师 {query.Id}"), 404);
+            }
+
+            return ApiResponse<TeacherResponseDto>.Success(dto);
+        }
+
+        /// <summary>
+        /// 查询当前登录教师：基于 ICurrentUser 的工号回查自己（含 IsDepartmentHead 标记位），
+        /// 供前端 NavMenu 与仪表盘动态渲染系主任菜单使用
+        /// </summary>
+        public async Task<ApiResponse<TeacherResponseDto>> Handle(GetCurrentTeacherQuery query, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(query.TeacherId))
+            {
+                return ApiResponse<TeacherResponseDto>.Fail(Msg.Common.NoPermission, 401);
+            }
+
+            var dto = await LoadTeacherDtoAsync(query.TeacherId);
+            if (dto is null)
+            {
+                return ApiResponse<TeacherResponseDto>.Fail(Msg.Common.EntityNotFound($"教师 {query.TeacherId}"), 404);
+            }
+
+            return ApiResponse<TeacherResponseDto>.Success(dto);
+        }
+
+        /// <summary>
+        /// 通用查询：联表 Teacher / Department / Major 构造 TeacherResponseDto，
+        /// 同时回填 IsDepartmentHead 与 HeadDepartmentId，供 GetTeacherById / GetCurrentTeacher 复用
+        /// </summary>
+        /// <param name="teacherId">教师工号</param>
+        /// <returns>教师响应 DTO；不存在返回 null</returns>
+        private async Task<TeacherResponseDto?> LoadTeacherDtoAsync(string teacherId)
+        {
             var db = _dbContext.Client;
-            var dto = await db.Queryable<Teacher, Department, Major>((t, d, m) =>
+            return await db.Queryable<Teacher, Department, Major>((t, d, m) =>
                     new JoinQueryInfos(
                         JoinType.Left, t.DepartmentId == d.Id,
                         JoinType.Left, t.MajorId == m.Id))
-                .Where((t, d, m) => t.Id == query.Id && !t.IsDeleted)
+                .Where((t, d, m) => t.Id == teacherId && !t.IsDeleted)
                 .Select<TeacherResponseDto>((t, d, m) => new TeacherResponseDto
                 {
                     Id = t.Id,
@@ -100,16 +140,11 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers
                     DepartmentName = d.Name,
                     MajorName = m.Name,
                     Role = t.Role,
-                    Remark = t.Remark
+                    Remark = t.Remark,
+                    IsDepartmentHead = t.IsDepartmentHead,
+                    HeadDepartmentId = t.HeadDepartmentId
                 })
                 .FirstAsync();
-
-            if (dto is null)
-            {
-                return ApiResponse<TeacherResponseDto>.Fail(Msg.Common.EntityNotFound($"教师 {query.Id}"), 404);
-            }
-
-            return ApiResponse<TeacherResponseDto>.Success(dto);
         }
 
         /// <summary>创建教师</summary>

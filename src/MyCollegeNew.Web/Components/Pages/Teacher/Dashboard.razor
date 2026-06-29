@@ -6,6 +6,7 @@
 @using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Attendance
 @using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses
 @using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Statistics
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
 @inject IApiClient ApiClient
 @inject TokenService TokenService
 @inject NavigationManager NavigationManager
@@ -36,6 +37,73 @@
 }
 else
 {
+    @* 教师身份信息卡片：工号 / 姓名 / 系主任徽章 *@
+    <Card Class="mb-6">
+        <div class="dashboard-welcome">
+            <span class="dashboard-welcome__avatar">
+                <Icon Name="user" Size="28" />
+            </span>
+            <div class="dashboard-welcome__info">
+                <div class="dashboard-welcome__name-row">
+                    <span class="dashboard-welcome__name">@_userName</span>
+                    @if (_isDepartmentHead)
+                    {
+                        <Badge Variant="BadgeVariant.Primary" Icon="award">系主任</Badge>
+                    }
+                    @if (_isCounselor)
+                    {
+                        <Badge Variant="BadgeVariant.Neutral">辅导员</Badge>
+                    }
+                    else
+                    {
+                        <Badge Variant="BadgeVariant.Success">任课教师</Badge>
+                    }
+                </div>
+                <div class="dashboard-welcome__id">工号：@_userId</div>
+            </div>
+        </div>
+    </Card>
+
+    @* 待办提醒：系主任待审批接课申请（数量为 0 不显示） *@
+    @if (_isDepartmentHead && _pendingAssignmentsCount > 0)
+    {
+        <Card Class="mb-6">
+            <div class="todo-reminder">
+                <div class="todo-reminder__left">
+                    <span class="stat-card__icon stat-card__icon--warning"><Icon Name="inbox" Size="20" /></span>
+                    <div>
+                        <div class="todo-reminder__title">待审批接课申请</div>
+                        <div class="todo-reminder__subtitle">系主任专属功能</div>
+                    </div>
+                </div>
+                <div class="todo-reminder__right">
+                    <span class="tab-bar__badge">@_pendingAssignmentsCount</span>
+                    <Button Variant="ButtonVariant.Primary" Icon="inbox" OnClick="GoToAssignmentReview">前往审批</Button>
+                </div>
+            </div>
+        </Card>
+    }
+
+    @* 待办提醒：任课教师待确认调换课申请（数量为 0 不显示） *@
+    @if (_pendingSwapsCount > 0)
+    {
+        <Card Class="mb-6">
+            <div class="todo-reminder">
+                <div class="todo-reminder__left">
+                    <span class="stat-card__icon stat-card__icon--warning"><Icon Name="shuffle" Size="20" /></span>
+                    <div>
+                        <div class="todo-reminder__title">待确认调换课申请</div>
+                        <div class="todo-reminder__subtitle">有教师委托您代课的申请待处理</div>
+                    </div>
+                </div>
+                <div class="todo-reminder__right">
+                    <span class="tab-bar__badge">@_pendingSwapsCount</span>
+                    <Button Variant="ButtonVariant.Primary" Icon="shuffle" OnClick="GoToSwaps">前往处理</Button>
+                </div>
+            </div>
+        </Card>
+    }
+
     @* 统计卡片 *@
     <div class="dashboard-grid">
         <Card>
@@ -80,15 +148,15 @@ else
     @if (_isCounselor)
     {
         <Card Class="mb-6">
-            <div class="flex items-center justify-between flex-wrap gap-2">
-                <div class="flex items-center gap-2">
+            <div class="todo-reminder">
+                <div class="todo-reminder__left">
                     <span class="stat-card__icon stat-card__icon--warning"><Icon Name="inbox" Size="20" /></span>
                     <div>
-                        <div class="font-medium">待审批请假申请</div>
-                        <div class="text-sm text-secondary">辅导员专属功能</div>
+                        <div class="todo-reminder__title">待审批请假申请</div>
+                        <div class="todo-reminder__subtitle">辅导员专属功能</div>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="todo-reminder__right">
                     <span class="tab-bar__badge">@_pendingLeavesCount</span>
                     <Button Variant="ButtonVariant.Primary" Icon="clipboard-list" OnClick="GoToLeaves">前往审批</Button>
                 </div>
@@ -121,7 +189,7 @@ else
         </Card>
     }
 
-    @* 今日课程 *@
+    @* 今日课程：每项支持 发起考勤 + 调换课 两个操作 *@
     <Card Title="今日课程">
         @if (_todaySchedules is null || _todaySchedules.Count == 0)
         {
@@ -142,7 +210,8 @@ else
                             </div>
                         </div>
                         <div class="course-card-item__actions">
-                            <Button Variant="ButtonVariant.Primary" Icon="qr-code" OnClick="() => StartSessionAsync(schedule)">开始考勤</Button>
+                            <Button Variant="ButtonVariant.Primary" Icon="qr-code" OnClick="() => StartSessionAsync(schedule)">发起考勤</Button>
+                            <Button Variant="ButtonVariant.Secondary" Icon="shuffle" OnClick="() => GoToSwapCreate(schedule)">调换课</Button>
                         </div>
                     </div>
                 }
@@ -156,11 +225,14 @@ else
     private List<SessionResponseDto>? _activeSessions;
     private List<ScheduleResponseDto>? _todaySchedules;
     private int _pendingLeavesCount;
+    private int _pendingAssignmentsCount;
+    private int _pendingSwapsCount;
     private bool _loading;
     private string? _errorMessage;
     private string _userId = string.Empty;
     private string _userName = string.Empty;
     private bool _isCounselor;
+    private bool _isDepartmentHead;
 
     /// <summary>页面初始化：获取用户信息并加载数据</summary>
     protected override async Task OnInitializedAsync()
@@ -178,7 +250,10 @@ else
         await LoadDataAsync();
     }
 
-    /// <summary>并行加载教师统计、进行中会话、今日课表、待审批请假数</summary>
+    /// <summary>
+    /// 并行加载教师统计、进行中会话、今日课表，并同步加载系主任身份与待办数；
+    /// 主流程失败抛错，辅助流程失败静默降级以保证仪表盘可用
+    /// </summary>
     private async Task LoadDataAsync()
     {
         _loading = true;
@@ -190,33 +265,40 @@ else
             var dayOfWeek = (int)today.DayOfWeek;
             if (dayOfWeek == 0) dayOfWeek = 7; // 周日转为 7
 
-            // 并行加载统计、进行中会话、今日课表
+            // 主流程：统计、进行中会话、今日课表
             var statsTask = ApiClient.GetAsync<TeacherStatisticsDto>($"statistics/teacher/{_userId}");
             var activeTask = ApiClient.GetAsync<List<SessionResponseDto>>("sessions/active");
             var scheduleTask = ApiClient.GetAsync<WeeklyScheduleDto>($"schedules/weekly/teacher/{_userId}?week=1");
 
-            await Task.WhenAll(statsTask, activeTask, scheduleTask);
+            // 辅助流程：教师身份（含系主任标记位）、待确认调换课申请；失败不影响主流程
+            var teacherInfoTask = SafeGetAsync<TeacherResponseDto>("teachers/me");
+            var swapsTask = SafeGetAsync<List<SwapRequestResponseDto>>("courses/swaps?role=substitute");
+
+            await Task.WhenAll(statsTask, activeTask, scheduleTask, teacherInfoTask, swapsTask);
 
             _statistics = statsTask.Result;
             _activeSessions = activeTask.Result;
             var weekly = scheduleTask.Result;
             _todaySchedules = weekly?.Days?.GetValueOrDefault(dayOfWeek) ?? new List<ScheduleResponseDto>();
 
+            // 解析系主任身份与待确认调换课数（任课教师可见）
+            _isDepartmentHead = teacherInfoTask.Result?.IsDepartmentHead ?? false;
+            _pendingSwapsCount = swapsTask.Result?.Count ?? 0;
+
+            // 系主任额外加载待审批接课申请数（仅系主任有权限）
+            if (_isDepartmentHead)
+            {
+                var pendingAssignments = await SafeGetAsync<List<AssignmentResponseDto>>("courses/assignments/pending");
+                _pendingAssignmentsCount = pendingAssignments?.Count ?? 0;
+            }
+
             // 辅导员额外加载待审批请假数
             if (_isCounselor)
             {
-                try
+                var pendingObj = await SafeGetAsync<Dictionary<string, int>>("leaves/pending-count");
+                if (pendingObj is not null && pendingObj.TryGetValue("Count", out var count))
                 {
-                    // 后端返回 { Count: int }，使用字典反序列化
-                    var pendingObj = await ApiClient.GetAsync<Dictionary<string, int>>("leaves/pending-count");
-                    if (pendingObj is not null && pendingObj.TryGetValue("Count", out var count))
-                    {
-                        _pendingLeavesCount = count;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogWarning(ex, "加载待审批请假数失败");
+                    _pendingLeavesCount = count;
                 }
             }
         }
@@ -236,12 +318,37 @@ else
         }
     }
 
+    /// <summary>
+    /// 安全 GET 请求包装：捕获异常并返回默认值，避免辅助查询失败导致主仪表盘无法渲染
+    /// </summary>
+    /// <typeparam name="T">返回数据类型</typeparam>
+    /// <param name="url">相对地址</param>
+    /// <returns>业务数据；失败返回 default</returns>
+    private async Task<T?> SafeGetAsync<T>(string url)
+    {
+        try
+        {
+            return await ApiClient.GetAsync<T>(url);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "加载 {Url} 失败，已忽略", url);
+            return default;
+        }
+    }
+
     /// <summary>开始考勤：跳转到会话页（先创建会话）</summary>
     private Task StartSessionAsync(ScheduleResponseDto schedule)
     {
         // 通过查询参数传递排课信息，由 Session 页面创建会话
         NavigationManager.NavigateTo($"/teacher/session/new?courseId={schedule.CourseId}&classId={schedule.ClassId}&scheduleId={schedule.Id}");
         return Task.CompletedTask;
+    }
+
+    /// <summary>跳转到调换课发起页（新增页面由另一 subagent 实现）</summary>
+    private void GoToSwapCreate(ScheduleResponseDto schedule)
+    {
+        NavigationManager.NavigateTo($"/teacher/swaps/new?scheduleId={schedule.Id}");
     }
 
     /// <summary>跳转到会话详情</summary>
@@ -254,5 +361,17 @@ else
     private void GoToLeaves()
     {
         NavigationManager.NavigateTo("/teacher/leaves");
+    }
+
+    /// <summary>跳转到接课审批页（系主任专属）</summary>
+    private void GoToAssignmentReview()
+    {
+        NavigationManager.NavigateTo("/teacher/assignments/review");
+    }
+
+    /// <summary>跳转到调换课申请列表页</summary>
+    private void GoToSwaps()
+    {
+        NavigationManager.NavigateTo("/teacher/swaps");
     }
 }

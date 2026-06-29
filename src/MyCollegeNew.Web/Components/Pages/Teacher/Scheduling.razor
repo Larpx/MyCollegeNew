@@ -1,0 +1,489 @@
+@page "/teacher/scheduling"
+@layout TeacherLayout
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Organization
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
+@inject IApiClient ApiClient
+@inject TokenService TokenService
+@inject NavigationManager NavigationManager
+@inject ILogger<Components.Pages.Teacher.Scheduling> Logger
+
+<PageTitle>排课工作台 - 考勤管理系统</PageTitle>
+
+<PageHeader Title="排课工作台" Icon="calendar-days" Subtitle="系主任专属：发布课程模板与班级排课">
+    <Actions>
+        <div class="tab-bar">
+            <button type="button" class="@CourseTabClass" @onclick='() => SwitchTab("course")'>
+                <Icon Name="book-open" Size="16" />课程模板
+            </button>
+            <button type="button" class="@ScheduleTabClass" @onclick='() => SwitchTab("schedule")'>
+                <Icon Name="calendar-days" Size="16" />班级排课
+            </button>
+        </div>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert--error">
+        <span class="alert__icon"><Icon Name="alert-circle" Size="20" /></span>
+        <span class="alert__body">@_errorMessage</span>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <div class="alert alert--success">
+        <span class="alert__icon"><Icon Name="check-circle" Size="20" /></span>
+        <span class="alert__body">@_successMessage</span>
+    </div>
+}
+
+@if (_loading && _courses is null)
+{
+    <div class="loading-state">
+        <span class="loading-state__spinner"></span>
+        <span>加载中...</span>
+    </div>
+}
+else if (_activeTab == "course")
+{
+    @* 课程模板列表 *@
+    <Card Title="课程模板列表">
+        <Actions>
+            <Button Variant="ButtonVariant.Primary" Icon="plus" OnClick="OpenCreateCourseModal">发布课程模板</Button>
+        </Actions>
+        <ChildContent>
+            @if (_courses is null || _courses.Count == 0)
+            {
+                <EmptyState Title="暂无课程模板" Description="点击右上角按钮发布新课程模板" Icon="book-open" />
+            }
+            else
+            {
+                <Table T="CourseResponseDto" Items="_courses" Columns="_courseColumns" EmptyText="暂无课程" />
+            }
+        </ChildContent>
+    </Card>
+}
+else if (_activeTab == "schedule")
+{
+    @* 班级排课表单 *@
+    <Card Title="班级排课">
+        <div class="form-grid form-grid--single">
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">课程</label>
+                <select class="form-field__input" @bind="_selectedCourseId">
+                    <option value="0">请选择课程</option>
+                    @foreach (var c in _coursesForScheduling)
+                    {
+                        <option value="@c.Id">@c.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">班级</label>
+                <select class="form-field__input" @bind="_selectedClassId">
+                    <option value="0">请选择班级</option>
+                    @foreach (var cls in _classes)
+                    {
+                        <option value="@cls.Id">@cls.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">任课教师工号</label>
+                <input class="form-field__input" @bind="_selectedTeacherId" placeholder="请输入任课教师工号" maxlength="32" />
+            </div>
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">星期</label>
+                <select class="form-field__input" @bind="_dayOfWeek">
+                    <option value="1">周一</option>
+                    <option value="2">周二</option>
+                    <option value="3">周三</option>
+                    <option value="4">周四</option>
+                    <option value="5">周五</option>
+                    <option value="6">周六</option>
+                    <option value="7">周日</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">起始节次</label>
+                <input type="number" class="form-field__input" @bind="_startSection" min="1" max="12" />
+            </div>
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">结束节次</label>
+                <input type="number" class="form-field__input" @bind="_endSection" min="1" max="12" />
+            </div>
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">起始周次</label>
+                <input type="number" class="form-field__input" @bind="_startWeek" min="1" max="20" />
+            </div>
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">结束周次</label>
+                <input type="number" class="form-field__input" @bind="_endWeek" min="1" max="20" />
+            </div>
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">教室</label>
+                <input class="form-field__input" @bind="_classroom" placeholder="如：教学楼A301" maxlength="64" />
+            </div>
+            <div class="flex gap-2">
+                <Button Variant="ButtonVariant.Primary" Icon="check" OnClick="SubmitScheduleAsync" Loading="_operating">创建排课</Button>
+            </div>
+        </div>
+    </Card>
+}
+
+@* 发布课程模板 Modal *@
+<Modal IsOpen="_createCourseModalVisible" Title="发布课程模板" OnClose="CloseCreateCourseModal">
+    <ChildContent>
+        <div class="form-grid form-grid--single">
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">课程名称</label>
+                <input class="form-field__input" @bind="_courseName" placeholder="如：高等数学" maxlength="64" />
+            </div>
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">学分</label>
+                <input type="number" class="form-field__input" @bind="_courseCredit" min="0.5" max="10" step="0.5" />
+            </div>
+            <div class="form-field">
+                <label class="form-field__label">所属专业</label>
+                <select class="form-field__input" @bind="_courseMajorId">
+                    <option value="0">请选择</option>
+                    @foreach (var m in _majors)
+                    {
+                        <option value="@m.Id">@m.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-field__label">课程描述</label>
+                <textarea class="form-field__input" @bind="_courseRemark" rows="3" maxlength="256" placeholder="课程描述（可选）"></textarea>
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" OnClick="CloseCreateCourseModal">取消</Button>
+        <Button Variant="ButtonVariant.Primary" Icon="check" OnClick="SubmitCourseAsync" Loading="_operating">发布</Button>
+    </Footer>
+</Modal>
+
+@code {
+    /// <summary>当前激活的 Tab：course / schedule</summary>
+    private string _activeTab = "course";
+
+    /// <summary>是否加载中</summary>
+    private bool _loading;
+
+    /// <summary>是否执行操作中</summary>
+    private bool _operating;
+
+    /// <summary>错误信息</summary>
+    private string? _errorMessage;
+
+    /// <summary>成功提示信息</summary>
+    private string? _successMessage;
+
+    /// <summary>当前教师工号</summary>
+    private string _userId = string.Empty;
+
+    /// <summary>当前教师所管辖院系 Id</summary>
+    private long? _headDepartmentId;
+
+    /// <summary>课程列表（课程模板 Tab 展示）</summary>
+    private List<CourseResponseDto> _courses = new();
+
+    /// <summary>课程列表（班级排课 Tab 下拉选择用）</summary>
+    private List<CourseResponseDto> _coursesForScheduling = new();
+
+    /// <summary>专业列表（发布课程模板 Modal 中下拉选择用）</summary>
+    private List<MajorResponseDto> _majors = new();
+
+    /// <summary>班级列表（班级排课 Tab 中下拉选择用）</summary>
+    private List<ClassResponseDto> _classes = new();
+
+    /// <summary>课程模板表格列定义</summary>
+    private List<Table<CourseResponseDto>.Column<CourseResponseDto>> _courseColumns = new();
+
+    // 发布课程模板 Modal 状态
+    private bool _createCourseModalVisible;
+    private string _courseName = string.Empty;
+    private decimal _courseCredit = 2.0m;
+    private long _courseMajorId;
+    private string _courseRemark = string.Empty;
+
+    // 班级排课表单状态
+    private long _selectedCourseId;
+    private long _selectedClassId;
+    private string _selectedTeacherId = string.Empty;
+    private int _dayOfWeek = 1;
+    private int _startSection = 1;
+    private int _endSection = 2;
+    private int _startWeek = 1;
+    private int _endWeek = 16;
+    private string _classroom = string.Empty;
+
+    /// <summary>页面初始化：解析当前教师身份，加载课程与组织数据</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        var userInfo = TokenService.GetUserInfo();
+        if (userInfo is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+        _userId = userInfo.UserId;
+
+        BuildCourseColumns();
+        await LoadDataAsync();
+    }
+
+    /// <summary>获取课程模板 Tab CSS 类</summary>
+    private string CourseTabClass => _activeTab == "course" ? "tab-bar__item tab-bar__item--active" : "tab-bar__item";
+
+    /// <summary>获取班级排课 Tab CSS 类</summary>
+    private string ScheduleTabClass => _activeTab == "schedule" ? "tab-bar__item tab-bar__item--active" : "tab-bar__item";
+
+    /// <summary>构建课程模板表格列</summary>
+    private void BuildCourseColumns()
+    {
+        _courseColumns = new List<Table<CourseResponseDto>.Column<CourseResponseDto>>
+        {
+            new() { Title = "课程名称", Template = item => @<span class="font-medium">@item.Name</span> },
+            new() { Title = "任课教师", Template = item => @<span>@item.TeacherName</span> },
+            new() { Title = "学分", Template = item => @<span>@item.Credit</span> },
+            new() { Title = "描述", Template = item => @<span class="text-secondary text-sm">@(item.Remark ?? "—")</span> }
+        };
+    }
+
+    /// <summary>切换 Tab</summary>
+    private async Task SwitchTab(string tab)
+    {
+        _activeTab = tab;
+        if (tab == "schedule" && _classes.Count == 0)
+        {
+            await LoadOrganizationDataAsync();
+        }
+    }
+
+    /// <summary>
+    /// 并行加载课程列表、教师身份、组织数据；辅助流程失败静默降级
+    /// </summary>
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            var coursesTask = ApiClient.GetAsync<PagedResult<CourseResponseDto>>("courses?pageIndex=1&pageSize=100");
+            var teacherTask = SafeGetAsync<TeacherResponseDto>("teachers/me");
+            var orgTask = SafeGetAsync<List<OrganizationTreeNodeDto>>("organization/tree");
+
+            await Task.WhenAll(coursesTask, teacherTask, orgTask);
+
+            var paged = coursesTask.Result;
+            _courses = paged?.Items ?? new List<CourseResponseDto>();
+            _coursesForScheduling = _courses;
+
+            var teacher = teacherTask.Result;
+            _headDepartmentId = teacher?.HeadDepartmentId ?? teacher?.DepartmentId;
+
+            ApplyOrganization(orgTask.Result);
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载数据失败，请稍后重试";
+            Logger.LogError(ex, "加载排课工作台数据异常");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>按当前教师所管辖院系过滤组织树，提取专业与班级列表</summary>
+    /// <param name="tree">组织树</param>
+    private void ApplyOrganization(List<OrganizationTreeNodeDto>? tree)
+    {
+        if (tree is null || tree.Count == 0) return;
+
+        // 优先取系主任所管辖院系；无则取教师所属院系；都没有则展示全部
+        var targetDeptId = _headDepartmentId ?? 0;
+        var departments = targetDeptId > 0
+            ? tree.Where(d => d.Department.Id == targetDeptId).ToList()
+            : tree;
+
+        _majors = departments.SelectMany(d => d.Majors.Select(m => m.Major)).ToList();
+        _classes = departments.SelectMany(d => d.Majors).SelectMany(m => m.Classes).ToList();
+    }
+
+    /// <summary>班级排课 Tab 切换时按需加载组织数据</summary>
+    private async Task LoadOrganizationDataAsync()
+    {
+        try
+        {
+            var tree = await ApiClient.GetAsync<List<OrganizationTreeNodeDto>>("organization/tree");
+            ApplyOrganization(tree);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "加载组织数据失败");
+        }
+    }
+
+    /// <summary>打开发布课程模板 Modal</summary>
+    private void OpenCreateCourseModal()
+    {
+        _courseName = string.Empty;
+        _courseCredit = 2.0m;
+        _courseMajorId = 0;
+        _courseRemark = string.Empty;
+        _createCourseModalVisible = true;
+    }
+
+    /// <summary>关闭发布课程模板 Modal</summary>
+    private void CloseCreateCourseModal()
+    {
+        _createCourseModalVisible = false;
+    }
+
+    /// <summary>提交发布课程模板：将专业信息合并到描述中以便后端持久化</summary>
+    private async Task SubmitCourseAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_courseName))
+        {
+            _errorMessage = "请输入课程名称";
+            return;
+        }
+
+        _operating = true;
+        _errorMessage = null;
+        try
+        {
+            // CourseCreateDto 当前未提供 MajorId/Status 字段，将专业名称拼接到 Remark 中以便后端识别
+            var majorName = _majors.FirstOrDefault(m => m.Id == _courseMajorId)?.Name;
+            var remark = string.IsNullOrEmpty(majorName) ? _courseRemark : $"[专业:{majorName}] {_courseRemark}".Trim();
+            var dto = new CourseCreateDto
+            {
+                Name = _courseName.Trim(),
+                // 课程模板默认任课教师为创建者本人，接课审批通过后由后端更新为接课教师
+                TeacherId = _userId,
+                Credit = _courseCredit,
+                Remark = string.IsNullOrWhiteSpace(remark) ? null : remark
+            };
+            await ApiClient.PostAsync<CourseResponseDto>("courses", dto);
+            _successMessage = "课程模板发布成功";
+            _createCourseModalVisible = false;
+            await LoadDataAsync();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "发布课程模板失败，请稍后重试";
+            Logger.LogError(ex, "发布课程模板异常");
+        }
+        finally
+        {
+            _operating = false;
+        }
+    }
+
+    /// <summary>提交班级排课：调用创建端点，由后端校验冲突并返回详情</summary>
+    private async Task SubmitScheduleAsync()
+    {
+        if (_selectedCourseId <= 0)
+        {
+            _errorMessage = "请选择课程";
+            return;
+        }
+        if (_selectedClassId <= 0)
+        {
+            _errorMessage = "请选择班级";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_selectedTeacherId))
+        {
+            _errorMessage = "请输入任课教师工号";
+            return;
+        }
+        if (_startSection > _endSection)
+        {
+            _errorMessage = "起始节次不能大于结束节次";
+            return;
+        }
+        if (_startWeek > _endWeek)
+        {
+            _errorMessage = "起始周次不能大于结束周次";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_classroom))
+        {
+            _errorMessage = "请输入教室";
+            return;
+        }
+
+        _operating = true;
+        _errorMessage = null;
+        try
+        {
+            var dto = new ScheduleCreateDto
+            {
+                CourseId = _selectedCourseId,
+                ClassId = _selectedClassId,
+                TeacherId = _selectedTeacherId.Trim(),
+                DayOfWeek = _dayOfWeek,
+                StartSection = _startSection,
+                EndSection = _endSection,
+                StartWeek = _startWeek,
+                EndWeek = _endWeek,
+                Classroom = _classroom.Trim()
+            };
+            await ApiClient.PostAsync<ScheduleResponseDto>("schedules", dto);
+            _successMessage = "排课创建成功";
+            // 重置表单
+            _selectedCourseId = 0;
+            _selectedClassId = 0;
+            _selectedTeacherId = string.Empty;
+            _classroom = string.Empty;
+        }
+        catch (ApiException ex)
+        {
+            // 后端校验失败（如冲突）会返回具体冲突详情
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "创建排课失败，请稍后重试";
+            Logger.LogError(ex, "创建排课异常");
+        }
+        finally
+        {
+            _operating = false;
+        }
+    }
+
+    /// <summary>安全 GET 请求包装：捕获异常并返回默认值</summary>
+    /// <typeparam name="T">返回数据类型</typeparam>
+    /// <param name="url">相对地址</param>
+    /// <returns>业务数据；失败返回 default</returns>
+    private async Task<T?> SafeGetAsync<T>(string url)
+    {
+        try
+        {
+            return await ApiClient.GetAsync<T>(url);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "加载 {Url} 失败，已忽略", url);
+            return default;
+        }
+    }
+}

@@ -1,4 +1,4 @@
-﻿@page "/teacher/rollcall/{SessionId:long}"
+@page "/teacher/rollcall/{SessionId:long}"
 @layout TeacherLayout
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -124,24 +124,46 @@ else if (_session is not null)
         {
             new() { Title = "学号", Template = item => @<span class="font-medium">@item.StudentId</span> },
             new() { Title = "姓名", Template = item => @<span>@item.StudentName</span> },
-            new() { Title = "状态", Template = item => RenderStatusBadge(item.Status) },
+            new() { Title = "状态", Template = item => RenderStatusBadge(item) },
             new() { Title = "签到时间", Template = item => @<span class="text-secondary">@(item.CheckInTime.HasValue ? item.CheckInTime.Value.ToLocalTime().ToString("HH:mm:ss") : "—")</span> },
             new() { Title = "修改状态", Template = item => RenderStatusSelect(item) }
         };
     }
 
-    /// <summary>渲染考勤状态徽章</summary>
-    private RenderFragment RenderStatusBadge(AttendanceStatus status)
+    /// <summary>
+    /// 渲染考勤状态徽章，请假状态下额外展示请假原因与审批备注（小字）
+    /// </summary>
+    private RenderFragment RenderStatusBadge(AttendanceRecordResponseDto item)
     {
-        var (text, variant) = status switch
+        var (text, variant) = item.Status switch
         {
             AttendanceStatus.Present => ("正常", BadgeVariant.Success),
             AttendanceStatus.Late => ("迟到", BadgeVariant.Warning),
             AttendanceStatus.Absent => ("缺勤", BadgeVariant.Error),
             AttendanceStatus.Leave => ("请假", BadgeVariant.Primary),
-            _ => ("未知", BadgeVariant.Neutral)
+            _ => ("未签到", BadgeVariant.Neutral)
         };
-        return @<Badge Variant="variant">@text</Badge>;
+
+        // 请假状态下展示原因与审批备注，帮助教师核对请假详情
+        var hasLeaveDetail = item.Status == AttendanceStatus.Leave
+            && (!string.IsNullOrEmpty(item.LeaveReason) || !string.IsNullOrEmpty(item.LeaveRemark));
+
+        return @<div class="rollcall-status-cell">
+            <Badge Variant="variant">@text</Badge>
+            @if (hasLeaveDetail)
+            {
+                <div class="rollcall-status-cell__detail">
+                    @if (!string.IsNullOrEmpty(item.LeaveReason))
+                    {
+                        <span class="rollcall-status-cell__reason" title="@item.LeaveReason">原因：@item.LeaveReason</span>
+                    }
+                    @if (!string.IsNullOrEmpty(item.LeaveRemark))
+                    {
+                        <span class="rollcall-status-cell__remark" title="@item.LeaveRemark">备注：@item.LeaveRemark</span>
+                    }
+                </div>
+            }
+        </div>;
     }
 
     /// <summary>渲染状态下拉选择</summary>

@@ -1,0 +1,244 @@
+@page "/teacher/swaps/new"
+@layout TeacherLayout
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses
+@inject IApiClient ApiClient
+@inject TokenService TokenService
+@inject NavigationManager NavigationManager
+@inject ILogger<Components.Pages.Teacher.SwapCreate> Logger
+
+<PageTitle>发起调换课 - 考勤管理系统</PageTitle>
+
+<PageHeader Title="发起调换课" Icon="shuffle" Subtitle="委托其他教师代课，需代课人确认后生效">
+    <Actions>
+        <Button Variant="ButtonVariant.Secondary" Icon="arrow-left" OnClick="GoBack">返回</Button>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert--error">
+        <span class="alert__icon"><Icon Name="alert-circle" Size="20" /></span>
+        <span class="alert__body">@_errorMessage</span>
+    </div>
+}
+
+@if (_loading)
+{
+    <div class="loading-state">
+        <span class="loading-state__spinner"></span>
+        <span>加载中...</span>
+    </div>
+}
+else if (_schedule is null)
+{
+    <Card>
+        <EmptyState Title="排课不存在" Description="未找到对应的排课记录，无法发起调换课" Icon="alert-circle" />
+    </Card>
+}
+else
+{
+    @* 原排课信息（只读展示） *@
+    <Card Title="原排课信息">
+        <div class="info-list">
+            <div class="info-list__item">
+                <span class="info-list__label">课程</span>
+                <span class="info-list__value">@_schedule.CourseName</span>
+            </div>
+            <div class="info-list__item">
+                <span class="info-list__label">班级</span>
+                <span class="info-list__value">@_schedule.ClassName</span>
+            </div>
+            <div class="info-list__item">
+                <span class="info-list__label">星期</span>
+                <span class="info-list__value">@GetDayName(_schedule.DayOfWeek)</span>
+            </div>
+            <div class="info-list__item">
+                <span class="info-list__label">节次</span>
+                <span class="info-list__value">第 @_schedule.StartSection - @_schedule.EndSection 节</span>
+            </div>
+            <div class="info-list__item">
+                <span class="info-list__label">教室</span>
+                <span class="info-list__value">@_schedule.Classroom</span>
+            </div>
+            <div class="info-list__item">
+                <span class="info-list__label">排课周次</span>
+                <span class="info-list__value">第 @_schedule.StartWeek - @_schedule.EndWeek 周</span>
+            </div>
+        </div>
+    </Card>
+
+    @* 调换课表单 *@
+    <Card Title="调换课信息" Class="mt-4">
+        <div class="form-grid form-grid--single">
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">代课教师工号</label>
+                <input class="form-field__input" @bind="_substituteTeacherId" placeholder="请输入代课教师工号" maxlength="32" />
+                <span class="form-field__hint">提示：请输入与本人不在同一时段有冲突的教师工号</span>
+            </div>
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">代课起始周次</label>
+                <input type="number" class="form-field__input" @bind="_startWeek" min="@_schedule.StartWeek" max="@_schedule.EndWeek" />
+            </div>
+            <div class="form-field">
+                <label class="form-field__label form-field__label--required">代课结束周次</label>
+                <input type="number" class="form-field__input" @bind="_endWeek" min="@_schedule.StartWeek" max="@_schedule.EndWeek" />
+            </div>
+            <div class="form-field">
+                <label class="form-field__label">调换原因</label>
+                <textarea class="form-field__input" @bind="_reason" rows="4" maxlength="256" placeholder="请简要说明调换课原因（可选）"></textarea>
+            </div>
+            <div class="flex gap-2">
+                <Button Variant="ButtonVariant.Primary" Icon="check" OnClick="SubmitAsync" Loading="_operating">提交申请</Button>
+                <Button Variant="ButtonVariant.Secondary" OnClick="GoBack">取消</Button>
+            </div>
+        </div>
+    </Card>
+}
+
+@code {
+    /// <summary>原排课信息</summary>
+    private ScheduleResponseDto? _schedule;
+
+    /// <summary>是否加载中</summary>
+    private bool _loading;
+
+    /// <summary>是否提交中</summary>
+    private bool _operating;
+
+    /// <summary>错误信息</summary>
+    private string? _errorMessage;
+
+    /// <summary>排课 Id（来自查询参数）</summary>
+    private long _scheduleId;
+
+    /// <summary>代课教师工号</summary>
+    private string _substituteTeacherId = string.Empty;
+
+    /// <summary>代课起始周次</summary>
+    private int _startWeek = 1;
+
+    /// <summary>代课结束周次</summary>
+    private int _endWeek = 1;
+
+    /// <summary>调换原因</summary>
+    private string _reason = string.Empty;
+
+    /// <summary>星期名称查表（索引 1-7 对应周一至周日）</summary>
+    private static readonly string[] DayNames = { "", "周一", "周二", "周三", "周四", "周五", "周六", "周日" };
+
+    /// <summary>页面初始化：解析 scheduleId 查询参数并加载原排课信息</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        var userInfo = TokenService.GetUserInfo();
+        if (userInfo is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        _scheduleId = long.TryParse(query.Get("scheduleId"), out var id) ? id : 0;
+
+        if (_scheduleId <= 0)
+        {
+            _errorMessage = "缺少排课 Id 参数，请从课表或仪表盘进入";
+            return;
+        }
+
+        await LoadScheduleAsync();
+    }
+
+    /// <summary>获取星期名称</summary>
+    private static string GetDayName(int day) => day >= 1 && day <= 7 ? DayNames[day] : "未知";
+
+    /// <summary>加载原排课信息：默认代课周次回填为排课周次区间</summary>
+    private async Task LoadScheduleAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            _schedule = await ApiClient.GetAsync<ScheduleResponseDto>($"schedules/{_scheduleId}");
+            if (_schedule is not null)
+            {
+                _startWeek = _schedule.StartWeek;
+                _endWeek = _schedule.EndWeek;
+            }
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载排课信息失败，请稍后重试";
+            Logger.LogError(ex, "加载排课信息异常");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>提交调换课申请：成功后导航回列表页</summary>
+    private async Task SubmitAsync()
+    {
+        if (_schedule is null) return;
+
+        if (string.IsNullOrWhiteSpace(_substituteTeacherId))
+        {
+            _errorMessage = "请输入代课教师工号";
+            return;
+        }
+
+        if (_startWeek > _endWeek)
+        {
+            _errorMessage = "起始周次不能大于结束周次";
+            return;
+        }
+
+        if (_startWeek < _schedule.StartWeek || _endWeek > _schedule.EndWeek)
+        {
+            _errorMessage = $"调换周次必须在第 {_schedule.StartWeek} - {_schedule.EndWeek} 周范围内";
+            return;
+        }
+
+        _operating = true;
+        _errorMessage = null;
+        try
+        {
+            var dto = new CreateSwapRequestDto
+            {
+                ScheduleId = _scheduleId,
+                SubstituteTeacherId = _substituteTeacherId.Trim(),
+                StartWeek = _startWeek,
+                EndWeek = _endWeek,
+                Reason = _reason
+            };
+            await ApiClient.PostAsync<SwapRequestResponseDto>("courses/swaps", dto);
+            NavigationManager.NavigateTo("/teacher/swaps");
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "提交调换课申请失败，请稍后重试";
+            Logger.LogError(ex, "提交调换课申请异常");
+        }
+        finally
+        {
+            _operating = false;
+        }
+    }
+
+    /// <summary>返回调换课列表页</summary>
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/teacher/swaps");
+    }
+}

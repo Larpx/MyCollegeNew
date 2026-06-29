@@ -1,0 +1,159 @@
+@page "/teacher/schedule"
+@layout TeacherLayout
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses
+@inject IApiClient ApiClient
+@inject TokenService TokenService
+@inject NavigationManager NavigationManager
+@inject ILogger<Components.Pages.Teacher.Schedule> Logger
+
+<PageTitle>我的课表 - 考勤管理系统</PageTitle>
+
+<PageHeader Title="我的课表" Icon="calendar" Subtitle="查看本人本学期排课与代课覆盖">
+    <Actions>
+        <Button Variant="ButtonVariant.Secondary" Icon="refresh-cw" OnClick="LoadDataAsync" Loading="_loading">刷新</Button>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert--error">
+        <span class="alert__icon"><Icon Name="alert-circle" Size="20" /></span>
+        <span class="alert__body">@_errorMessage</span>
+    </div>
+}
+
+@if (_loading && _weeklySchedule is null)
+{
+    <div class="loading-state">
+        <span class="loading-state__spinner"></span>
+        <span>加载中...</span>
+    </div>
+}
+else if (_weeklySchedule is not null)
+{
+    @* 周次切换：左右按钮 + 当前周显示 *@
+    <div class="student-week-nav">
+        <Button Variant="ButtonVariant.Secondary" Icon="chevron-left" OnClick="PreviousWeek" Disabled="_week <= 1">上一周</Button>
+        <span class="student-week-nav__label">第 @_week 周</span>
+        <Button Variant="ButtonVariant.Secondary" OnClick="NextWeek" Disabled="_week >= MaxWeek">
+            下一周
+            <Icon Name="chevron-right" Size="16" />
+        </Button>
+    </div>
+
+    <Card Title="@($"第{_week}周课表")">
+        @if (_weeklySchedule.Days is null || _weeklySchedule.Days.Count == 0)
+        {
+            <EmptyState Title="本周无课" Description="@($"第 {_week} 周没有排课记录")" Icon="calendar-days" />
+        }
+        else
+        {
+            <div class="schedule-grid">
+                @for (int day = 1; day <= 7; day++)
+                {
+                    var dayCopy = day;
+                    var daySchedules = _weeklySchedule.Days?.GetValueOrDefault(dayCopy) ?? new List<ScheduleResponseDto>();
+                    var todayDow = (int)DateTime.UtcNow.DayOfWeek;
+                    var isToday = (todayDow == 0 ? 7 : todayDow) == dayCopy;
+                    var dayHeaderClass = isToday ? "schedule-day__header schedule-day__header--today" : "schedule-day__header";
+                    <div class="schedule-day">
+                        <div class="@dayHeaderClass">@GetDayName(dayCopy)</div>
+                        @foreach (var s in daySchedules)
+                        {
+                            <div class="schedule-item">
+                                <div class="schedule-item__title">@s.CourseName</div>
+                                <div class="schedule-item__meta">
+                                    第@(s.StartSection)-@(s.EndSection)节<br />
+                                    @s.ClassName<br />
+                                    @s.Classroom
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </Card>
+}
+
+@code {
+    /// <summary>当前周课表数据</summary>
+    private WeeklyScheduleDto? _weeklySchedule;
+
+    /// <summary>当前选中周次</summary>
+    private int _week = 1;
+
+    /// <summary>是否加载中</summary>
+    private bool _loading;
+
+    /// <summary>错误信息</summary>
+    private string? _errorMessage;
+
+    /// <summary>当前教师工号</summary>
+    private string _userId = string.Empty;
+
+    /// <summary>最大周次（与课表 StartWeek/EndWeek 上限保持一致）</summary>
+    private const int MaxWeek = 20;
+
+    /// <summary>星期名称查表（索引 1-7 对应周一至周日）</summary>
+    private static readonly string[] DayNames = { "", "周一", "周二", "周三", "周四", "周五", "周六", "周日" };
+
+    /// <summary>页面初始化：从 Token 解析工号，默认加载第 1 周课表</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        var userInfo = TokenService.GetUserInfo();
+        if (userInfo is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+        _userId = userInfo.UserId;
+        await LoadDataAsync();
+    }
+
+    /// <summary>获取星期名称</summary>
+    private static string GetDayName(int day) => day >= 1 && day <= 7 ? DayNames[day] : "未知";
+
+    /// <summary>加载当前周次的教师周课表</summary>
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            _weeklySchedule = await ApiClient.GetAsync<WeeklyScheduleDto>($"schedules/weekly/teacher/{_userId}?week={_week}");
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+            Logger.LogWarning(ex, "加载教师周课表失败（第 {Week} 周）", _week);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载课表失败，请稍后重试";
+            Logger.LogError(ex, "加载教师周课表异常");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>切换到上一周</summary>
+    private async Task PreviousWeek()
+    {
+        if (_week <= 1) return;
+        _week--;
+        await LoadDataAsync();
+    }
+
+    /// <summary>切换到下一周</summary>
+    private async Task NextWeek()
+    {
+        if (_week >= MaxWeek) return;
+        _week++;
+        await LoadDataAsync();
+    }
+}

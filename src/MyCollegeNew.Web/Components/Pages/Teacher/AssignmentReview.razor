@@ -1,0 +1,218 @@
+@page "/teacher/assignments/review"
+@layout TeacherLayout
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses
+@inject IApiClient ApiClient
+@inject NavigationManager NavigationManager
+@inject ILogger<Components.Pages.Teacher.AssignmentReview> Logger
+
+<PageTitle>接课审批 - 考勤管理系统</PageTitle>
+
+<PageHeader Title="接课审批" Icon="inbox" Subtitle="系主任专属：审批教师对开放接课课程模板的申请">
+    <Actions>
+        <Button Variant="ButtonVariant.Secondary" Icon="refresh-cw" OnClick="LoadDataAsync" Loading="_loading">刷新</Button>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert--error">
+        <span class="alert__icon"><Icon Name="alert-circle" Size="20" /></span>
+        <span class="alert__body">@_errorMessage</span>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <div class="alert alert--success">
+        <span class="alert__icon"><Icon Name="check-circle" Size="20" /></span>
+        <span class="alert__body">@_successMessage</span>
+    </div>
+}
+
+@if (_loading && _assignments is null)
+{
+    <div class="loading-state">
+        <span class="loading-state__spinner"></span>
+        <span>加载中...</span>
+    </div>
+}
+else
+{
+    <Card>
+        <Table T="AssignmentResponseDto" Items="_assignments" Columns="_columns" EmptyText="暂无待审批接课申请" />
+    </Card>
+}
+
+@* 审批 Modal *@
+<Modal IsOpen="_reviewModalVisible" Title="审批接课申请" OnClose="CloseReviewModal">
+    <ChildContent>
+        @if (_reviewingAssignment is not null)
+        {
+            <div class="info-list">
+                <div class="info-list__item">
+                    <span class="info-list__label">课程</span>
+                    <span class="info-list__value">@_reviewingAssignment.CourseName</span>
+                </div>
+                <div class="info-list__item">
+                    <span class="info-list__label">申请教师</span>
+                    <span class="info-list__value">@_reviewingAssignment.TeacherName（@_reviewingAssignment.TeacherId）</span>
+                </div>
+                <div class="info-list__item">
+                    <span class="info-list__label">合班班级</span>
+                    <span class="info-list__value">@(string.Join("、", _reviewingAssignment.ClassNames))</span>
+                </div>
+                <div class="info-list__item">
+                    <span class="info-list__label">学期</span>
+                    <span class="info-list__value">@_reviewingAssignment.Semester</span>
+                </div>
+                <div class="info-list__item">
+                    <span class="info-list__label">申请理由</span>
+                    <span class="info-list__value">@(_reviewingAssignment.ApplyReason ?? "—")</span>
+                </div>
+                <div class="info-list__item">
+                    <span class="info-list__label">申请时间</span>
+                    <span class="info-list__value">@_reviewingAssignment.CreateTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                </div>
+            </div>
+            <div class="form-field mt-4">
+                <label class="form-field__label">审批备注</label>
+                <input class="form-field__input" @bind="_reviewRemark" placeholder="审批备注（可选）" maxlength="256" />
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" OnClick="CloseReviewModal">取消</Button>
+        <Button Variant="ButtonVariant.Danger" Icon="x" OnClick="() => ReviewAsync(false)" Loading="_operating">驳回</Button>
+        <Button Variant="ButtonVariant.Primary" Icon="check" OnClick="() => ReviewAsync(true)" Loading="_operating">通过</Button>
+    </Footer>
+</Modal>
+
+@code {
+    /// <summary>待审批接课申请列表</summary>
+    private List<AssignmentResponseDto> _assignments = new();
+
+    /// <summary>是否加载中</summary>
+    private bool _loading;
+
+    /// <summary>是否执行操作中</summary>
+    private bool _operating;
+
+    /// <summary>错误信息</summary>
+    private string? _errorMessage;
+
+    /// <summary>成功提示信息</summary>
+    private string? _successMessage;
+
+    /// <summary>审批 Modal 是否可见</summary>
+    private bool _reviewModalVisible;
+
+    /// <summary>当前审批中的接课申请</summary>
+    private AssignmentResponseDto? _reviewingAssignment;
+
+    /// <summary>审批备注</summary>
+    private string? _reviewRemark;
+
+    /// <summary>表格列定义</summary>
+    private List<Table<AssignmentResponseDto>.Column<AssignmentResponseDto>> _columns = new();
+
+    /// <summary>页面初始化：构建表格列并加载数据</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        BuildColumns();
+        await LoadDataAsync();
+    }
+
+    /// <summary>构建表格列</summary>
+    private void BuildColumns()
+    {
+        _columns = new List<Table<AssignmentResponseDto>.Column<AssignmentResponseDto>>
+        {
+            new() { Title = "课程", Template = item => @<span class="font-medium">@item.CourseName</span> },
+            new() { Title = "申请教师", Template = item => @<span>@item.TeacherName</span> },
+            new() { Title = "班级", Template = item => @<span class="text-sm">@string.Join("、", item.ClassNames)</span> },
+            new() { Title = "学期", Template = item => @<span>@item.Semester</span> },
+            new() { Title = "申请理由", Template = item => @<span class="text-secondary text-sm">@(item.ApplyReason ?? "—")</span> },
+            new() { Title = "申请时间", Template = item => @<span class="text-secondary">@item.CreateTime.ToLocalTime().ToString("MM-dd HH:mm")</span> },
+            new() { Title = "操作", Template = item => RenderActions(item) }
+        };
+    }
+
+    /// <summary>渲染行操作按钮：仅 Pending 状态显示审批按钮</summary>
+    private RenderFragment RenderActions(AssignmentResponseDto item) => @<span class="table-actions">
+        <button type="button" class="table-action-btn" @onclick="() => OpenReviewModal(item)" title="审批" aria-label="审批">
+            <Icon Name="check-square" Size="16" />
+        </button>
+    </span>;
+
+    /// <summary>加载待审批接课申请列表</summary>
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            _assignments = await ApiClient.GetAsync<List<AssignmentResponseDto>>("courses/assignments/pending") ?? new();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载接课申请失败，请稍后重试";
+            Logger.LogError(ex, "加载待审批接课申请异常");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>打开审批 Modal</summary>
+    private void OpenReviewModal(AssignmentResponseDto assignment)
+    {
+        _reviewingAssignment = assignment;
+        _reviewRemark = string.Empty;
+        _reviewModalVisible = true;
+    }
+
+    /// <summary>关闭审批 Modal</summary>
+    private void CloseReviewModal()
+    {
+        _reviewModalVisible = false;
+        _reviewingAssignment = null;
+        _reviewRemark = null;
+    }
+
+    /// <summary>审批接课申请：通过或驳回</summary>
+    /// <param name="approved">true 通过，false 驳回</param>
+    private async Task ReviewAsync(bool approved)
+    {
+        if (_reviewingAssignment is null) return;
+        _operating = true;
+        _errorMessage = null;
+        try
+        {
+            var dto = new ReviewAssignmentRequestDto { Approved = approved, ReviewRemark = _reviewRemark };
+            await ApiClient.PostAsync<object>($"courses/assignments/{_reviewingAssignment.Id}/review", dto);
+            _successMessage = approved ? "审批通过" : "已驳回";
+            CloseReviewModal();
+            await LoadDataAsync();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "审批失败，请稍后重试";
+            Logger.LogError(ex, "审批接课申请异常");
+        }
+        finally
+        {
+            _operating = false;
+        }
+    }
+}

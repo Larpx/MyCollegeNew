@@ -1,5 +1,6 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using MediatR;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers
@@ -15,6 +16,17 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Teachers
         /// <param name="group">路由组</param>
         public static RouteGroupBuilder MapTeacherEndpoints(this RouteGroupBuilder group)
         {
+            // 教师本人查询：路径 GET /api/v1/teachers/me，供前端 NavMenu/仪表盘获取 IsDepartmentHead 标记位
+            group.MapGet("/teachers/me", async (IMediator mediator, ICurrentUser currentUser) =>
+            {
+                var result = await mediator.Send(new GetCurrentTeacherQuery(currentUser.UserId));
+                return Results.Ok(result);
+            })
+            .WithName("GetCurrentTeacher")
+            .WithSummary("查询当前登录教师信息")
+            .RequireAuthorization("RequireTeacher")
+            .Produces<ApiResponse<TeacherResponseDto>>(StatusCodes.Status200OK);
+
             group.MapGet("/teachers", async ([AsParameters] GetTeachersQuery query, IMediator mediator) =>
             {
                 var result = await mediator.Send(query);

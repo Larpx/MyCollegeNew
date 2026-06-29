@@ -162,6 +162,10 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
         public string? MajorName { get; set; }
         public TeacherRole Role { get; set; }
         public string? Remark { get; set; }
+        /// <summary>是否为系主任（前端 NavMenu/仪表盘动态渲染依据）</summary>
+        public bool IsDepartmentHead { get; set; }
+        /// <summary>系主任所管辖院系 Id（非系主任为 null）</summary>
+        public long? HeadDepartmentId { get; set; }
     }
 
     /// <summary>

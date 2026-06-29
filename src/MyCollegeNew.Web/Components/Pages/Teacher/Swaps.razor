@@ -1,0 +1,304 @@
+@page "/teacher/swaps"
+@layout TeacherLayout
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses
+@inject IApiClient ApiClient
+@inject NavigationManager NavigationManager
+@inject ILogger<Components.Pages.Teacher.Swaps> Logger
+
+<PageTitle>调换课申请 - 考勤管理系统</PageTitle>
+
+<PageHeader Title="调换课申请" Icon="shuffle" Subtitle="管理我发起的与待我确认的调换课申请">
+    <Actions>
+        <Button Variant="ButtonVariant.Primary" Icon="plus" OnClick="GoToCreate">发起调换课</Button>
+        <Button Variant="ButtonVariant.Secondary" Icon="refresh-cw" OnClick="LoadDataAsync" Loading="_loading">刷新</Button>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert--error">
+        <span class="alert__icon"><Icon Name="alert-circle" Size="20" /></span>
+        <span class="alert__body">@_errorMessage</span>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <div class="alert alert--success">
+        <span class="alert__icon"><Icon Name="check-circle" Size="20" /></span>
+        <span class="alert__body">@_successMessage</span>
+    </div>
+}
+
+@* 视角切换：我发起的 / 待我确认 *@
+<div class="page-filters">
+    <div class="page-filters__field">
+        <label class="page-filters__label">视角</label>
+        <select class="page-filters__select" @bind="_role">
+            <option value="@InitiatorRole">我发起的</option>
+            <option value="@SubstituteRole">待我确认</option>
+        </select>
+    </div>
+    <div class="page-filters__actions">
+        <Button Variant="ButtonVariant.Secondary" Icon="search" OnClick="SearchAsync">查询</Button>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="loading-state">
+        <span class="loading-state__spinner"></span>
+        <span>加载中...</span>
+    </div>
+}
+else
+{
+    <Card>
+        <Table T="SwapRequestResponseDto" Items="_swaps" Columns="_columns" EmptyText="暂无调换课申请" />
+    </Card>
+}
+
+@* 代课人确认 Modal *@
+<Modal IsOpen="_confirmModalVisible" Title="确认调换课申请" OnClose="CloseConfirmModal">
+    <ChildContent>
+        @if (_reviewingSwap is not null)
+        {
+            <div class="info-list">
+                <div class="info-list__item">
+                    <span class="info-list__label">课程</span>
+                    <span class="info-list__value">@_reviewingSwap.CourseName</span>
+                </div>
+                <div class="info-list__item">
+                    <span class="info-list__label">原任课教师</span>
+                    <span class="info-list__value">@_reviewingSwap.OriginalTeacherName</span>
+                </div>
+                <div class="info-list__item">
+                    <span class="info-list__label">代课周次</span>
+                    <span class="info-list__value">第 @_reviewingSwap.StartWeek - @_reviewingSwap.EndWeek 周</span>
+                </div>
+                <div class="info-list__item">
+                    <span class="info-list__label">调换原因</span>
+                    <span class="info-list__value">@(_reviewingSwap.Reason ?? "—")</span>
+                </div>
+                <div class="info-list__item">
+                    <span class="info-list__label">申请时间</span>
+                    <span class="info-list__value">@_reviewingSwap.CreateTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                </div>
+            </div>
+            <div class="form-field mt-4">
+                <label class="form-field__label">确认备注</label>
+                <input class="form-field__input" @bind="_confirmRemark" placeholder="确认备注（可选）" maxlength="256" />
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" OnClick="CloseConfirmModal">取消</Button>
+        <Button Variant="ButtonVariant.Danger" Icon="x" OnClick="() => ConfirmAsync(false)" Loading="_operating">拒绝</Button>
+        <Button Variant="ButtonVariant.Primary" Icon="check" OnClick="() => ConfirmAsync(true)" Loading="_operating">接受</Button>
+    </Footer>
+</Modal>
+
+@code {
+    /// <summary>角色标识：我发起的</summary>
+    private const string InitiatorRole = "initiator";
+
+    /// <summary>角色标识：待我确认</summary>
+    private const string SubstituteRole = "substitute";
+
+    /// <summary>调换课申请列表</summary>
+    private List<SwapRequestResponseDto> _swaps = new();
+
+    /// <summary>当前视角（initiator 或 substitute）</summary>
+    private string _role = InitiatorRole;
+
+    /// <summary>是否加载中</summary>
+    private bool _loading;
+
+    /// <summary>是否执行操作中</summary>
+    private bool _operating;
+
+    /// <summary>错误信息</summary>
+    private string? _errorMessage;
+
+    /// <summary>成功提示信息</summary>
+    private string? _successMessage;
+
+    /// <summary>确认 Modal 是否可见</summary>
+    private bool _confirmModalVisible;
+
+    /// <summary>当前审批中的调换课申请</summary>
+    private SwapRequestResponseDto? _reviewingSwap;
+
+    /// <summary>代课人确认备注</summary>
+    private string? _confirmRemark;
+
+    /// <summary>表格列定义</summary>
+    private List<Table<SwapRequestResponseDto>.Column<SwapRequestResponseDto>> _columns = new();
+
+    /// <summary>页面初始化：构建表格列并加载数据</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        BuildColumns();
+        await LoadDataAsync();
+    }
+
+    /// <summary>构建表格列</summary>
+    private void BuildColumns()
+    {
+        _columns = new List<Table<SwapRequestResponseDto>.Column<SwapRequestResponseDto>>
+        {
+            new() { Title = "课程", Template = item => @<span class="font-medium">@item.CourseName</span> },
+            new() { Title = "原任课教师", Template = item => @<span>@item.OriginalTeacherName</span> },
+            new() { Title = "代课教师", Template = item => @<span>@item.SubstituteTeacherName</span> },
+            new() { Title = "代课周次", Template = item => @<span>第 @item.StartWeek - @item.EndWeek 周</span> },
+            new() { Title = "状态", Template = item => RenderStatusBadge(item.Status) },
+            new() { Title = "申请时间", Template = item => @<span class="text-secondary">@item.CreateTime.ToLocalTime().ToString("MM-dd HH:mm")</span> },
+            new() { Title = "操作", Template = item => RenderActions(item) }
+        };
+    }
+
+    /// <summary>渲染调换课状态徽章</summary>
+    private RenderFragment RenderStatusBadge(string status)
+    {
+        var (text, variant) = status switch
+        {
+            "Pending" => ("待确认", BadgeVariant.Warning),
+            "Accepted" => ("已生效", BadgeVariant.Success),
+            "Rejected" => ("已拒绝", BadgeVariant.Error),
+            "Cancelled" => ("已撤销", BadgeVariant.Neutral),
+            _ => (status, BadgeVariant.Neutral)
+        };
+        return @<Badge Variant="variant">@text</Badge>;
+    }
+
+    /// <summary>渲染行操作按钮：我发起的 + Pending 显示撤销；待我确认 + Pending 显示确认</summary>
+    private RenderFragment RenderActions(SwapRequestResponseDto item) => @<span class="table-actions">
+        @if (_role == InitiatorRole && item.Status == "Pending")
+        {
+            <button type="button" class="table-action-btn table-action-btn--danger" @onclick="() => CancelAsync(item.Id)" title="撤销" aria-label="撤销">
+                <Icon Name="trash-2" Size="16" />
+            </button>
+        }
+        else if (_role == SubstituteRole && item.Status == "Pending")
+        {
+            <button type="button" class="table-action-btn" @onclick="() => OpenConfirmModal(item)" title="确认" aria-label="确认">
+                <Icon Name="check-square" Size="16" />
+            </button>
+        }
+        else
+        {
+            <span class="text-secondary text-sm">—</span>
+        }
+    </span>;
+
+    /// <summary>加载调换课申请列表</summary>
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            _swaps = await ApiClient.GetAsync<List<SwapRequestResponseDto>>($"courses/swaps?role={_role}") ?? new();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载调换课申请失败，请稍后重试";
+            Logger.LogError(ex, "加载调换课申请列表异常");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>查询按钮：重新加载数据</summary>
+    private async Task SearchAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    /// <summary>跳转到发起调换课页面</summary>
+    private void GoToCreate()
+    {
+        NavigationManager.NavigateTo("/teacher/swaps/new");
+    }
+
+    /// <summary>打开代课人确认 Modal</summary>
+    private void OpenConfirmModal(SwapRequestResponseDto swap)
+    {
+        _reviewingSwap = swap;
+        _confirmRemark = string.Empty;
+        _confirmModalVisible = true;
+    }
+
+    /// <summary>关闭代课人确认 Modal</summary>
+    private void CloseConfirmModal()
+    {
+        _confirmModalVisible = false;
+        _reviewingSwap = null;
+        _confirmRemark = null;
+    }
+
+    /// <summary>代课人确认或拒绝调换课申请</summary>
+    /// <param name="accepted">true 接受，false 拒绝</param>
+    private async Task ConfirmAsync(bool accepted)
+    {
+        if (_reviewingSwap is null) return;
+        _operating = true;
+        _errorMessage = null;
+        try
+        {
+            var dto = new ConfirmSwapRequestDto { Accepted = accepted, SubstituteRemark = _confirmRemark };
+            await ApiClient.PostAsync<object>($"courses/swaps/{_reviewingSwap.Id}/confirm", dto);
+            _successMessage = accepted ? "已接受调换课申请" : "已拒绝调换课申请";
+            CloseConfirmModal();
+            await LoadDataAsync();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "操作失败，请稍后重试";
+            Logger.LogError(ex, "确认调换课申请异常");
+        }
+        finally
+        {
+            _operating = false;
+        }
+    }
+
+    /// <summary>原任课教师撤销调换课申请</summary>
+    /// <param name="swapId">调换课申请 Id</param>
+    private async Task CancelAsync(long swapId)
+    {
+        _operating = true;
+        _errorMessage = null;
+        try
+        {
+            await ApiClient.DeleteAsync<object>($"courses/swaps/{swapId}");
+            _successMessage = "已撤销调换课申请";
+            await LoadDataAsync();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "撤销失败，请稍后重试";
+            Logger.LogError(ex, "撤销调换课申请异常");
+        }
+        finally
+        {
+            _operating = false;
+        }
+    }
+}
