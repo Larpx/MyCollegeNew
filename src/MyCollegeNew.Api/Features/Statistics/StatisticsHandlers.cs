@@ -1,5 +1,6 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Constants;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Statistics;
@@ -24,7 +25,10 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Statistics
         IRequestHandler<GetTeacherStatisticsQuery, ApiResponse<TeacherStatisticsDto>>,
         IRequestHandler<ExportSessionRecordsQuery, IResult>,
         IRequestHandler<ExportClassAttendanceQuery, IResult>,
-        IRequestHandler<ExportStudentListQuery, IResult>
+        IRequestHandler<ExportStudentListQuery, IResult>,
+        IRequestHandler<GetDepartmentTeacherAttendanceSummaryQuery, ApiResponse<List<DepartmentTeacherAttendanceSummaryDto>>>,
+        IRequestHandler<GetDepartmentSwapSummaryQuery, ApiResponse<DepartmentSwapSummaryDto>>,
+        IRequestHandler<GetDepartmentCourseCoverageQuery, ApiResponse<DepartmentCourseCoverageDto>>
     {
         private readonly IDbContext _dbContext;
         private readonly ICurrentUser _currentUser;
@@ -521,6 +525,313 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Statistics
             workbook.SaveAs(stream);
             var fileName = $"学生名单_{query.ClassId}_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
             return Results.File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+
+        /// <summary>系主任本系教师考勤汇总</summary>
+        public async Task<ApiResponse<List<DepartmentTeacherAttendanceSummaryDto>>> Handle(
+            GetDepartmentTeacherAttendanceSummaryQuery query, CancellationToken cancellationToken)
+        {
+            // 鉴权：当前用户必须为指定院系的系主任
+            var headCheck = await EnsureDepartmentHeadAsync(query.DepartmentId, cancellationToken);
+            if (headCheck.Failed) return ApiResponse<List<DepartmentTeacherAttendanceSummaryDto>>.Fail(headCheck.Message!, headCheck.Code);
+
+            var db = _dbContext.Client;
+
+            // 默认本周（周一 00:00 至 周日 23:59:59）
+            var (startDate, endDate) = NormalizeDateRange(query.StartDate, query.EndDate);
+            if (endDate < startDate)
+            {
+                return ApiResponse<List<DepartmentTeacherAttendanceSummaryDto>>.Fail(Msg.Statistics.EndDateBeforeStart, 400);
+            }
+
+            // 1) 查询该系所有未删除教师，避免 N+1
+            var teachers = await db.Queryable<Teacher>()
+                .Where(t => t.DepartmentId == query.DepartmentId && !t.IsDeleted)
+                .OrderBy(t => t.Id)
+                .ToListAsync(cancellationToken);
+            if (teachers.Count == 0)
+            {
+                return ApiResponse<List<DepartmentTeacherAttendanceSummaryDto>>.Success(new List<DepartmentTeacherAttendanceSummaryDto>());
+            }
+
+            var teacherIds = teachers.Select(t => t.Id).ToList();
+
+            // 2) 批量查询该系教师在日期范围内的考勤会话
+            var sessions = await db.Queryable<AttendanceSession>()
+                .Where(s => !s.IsDeleted
+                    && teacherIds.Contains(s.TeacherId)
+                    && s.StartTime >= startDate && s.StartTime <= endDate)
+                .ToListAsync(cancellationToken);
+            var sessionIds = sessions.Select(s => s.Id).ToList();
+            var sessionsByTeacher = sessions.GroupBy(s => s.TeacherId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            // 3) 批量查询这些会话的考勤记录并按会话聚合
+            var records = sessionIds.Count == 0
+                ? new List<AttendanceRecord>()
+                : await db.Queryable<AttendanceRecord>()
+                    .Where(r => !r.IsDeleted && sessionIds.Contains(r.SessionId))
+                    .ToListAsync(cancellationToken);
+            var recordsBySession = records.GroupBy(r => r.SessionId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            // 4) 内存聚合：教师维度汇总
+            var result = new List<DepartmentTeacherAttendanceSummaryDto>();
+            foreach (var teacher in teachers)
+            {
+                var teacherSessions = sessionsByTeacher.GetValueOrDefault(teacher.Id) ?? new List<AttendanceSession>();
+                var sessionRecords = teacherSessions
+                    .SelectMany(s => recordsBySession.GetValueOrDefault(s.Id) ?? new List<AttendanceRecord>())
+                    .ToList();
+
+                var expected = sessionRecords.Count;
+                var present = sessionRecords.Count(r => r.Status == AttendanceStatus.Present || r.Status == AttendanceStatus.Late);
+                var leave = sessionRecords.Count(r => r.Status == AttendanceStatus.Leave);
+                var absent = sessionRecords.Count(r => r.Status == AttendanceStatus.Absent);
+
+                result.Add(new DepartmentTeacherAttendanceSummaryDto
+                {
+                    TeacherId = teacher.Id,
+                    TeacherName = teacher.Name,
+                    SessionCount = teacherSessions.Count,
+                    ExpectedCount = expected,
+                    PresentCount = present,
+                    LeaveCount = leave,
+                    AbsentCount = absent,
+                    AttendanceRate = CalculateRate(present, expected)
+                });
+            }
+
+            _logger.LogInformation("系主任 {TeacherId} 查询院系 {DepartmentId} 教师考勤汇总，教师 {Count} 人",
+                _currentUser.UserId, query.DepartmentId, result.Count);
+
+            return ApiResponse<List<DepartmentTeacherAttendanceSummaryDto>>.Success(result);
+        }
+
+        /// <summary>系主任本系调换课统计</summary>
+        public async Task<ApiResponse<DepartmentSwapSummaryDto>> Handle(
+            GetDepartmentSwapSummaryQuery query, CancellationToken cancellationToken)
+        {
+            // 鉴权：当前用户必须为指定院系的系主任
+            var headCheck = await EnsureDepartmentHeadAsync(query.DepartmentId, cancellationToken);
+            if (headCheck.Failed) return ApiResponse<DepartmentSwapSummaryDto>.Fail(headCheck.Message!, headCheck.Code);
+
+            var db = _dbContext.Client;
+
+            // 默认本周
+            var (startDate, endDate) = NormalizeDateRange(query.StartDate, query.EndDate);
+            if (endDate < startDate)
+            {
+                return ApiResponse<DepartmentSwapSummaryDto>.Fail(Msg.Statistics.EndDateBeforeStart, 400);
+            }
+
+            // 1) 查询该系所有教师工号
+            var teachers = await db.Queryable<Teacher>()
+                .Where(t => t.DepartmentId == query.DepartmentId && !t.IsDeleted)
+                .Select(t => new { t.Id, t.Name })
+                .ToListAsync(cancellationToken);
+            if (teachers.Count == 0)
+            {
+                return ApiResponse<DepartmentSwapSummaryDto>.Success(new DepartmentSwapSummaryDto());
+            }
+
+            var teacherIds = teachers.Select(t => t.Id).ToList();
+            var teacherMap = teachers.ToDictionary(t => t.Id);
+
+            // 2) 批量查询本系教师发起或被委托的调换课申请（按创建时间过滤）
+            var swaps = await db.Queryable<CourseSwapRequest>()
+                .Where(s => !s.IsDeleted
+                    && (teacherIds.Contains(s.OriginalTeacherId) || teacherIds.Contains(s.SubstituteTeacherId))
+                    && s.CreateTime >= startDate && s.CreateTime <= endDate)
+                .ToListAsync(cancellationToken);
+
+            // 3) 状态分布 + 已逾期（Pending 且超 SLA）统计
+            var now = DateTime.UtcNow;
+            var slaDeadline = now.AddHours(-CourseSwapSlaConstants.SlaHours);
+
+            var summary = new DepartmentSwapSummaryDto
+            {
+                TotalCount = swaps.Count,
+                PendingCount = swaps.Count(s => s.Status == SwapStatus.Pending),
+                AcceptedCount = swaps.Count(s => s.Status == SwapStatus.Accepted),
+                RejectedCount = swaps.Count(s => s.Status == SwapStatus.Rejected),
+                CancelledCount = swaps.Count(s => s.Status == SwapStatus.Cancelled),
+                ExpiredCount = swaps.Count(s => s.Status == SwapStatus.Pending && s.CreateTime < slaDeadline)
+            };
+
+            // 4) 涉及教师明细聚合：发起数 + 被委托数
+            var statsMap = new Dictionary<string, TeacherSwapStatDto>();
+            foreach (var swap in swaps)
+            {
+                if (!statsMap.TryGetValue(swap.OriginalTeacherId, out var initiatorStat))
+                {
+                    initiatorStat = new TeacherSwapStatDto
+                    {
+                        TeacherId = swap.OriginalTeacherId,
+                        TeacherName = teacherMap.GetValueOrDefault(swap.OriginalTeacherId)?.Name ?? swap.OriginalTeacherId
+                    };
+                    statsMap[swap.OriginalTeacherId] = initiatorStat;
+                }
+                initiatorStat.InitiatedCount++;
+
+                if (!statsMap.TryGetValue(swap.SubstituteTeacherId, out var substituteStat))
+                {
+                    substituteStat = new TeacherSwapStatDto
+                    {
+                        TeacherId = swap.SubstituteTeacherId,
+                        TeacherName = teacherMap.GetValueOrDefault(swap.SubstituteTeacherId)?.Name ?? swap.SubstituteTeacherId
+                    };
+                    statsMap[swap.SubstituteTeacherId] = substituteStat;
+                }
+                substituteStat.SubstitutedCount++;
+            }
+
+            summary.TeacherStats = statsMap.Values
+                .OrderByDescending(t => t.InitiatedCount + t.SubstitutedCount)
+                .ThenBy(t => t.TeacherId)
+                .ToList();
+
+            _logger.LogInformation("系主任 {TeacherId} 查询院系 {DepartmentId} 调换课统计，总申请 {Total} 笔",
+                _currentUser.UserId, query.DepartmentId, summary.TotalCount);
+
+            return ApiResponse<DepartmentSwapSummaryDto>.Success(summary);
+        }
+
+        /// <summary>系主任本系课程开课率</summary>
+        public async Task<ApiResponse<DepartmentCourseCoverageDto>> Handle(
+            GetDepartmentCourseCoverageQuery query, CancellationToken cancellationToken)
+        {
+            // 鉴权：当前用户必须为指定院系的系主任
+            var headCheck = await EnsureDepartmentHeadAsync(query.DepartmentId, cancellationToken);
+            if (headCheck.Failed) return ApiResponse<DepartmentCourseCoverageDto>.Fail(headCheck.Message!, headCheck.Code);
+
+            var db = _dbContext.Client;
+
+            // 1) 查询该系所有教师工号
+            var teacherIds = await db.Queryable<Teacher>()
+                .Where(t => t.DepartmentId == query.DepartmentId && !t.IsDeleted)
+                .Select(t => t.Id)
+                .ToListAsync(cancellationToken);
+            if (teacherIds.Count == 0)
+            {
+                return ApiResponse<DepartmentCourseCoverageDto>.Success(new DepartmentCourseCoverageDto());
+            }
+
+            // 2) 本系教师承接的课程（Course.TeacherId ∈ 教师列表）
+            var courses = await db.Queryable<Course>()
+                .Where(c => !c.IsDeleted && teacherIds.Contains(c.TeacherId))
+                .ToListAsync(cancellationToken);
+            var courseIds = courses.Select(c => c.Id).ToList();
+
+            // 3) 批量查询排课条目
+            var schedules = courseIds.Count == 0
+                ? new List<CourseSchedule>()
+                : await db.Queryable<CourseSchedule>()
+                    .Where(s => !s.IsDeleted && courseIds.Contains(s.CourseId))
+                    .ToListAsync(cancellationToken);
+            var scheduledCourseIds = schedules.Select(s => s.CourseId).Distinct().ToHashSet();
+
+            var total = courses.Count;
+            var scheduled = scheduledCourseIds.Count;
+            var unscheduled = total - scheduled;
+
+            // 4) 班级维度开课明细：班级 -> 专业 -> 院系
+            var classInfos = await db.Queryable<Class, Major>((c, m) =>
+                    new JoinQueryInfos(JoinType.Inner, c.MajorId == m.Id))
+                .Where((c, m) => !c.IsDeleted && !m.IsDeleted && m.DepartmentId == query.DepartmentId)
+                .Select((c, m) => new { c.Id, c.Name })
+                .ToListAsync(cancellationToken);
+
+            // 5) 按班级聚合排课条目（含合班：ClassIds 逗号分隔）
+            // 使用一次 schedules 查询结果在内存中聚合，避免 N+1
+            var classCoverage = new List<ClassCoverageDto>(classInfos.Count);
+            foreach (var cls in classInfos)
+            {
+                var classIdStr = cls.Id.ToString();
+                var classSchedules = schedules
+                    .Where(s => s.ClassId == cls.Id
+                        || (!string.IsNullOrEmpty(s.ClassIds) && s.ClassIds.Split(',').Contains(classIdStr)))
+                    .ToList();
+                classCoverage.Add(new ClassCoverageDto
+                {
+                    ClassId = cls.Id,
+                    ClassName = cls.Name,
+                    ScheduledCourseCount = classSchedules.Select(s => s.CourseId).Distinct().Count(),
+                    WeeklySessionCount = classSchedules.Count
+                });
+            }
+
+            var result = new DepartmentCourseCoverageDto
+            {
+                TotalCourseCount = total,
+                ScheduledCourseCount = scheduled,
+                UnscheduledCourseCount = unscheduled,
+                CoverageRate = CalculateRate(scheduled, total),
+                ClassCoverage = classCoverage
+                    .OrderByDescending(c => c.WeeklySessionCount)
+                    .ThenBy(c => c.ClassId)
+                    .ToList()
+            };
+
+            _logger.LogInformation("系主任 {TeacherId} 查询院系 {DepartmentId} 课程开课率，总课程 {Total} 门",
+                _currentUser.UserId, query.DepartmentId, result.TotalCourseCount);
+
+            return ApiResponse<DepartmentCourseCoverageDto>.Success(result);
+        }
+
+        /// <summary>
+        /// 校验当前用户是否为指定院系的系主任
+        /// </summary>
+        /// <param name="departmentId">路由参数中的院系 Id</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>校验结果：Failed=true 表示拒绝访问</returns>
+        private async Task<(bool Failed, string? Message, int Code)> EnsureDepartmentHeadAsync(
+            long departmentId, CancellationToken cancellationToken)
+        {
+            var userId = _currentUser.UserId;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return (true, Msg.Common.NoPermission, 401);
+            }
+
+            var teacher = await _dbContext.Client.Queryable<Teacher>()
+                .FirstAsync(t => t.Id == userId && !t.IsDeleted, cancellationToken);
+            if (teacher is null || !teacher.IsDepartmentHead)
+            {
+                _logger.LogWarning("用户 {UserId} 不具备系主任身份，拒绝访问院系 {DepartmentId} 报表", userId, departmentId);
+                return (true, Msg.Common.NoPermission, 403);
+            }
+
+            // 系主任所辖院系必须与路由参数一致，防止跨院系越权
+            var headDepartmentId = teacher.HeadDepartmentId ?? teacher.DepartmentId;
+            if (headDepartmentId != departmentId)
+            {
+                _logger.LogWarning("系主任 {UserId} 所辖院系 {HeadDept} 与请求院系 {RequestDept} 不匹配，拒绝访问",
+                    userId, headDepartmentId, departmentId);
+                return (true, Msg.Common.NoPermission, 403);
+            }
+
+            return (false, null, 0);
+        }
+
+        /// <summary>
+        /// 规范化日期范围：未传则默认本周（周一 00:00:00 至 周日 23:59:59）
+        /// </summary>
+        /// <param name="startDate">查询参数中的起始日期</param>
+        /// <param name="endDate">查询参数中的结束日期</param>
+        /// <returns>规范化后的日期范围（UTC）</returns>
+        private static (DateTime StartDate, DateTime EndDate) NormalizeDateRange(DateTime? startDate, DateTime? endDate)
+        {
+            // 计算本周周一（DateTime.DayOfWeek：Sunday=0, Monday=1...Saturday=6；转为周一=1...周日=7）
+            var todayUtc = DateTime.UtcNow.Date;
+            var dayOfWeek = (int)todayUtc.DayOfWeek;
+            var mondayOffset = dayOfWeek == 0 ? -6 : 1 - dayOfWeek;
+            var monday = todayUtc.AddDays(mondayOffset);
+            var sunday = monday.AddDays(7).AddSeconds(-1);
+
+            var start = startDate?.Date ?? monday;
+            var end = endDate?.Date.AddDays(1).AddSeconds(-1) ?? sunday;
+            return (start, end);
         }
 
         /// <summary>计算出勤率</summary>

@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Statistics;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Statistics;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
 using MediatR;
 
@@ -33,4 +33,15 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Statistics
 
     /// <summary>导出班级学生名单</summary>
     public record ExportStudentListQuery(long ClassId) : IRequest<IResult>;
+
+    /// <summary>系主任本系教师考勤汇总</summary>
+    public record GetDepartmentTeacherAttendanceSummaryQuery(long DepartmentId, DateTime? StartDate = null, DateTime? EndDate = null)
+        : IRequest<ApiResponse<List<DepartmentTeacherAttendanceSummaryDto>>>;
+
+    /// <summary>系主任本系调换课统计</summary>
+    public record GetDepartmentSwapSummaryQuery(long DepartmentId, DateTime? StartDate = null, DateTime? EndDate = null)
+        : IRequest<ApiResponse<DepartmentSwapSummaryDto>>;
+
+    /// <summary>系主任本系课程开课率</summary>
+    public record GetDepartmentCourseCoverageQuery(long DepartmentId) : IRequest<ApiResponse<DepartmentCourseCoverageDto>>;
 }

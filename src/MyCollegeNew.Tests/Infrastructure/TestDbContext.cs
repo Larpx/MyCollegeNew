@@ -150,6 +150,20 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure
             """);
 
             db.Ado.ExecuteCommand("""
+            CREATE TABLE IF NOT EXISTS course_schedule_override (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ScheduleId INTEGER NOT NULL,
+                SubstituteTeacherId TEXT NOT NULL,
+                StartWeek INTEGER NOT NULL,
+                EndWeek INTEGER NOT NULL,
+                SwapRequestId INTEGER NOT NULL,
+                CreateTime TEXT NOT NULL,
+                UpdateTime TEXT,
+                IsDeleted INTEGER NOT NULL DEFAULT 0
+            );
+            """);
+
+            db.Ado.ExecuteCommand("""
             CREATE TABLE IF NOT EXISTS attendance_session (
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 CourseId INTEGER NOT NULL,

@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Statistics;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Statistics;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -92,6 +92,41 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Statistics
             })
             .WithName("ExportStudentList").WithSummary("导出班级学生名单").RequireAuthorization("RequireTeacher")
             .Produces(StatusCodes.Status200OK, typeof(FileContentResult));
+
+            // ===== 系主任本系统计报表 =====
+
+            // 系主任本系教师考勤汇总
+            group.MapGet("/statistics/department/{departmentId:long}/teachers/attendance-summary",
+                async (long departmentId, DateTime? startDate, DateTime? endDate, IMediator mediator) =>
+                {
+                    var result = await mediator.Send(new GetDepartmentTeacherAttendanceSummaryQuery(departmentId, startDate, endDate));
+                    return Results.Ok(result);
+                })
+            .WithName("GetDepartmentTeacherAttendanceSummary").WithSummary("系主任本系教师考勤汇总")
+            .RequireAuthorization("RequireDepartmentHead")
+            .Produces<ApiResponse<List<DepartmentTeacherAttendanceSummaryDto>>>(StatusCodes.Status200OK);
+
+            // 系主任本系调换课统计
+            group.MapGet("/statistics/department/{departmentId:long}/swaps/summary",
+                async (long departmentId, DateTime? startDate, DateTime? endDate, IMediator mediator) =>
+                {
+                    var result = await mediator.Send(new GetDepartmentSwapSummaryQuery(departmentId, startDate, endDate));
+                    return Results.Ok(result);
+                })
+            .WithName("GetDepartmentSwapSummary").WithSummary("系主任本系调换课统计")
+            .RequireAuthorization("RequireDepartmentHead")
+            .Produces<ApiResponse<DepartmentSwapSummaryDto>>(StatusCodes.Status200OK);
+
+            // 系主任本系课程开课率
+            group.MapGet("/statistics/department/{departmentId:long}/courses/coverage",
+                async (long departmentId, IMediator mediator) =>
+                {
+                    var result = await mediator.Send(new GetDepartmentCourseCoverageQuery(departmentId));
+                    return Results.Ok(result);
+                })
+            .WithName("GetDepartmentCourseCoverage").WithSummary("系主任本系课程开课率")
+            .RequireAuthorization("RequireDepartmentHead")
+            .Produces<ApiResponse<DepartmentCourseCoverageDto>>(StatusCodes.Status200OK);
 
             return group;
         }

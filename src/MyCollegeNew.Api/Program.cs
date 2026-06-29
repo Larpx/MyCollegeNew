@@ -86,6 +86,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
             // 注册排课冲突校验服务（Scoped：依赖请求级数据库上下文与日志器）
             builder.Services.AddScoped<IScheduleConflictService, ScheduleConflictService>();
 
+            // 注册调换课 SLA 过期处理后台服务（Hosted：每 30 分钟扫描并撤销超 48 小时未确认的 Pending 申请）
+            builder.Services.AddHostedService<SwapSlaExpirationService>();
+
             // MediatR CQRS：注册所有 Handler 所在程序集
             builder.Services.AddMediatR(cfg =>
             {

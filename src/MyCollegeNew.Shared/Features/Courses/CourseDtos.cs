@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses
 {
@@ -131,6 +131,43 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses
         public int StartWeek { get; set; }
         public int EndWeek { get; set; }
         public string Classroom { get; set; } = string.Empty;
+
+        /// <summary>原任课教师工号（CourseSchedule.TeacherId）</summary>
+        public string OriginalTeacherId { get; set; } = string.Empty;
+
+        /// <summary>原任课教师姓名</summary>
+        public string OriginalTeacherName { get; set; } = string.Empty;
+
+        /// <summary>当前周次实际讲课教师工号（如有覆盖层则为代课教师，否则同原任课）</summary>
+        public string EffectiveTeacherId { get; set; } = string.Empty;
+
+        /// <summary>当前周次实际讲课教师姓名</summary>
+        public string EffectiveTeacherName { get; set; } = string.Empty;
+
+        /// <summary>是否当前周次被代课覆盖</summary>
+        public bool IsSubstituted { get; set; }
+
+        /// <summary>覆盖层信息列表（每个覆盖层对应一个周次范围）</summary>
+        public List<ScheduleOverrideDto> Overrides { get; set; } = new();
+    }
+
+    /// <summary>课表代课覆盖层 DTO，描述某周次范围内的代课教师</summary>
+    public class ScheduleOverrideDto
+    {
+        /// <summary>代课教师工号</summary>
+        public string SubstituteTeacherId { get; set; } = string.Empty;
+
+        /// <summary>代课教师姓名</summary>
+        public string SubstituteTeacherName { get; set; } = string.Empty;
+
+        /// <summary>覆盖生效起始周</summary>
+        public int StartWeek { get; set; }
+
+        /// <summary>覆盖生效结束周</summary>
+        public int EndWeek { get; set; }
+
+        /// <summary>关联调换课申请 Id</summary>
+        public long SwapRequestId { get; set; }
     }
 
     /// <summary>周课表 DTO</summary>

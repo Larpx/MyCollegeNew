@@ -78,6 +78,18 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses
 
         /// <summary>创建时间（UTC）</summary>
         public DateTime CreateTime { get; set; }
+
+        /// <summary>SLA 截止时间（CreateTime + 48 小时）</summary>
+        public DateTime SlaDeadline { get; set; }
+
+        /// <summary>剩余处理时间（小时）。已逾期/已处理则为 0</summary>
+        public double RemainingHours { get; set; }
+
+        /// <summary>是否即将逾期（剩余 ≤ 12 小时且未处理）</summary>
+        public bool IsExpiringSoon { get; set; }
+
+        /// <summary>是否已逾期（Pending 且已超过 SLA 截止时间）</summary>
+        public bool IsExpired { get; set; }
     }
 
     /// <summary>

@@ -76,11 +76,12 @@
                 new("调换课申请", "/teacher/swaps", "shuffle")
             };
 
-            // 系主任专属菜单：排课工作台 + 接课审批
+            // 系主任专属菜单：排课工作台 + 接课审批 + 本系统计报表
             if (_isDepartmentHead)
             {
                 items.Add(new("排课工作台", "/teacher/scheduling", "calendar-days"));
                 items.Add(new("接课审批", "/teacher/assignments/review", "inbox"));
+                items.Add(new("本系统计报表", "/teacher/department/reports", "bar-chart-3"));
             }
 
             if (user.IsInRole("Counselor"))

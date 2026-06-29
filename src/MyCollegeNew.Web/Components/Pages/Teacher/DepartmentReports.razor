@@ -1,0 +1,503 @@
+@page "/teacher/department/reports"
+@layout TeacherLayout
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Statistics
+@using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
+@inject IApiClient ApiClient
+@inject TokenService TokenService
+@inject ILogger<Components.Pages.Teacher.DepartmentReports> Logger
+
+<PageTitle>本系统计报表 - 考勤管理系统</PageTitle>
+
+<PageHeader Title="本系统计报表" Icon="bar-chart-3" Subtitle="系主任专属：本系教师考勤、调换课与课程开课情况一览">
+    <Actions>
+        <Button Variant="ButtonVariant.Secondary" Icon="refresh-cw" OnClick="LoadActiveTabAsync" Loading="_loading">刷新</Button>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert--error">
+        <span class="alert__icon"><Icon Name="alert-circle" Size="20" /></span>
+        <span class="alert__body">@_errorMessage</span>
+    </div>
+}
+
+@* 顶部 Tab 切换 *@
+<nav class="tabs-nav" role="tablist" aria-label="统计报表分类">
+    <button type="button" class="@AttendanceTabClass" role="tab" aria-selected="@(_activeTab == AttendanceTab)" @onclick="() => SwitchTabAsync(AttendanceTab)">
+        <Icon Name="clipboard-list" Size="16" />教师考勤
+    </button>
+    <button type="button" class="@SwapTabClass" role="tab" aria-selected="@(_activeTab == SwapTab)" @onclick="() => SwitchTabAsync(SwapTab)">
+        <Icon Name="shuffle" Size="16" />调换课统计
+    </button>
+    <button type="button" class="@CoverageTabClass" role="tab" aria-selected="@(_activeTab == CoverageTab)" @onclick="() => SwitchTabAsync(CoverageTab)">
+        <Icon Name="book-open" Size="16" />课程开课率
+    </button>
+</nav>
+
+@* 日期范围选择器（仅考勤与调换课 Tab 显示） *@
+@if (_activeTab != CoverageTab)
+{
+    <div class="page-filters">
+        <div class="page-filters__field">
+            <label class="page-filters__label">开始日期</label>
+            <InputText type="date" @bind-Value="_startDateStr" class="form-field__input" />
+        </div>
+        <div class="page-filters__field">
+            <label class="page-filters__label">结束日期</label>
+            <InputText type="date" @bind-Value="_endDateStr" class="form-field__input" />
+        </div>
+        <div class="page-filters__actions">
+            <Button Variant="ButtonVariant.Secondary" Icon="search" OnClick="LoadActiveTabAsync">查询</Button>
+        </div>
+    </div>
+}
+
+@if (_loading)
+{
+    <div class="loading-state">
+        <span class="loading-state__spinner"></span>
+        <span>加载中...</span>
+    </div>
+}
+else if (_activeTab == AttendanceTab)
+{
+    @* 教师考勤 Tab *@
+    <Card Title="本系教师考勤汇总">
+        <Actions>
+            <Button Variant="ButtonVariant.Secondary" Icon="@(_sortDescending ? "arrow-down" : "arrow-up")" OnClick="ToggleSortAsync">
+                按@(_sortKey == SortKeyAttendance.AttendanceRate ? "出勤率" : "缺勤人次")@(_sortDescending ? " 降序" : " 升序")
+            </Button>
+        </Actions>
+        <ChildContent>
+            @if (_attendanceSummary is null || _attendanceSummary.Count == 0)
+            {
+                <EmptyState Title="暂无考勤数据" Description="当前日期范围内本系教师未发起考勤会话" Icon="clipboard-list" />
+            }
+            else
+            {
+                <Table T="DepartmentTeacherAttendanceSummaryDto" Items="_sortedAttendance" Columns="_attendanceColumns" EmptyText="暂无数据" />
+            }
+        </ChildContent>
+    </Card>
+}
+else if (_activeTab == SwapTab)
+{
+    @if (_swapSummary is null)
+    {
+        <EmptyState Title="暂无调换课数据" Description="当前日期范围内本系无调换课申请记录" Icon="shuffle" />
+    }
+    else
+    {
+        @* 顶部统计卡片 *@
+        <div class="stat-grid">
+            <div class="ui-card ui-card--stat ui-card--shadowed">
+                <div class="ui-stat-label">总申请数</div>
+                <div class="ui-stat-value">@_swapSummary.TotalCount</div>
+            </div>
+            <div class="ui-card ui-card--stat ui-card--stat-warning">
+                <div class="ui-stat-label">待确认</div>
+                <div class="ui-stat-value">@_swapSummary.PendingCount</div>
+            </div>
+            <div class="ui-card ui-card--stat ui-card--stat-success">
+                <div class="ui-stat-label">已生效</div>
+                <div class="ui-stat-value">@_swapSummary.AcceptedCount</div>
+            </div>
+            <div class="ui-card ui-card--stat ui-card--stat-error">
+                <div class="ui-stat-label">已拒绝</div>
+                <div class="ui-stat-value">@_swapSummary.RejectedCount</div>
+            </div>
+            <div class="ui-card ui-card--stat ui-card--shadowed">
+                <div class="ui-stat-label">已撤销</div>
+                <div class="ui-stat-value">@_swapSummary.CancelledCount</div>
+            </div>
+            <div class="ui-card ui-card--stat ui-card--stat-error">
+                <div class="ui-stat-label">已逾期</div>
+                <div class="ui-stat-value">@_swapSummary.ExpiredCount</div>
+            </div>
+        </div>
+
+        @* 教师明细表格 *@
+        <Card Title="涉及教师明细">
+            <ChildContent>
+                @if (_swapSummary.TeacherStats.Count == 0)
+                {
+                    <EmptyState Title="暂无教师明细" Description="当前条件下没有教师参与调换课申请" Icon="users" />
+                }
+                else
+                {
+                    <Table T="TeacherSwapStatDto" Items="_swapSummary.TeacherStats" Columns="_swapColumns" EmptyText="暂无数据" />
+                }
+            </ChildContent>
+        </Card>
+    }
+}
+else if (_activeTab == CoverageTab)
+{
+    @if (_courseCoverage is null)
+    {
+        <EmptyState Title="暂无开课数据" Description="本系教师尚未承接课程" Icon="book-open" />
+    }
+    else
+    {
+        @* 顶部统计卡片 + 开课率进度条 *@
+        <div class="stat-grid">
+            <div class="ui-card ui-card--stat ui-card--shadowed">
+                <div class="ui-stat-label">总课程数</div>
+                <div class="ui-stat-value">@_courseCoverage.TotalCourseCount</div>
+            </div>
+            <div class="ui-card ui-card--stat ui-card--stat-success">
+                <div class="ui-stat-label">已排课</div>
+                <div class="ui-stat-value">@_courseCoverage.ScheduledCourseCount</div>
+            </div>
+            <div class="ui-card ui-card--stat ui-card--stat-warning">
+                <div class="ui-stat-label">未排课</div>
+                <div class="ui-stat-value">@_courseCoverage.UnscheduledCourseCount</div>
+            </div>
+        </div>
+
+        <Card Title="开课率" Class="mb-6">
+            <div class="student-progress">
+                <div class="student-progress__header">
+                    <span class="student-progress__name">@_courseCoverage.ScheduledCourseCount / @_courseCoverage.TotalCourseCount 门课程已排课</span>
+                    <span class="student-progress__value">@_courseCoverage.CoverageRate.ToString("F1")%</span>
+                </div>
+                <div class="student-progress__track">
+                    <div class="student-progress__fill @CoverageFillClass" style="width: @_courseCoverage.CoverageRate.ToString("F1")%"></div>
+                </div>
+            </div>
+        </Card>
+
+        @* 班级维度明细 *@
+        <Card Title="班级开课明细">
+            <ChildContent>
+                @if (_courseCoverage.ClassCoverage.Count == 0)
+                {
+                    <EmptyState Title="暂无班级数据" Description="本系下尚未建立班级，或班级未关联排课" Icon="users" />
+                }
+                else
+                {
+                    <Table T="ClassCoverageDto" Items="_courseCoverage.ClassCoverage" Columns="_coverageColumns" EmptyText="暂无数据" />
+                }
+            </ChildContent>
+        </Card>
+    }
+}
+
+@code {
+    // ===== Tab 标识常量 =====
+    private const string AttendanceTab = "attendance";
+    private const string SwapTab = "swap";
+    private const string CoverageTab = "coverage";
+
+    // ===== 排序键 =====
+    private enum SortKeyAttendance { AttendanceRate, AbsentCount }
+
+    /// <summary>当前激活的 Tab</summary>
+    private string _activeTab = AttendanceTab;
+
+    /// <summary>排序键</summary>
+    private SortKeyAttendance _sortKey = SortKeyAttendance.AttendanceRate;
+
+    /// <summary>是否降序</summary>
+    private bool _sortDescending = true;
+
+    /// <summary>加载状态</summary>
+    private bool _loading;
+
+    /// <summary>错误信息</summary>
+    private string? _errorMessage;
+
+    /// <summary>系主任所辖院系 Id（用于 API 调用）</summary>
+    private long _departmentId;
+
+    /// <summary>教师考勤汇总数据</summary>
+    private List<DepartmentTeacherAttendanceSummaryDto>? _attendanceSummary;
+
+    /// <summary>调换课统计</summary>
+    private DepartmentSwapSummaryDto? _swapSummary;
+
+    /// <summary>课程开课率</summary>
+    private DepartmentCourseCoverageDto? _courseCoverage;
+
+    /// <summary>开始日期字符串（默认本周一）</summary>
+    private string _startDateStr = GetMondayOfWeek(DateTime.UtcNow).ToString("yyyy-MM-dd");
+
+    /// <summary>结束日期字符串（默认本周日）</summary>
+    private string _endDateStr = GetSundayOfWeek(DateTime.UtcNow).ToString("yyyy-MM-dd");
+
+    /// <summary>教师考勤表格列定义</summary>
+    private List<Table<DepartmentTeacherAttendanceSummaryDto>.Column<DepartmentTeacherAttendanceSummaryDto>> _attendanceColumns = new();
+
+    /// <summary>调换课教师明细列定义</summary>
+    private List<Table<TeacherSwapStatDto>.Column<TeacherSwapStatDto>> _swapColumns = new();
+
+    /// <summary>班级开课明细列定义</summary>
+    private List<Table<ClassCoverageDto>.Column<ClassCoverageDto>> _coverageColumns = new();
+
+    /// <summary>当前用户工号</summary>
+    private string _userId = string.Empty;
+
+    /// <summary>当前教师是否为系主任（非系主任访问页面会被服务端拒绝）</summary>
+    private bool _isDepartmentHead;
+
+    /// <summary>教师考勤按排序后的列表</summary>
+    private List<DepartmentTeacherAttendanceSummaryDto> _sortedAttendance => SortAttendance(_attendanceSummary);
+
+    /// <summary>开课率进度条颜色变体</summary>
+    private string CoverageFillClass => _courseCoverage?.CoverageRate switch
+    {
+        >= Constants.HighCoverageThreshold => "student-progress__fill--success",
+        >= Constants.LowCoverageThreshold => "student-progress__fill--warning",
+        _ => "student-progress__fill--error"
+    };
+
+    private string AttendanceTabClass => _activeTab == AttendanceTab ? "tabs-nav__item tabs-nav__item--active" : "tabs-nav__item";
+    private string SwapTabClass => _activeTab == SwapTab ? "tabs-nav__item tabs-nav__item--active" : "tabs-nav__item";
+    private string CoverageTabClass => _activeTab == CoverageTab ? "tabs-nav__item tabs-nav__item--active" : "tabs-nav__item";
+
+    /// <summary>页面初始化：构建表格列、加载系主任身份</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        var userInfo = TokenService.GetUserInfo();
+        if (userInfo is null)
+        {
+            return;
+        }
+        _userId = userInfo.UserId;
+
+        BuildAttendanceColumns();
+        BuildSwapColumns();
+        BuildCoverageColumns();
+
+        // 加载教师身份以获取系主任所辖院系 Id
+        try
+        {
+            var teacher = await ApiClient.GetAsync<TeacherResponseDto>("teachers/me");
+            _isDepartmentHead = teacher?.IsDepartmentHead ?? false;
+            _departmentId = teacher?.HeadDepartmentId ?? teacher?.DepartmentId ?? 0;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "加载教师身份信息失败");
+            _errorMessage = "无法获取系主任身份信息，请联系管理员";
+            return;
+        }
+
+        if (_departmentId <= 0)
+        {
+            _errorMessage = "未识别到所辖院系，仅系主任可访问本页";
+            return;
+        }
+
+        await LoadActiveTabAsync();
+    }
+
+    /// <summary>构建教师考勤表格列</summary>
+    private void BuildAttendanceColumns()
+    {
+        _attendanceColumns = new List<Table<DepartmentTeacherAttendanceSummaryDto>.Column<DepartmentTeacherAttendanceSummaryDto>>
+        {
+            new() { Title = "工号", Template = item => @<span class="font-medium">@item.TeacherId</span> },
+            new() { Title = "姓名", Template = item => @<span>@item.TeacherName</span> },
+            new() { Title = "发起会话", Template = item => @<span>@item.SessionCount</span> },
+            new() { Title = "应到人次", Template = item => @<span>@item.ExpectedCount</span> },
+            new() { Title = "实到人次", Template = item => @<span class="text-success">@item.PresentCount</span> },
+            new() { Title = "请假人次", Template = item => @<span>@item.LeaveCount</span> },
+            new() { Title = "缺勤人次", Template = item => @<span class="text-error">@item.AbsentCount</span> },
+            new() { Title = "出勤率", Template = item => RenderAttendanceRateBar(item) }
+        };
+    }
+
+    /// <summary>构建调换课教师明细列</summary>
+    private void BuildSwapColumns()
+    {
+        _swapColumns = new List<Table<TeacherSwapStatDto>.Column<TeacherSwapStatDto>>
+        {
+            new() { Title = "工号", Template = item => @<span class="font-medium">@item.TeacherId</span> },
+            new() { Title = "姓名", Template = item => @<span>@item.TeacherName</span> },
+            new() { Title = "发起数", Template = item => @<span>@item.InitiatedCount</span> },
+            new() { Title = "被委托数", Template = item => @<span>@item.SubstitutedCount</span> },
+            new() { Title = "合计", Template = item => @<span class="font-medium">@(item.InitiatedCount + item.SubstitutedCount)</span> }
+        };
+    }
+
+    /// <summary>构建班级开课明细列</summary>
+    private void BuildCoverageColumns()
+    {
+        _coverageColumns = new List<Table<ClassCoverageDto>.Column<ClassCoverageDto>>
+        {
+            new() { Title = "班级", Template = item => @<span class="font-medium">@item.ClassName</span> },
+            new() { Title = "已排课程数", Template = item => @<span>@item.ScheduledCourseCount</span> },
+            new() { Title = "周课时数", Template = item => @<span>@item.WeeklySessionCount</span> }
+        };
+    }
+
+    /// <summary>渲染出勤率进度条（替代 Chart 库），按阈值着色</summary>
+    private RenderFragment RenderAttendanceRateBar(DepartmentTeacherAttendanceSummaryDto item)
+    {
+        var fillClass = item.AttendanceRate switch
+        {
+            >= Constants.HighAttendanceThreshold => "student-progress__fill--success",
+            >= Constants.LowAttendanceThreshold => "student-progress__fill--warning",
+            _ => "student-progress__fill--error"
+        };
+        var rateText = item.AttendanceRate.ToString("F1");
+        var widthText = item.AttendanceRate.ToString("F1");
+        return @<div class="student-progress">
+            <div class="student-progress__header">
+                <span class="student-progress__value">@rateText%</span>
+            </div>
+            <div class="student-progress__track">
+                <div class="student-progress__fill @fillClass" style="width: @widthText%"></div>
+            </div>
+        </div>;
+    }
+
+    /// <summary>切换 Tab 并按需加载数据</summary>
+    private async Task SwitchTabAsync(string tab)
+    {
+        if (_activeTab == tab) return;
+        _activeTab = tab;
+        _errorMessage = null;
+        await LoadActiveTabAsync();
+    }
+
+    /// <summary>按当前 Tab 加载数据（避免切换 Tab 时重复加载已存在数据）</summary>
+    private async Task LoadActiveTabAsync()
+    {
+        if (_departmentId <= 0) return;
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            if (_activeTab == AttendanceTab)
+            {
+                await LoadAttendanceAsync();
+            }
+            else if (_activeTab == SwapTab)
+            {
+                await LoadSwapSummaryAsync();
+            }
+            else if (_activeTab == CoverageTab)
+            {
+                await LoadCoverageAsync();
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>加载教师考勤汇总</summary>
+    private async Task LoadAttendanceAsync()
+    {
+        try
+        {
+            var url = $"statistics/department/{_departmentId}/teachers/attendance-summary?startDate={_startDateStr}&endDate={_endDateStr}";
+            _attendanceSummary = await ApiClient.GetAsync<List<DepartmentTeacherAttendanceSummaryDto>>(url) ?? new();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+            Logger.LogWarning(ex, "加载本系教师考勤汇总失败");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载考勤汇总失败，请稍后重试";
+            Logger.LogError(ex, "加载本系教师考勤汇总异常");
+        }
+    }
+
+    /// <summary>加载调换课统计</summary>
+    private async Task LoadSwapSummaryAsync()
+    {
+        try
+        {
+            var url = $"statistics/department/{_departmentId}/swaps/summary?startDate={_startDateStr}&endDate={_endDateStr}";
+            _swapSummary = await ApiClient.GetAsync<DepartmentSwapSummaryDto>(url);
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+            Logger.LogWarning(ex, "加载本系调换课统计失败");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载调换课统计失败，请稍后重试";
+            Logger.LogError(ex, "加载本系调换课统计异常");
+        }
+    }
+
+    /// <summary>加载课程开课率</summary>
+    private async Task LoadCoverageAsync()
+    {
+        try
+        {
+            var url = $"statistics/department/{_departmentId}/courses/coverage";
+            _courseCoverage = await ApiClient.GetAsync<DepartmentCourseCoverageDto>(url);
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.ApiMessage;
+            Logger.LogWarning(ex, "加载本系课程开课率失败");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "加载课程开课率失败，请稍后重试";
+            Logger.LogError(ex, "加载本系课程开课率异常");
+        }
+    }
+
+    /// <summary>切换排序方向或排序键</summary>
+    private Task ToggleSortAsync()
+    {
+        _sortDescending = !_sortDescending;
+        return Task.CompletedTask;
+    }
+
+    /// <summary>对教师考勤汇总按当前排序键与方向排序</summary>
+    private List<DepartmentTeacherAttendanceSummaryDto> SortAttendance(List<DepartmentTeacherAttendanceSummaryDto>? source)
+    {
+        if (source is null || source.Count == 0) return new();
+        return _sortKey == SortKeyAttendance.AttendanceRate
+            ? (_sortDescending
+                ? source.OrderByDescending(x => x.AttendanceRate).ThenBy(x => x.TeacherId).ToList()
+                : source.OrderBy(x => x.AttendanceRate).ThenBy(x => x.TeacherId).ToList())
+            : (_sortDescending
+                ? source.OrderByDescending(x => x.AbsentCount).ThenBy(x => x.TeacherId).ToList()
+                : source.OrderBy(x => x.AbsentCount).ThenBy(x => x.TeacherId).ToList());
+    }
+
+    /// <summary>计算本周周一日期（周日视为一周的最后一天）</summary>
+    private static DateTime GetMondayOfWeek(DateTime date)
+    {
+        var d = date.Date;
+        var dayOfWeek = (int)d.DayOfWeek;
+        var mondayOffset = dayOfWeek == 0 ? -6 : 1 - dayOfWeek;
+        return d.AddDays(mondayOffset);
+    }
+
+    /// <summary>计算本周周日日期</summary>
+    private static DateTime GetSundayOfWeek(DateTime date)
+        => GetMondayOfWeek(date).AddDays(7).AddSeconds(-1);
+
+    /// <summary>本地阈值常量，避免魔法数字</summary>
+    private static class Constants
+    {
+        /// <summary>高开课率阈值（%）：≥80% 视为良好</summary>
+        public const double HighCoverageThreshold = 80;
+
+        /// <summary>低开课率阈值（%）：&lt;50% 视为偏低</summary>
+        public const double LowCoverageThreshold = 50;
+
+        /// <summary>高出勤率阈值（%）：≥90% 视为良好</summary>
+        public const double HighAttendanceThreshold = 90;
+
+        /// <summary>低出勤率阈值（%）：&lt;60% 视为偏低</summary>
+        public const double LowAttendanceThreshold = 60;
+    }
+}

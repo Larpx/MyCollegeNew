@@ -153,24 +153,57 @@ else
             new() { Title = "原任课教师", Template = item => @<span>@item.OriginalTeacherName</span> },
             new() { Title = "代课教师", Template = item => @<span>@item.SubstituteTeacherName</span> },
             new() { Title = "代课周次", Template = item => @<span>第 @item.StartWeek - @item.EndWeek 周</span> },
-            new() { Title = "状态", Template = item => RenderStatusBadge(item.Status) },
+            new() { Title = "状态", Template = item => RenderStatusBadge(item) },
             new() { Title = "申请时间", Template = item => @<span class="text-secondary">@item.CreateTime.ToLocalTime().ToString("MM-dd HH:mm")</span> },
             new() { Title = "操作", Template = item => RenderActions(item) }
         };
     }
 
-    /// <summary>渲染调换课状态徽章</summary>
-    private RenderFragment RenderStatusBadge(string status)
+    /// <summary>
+    /// 渲染调换课状态徽章：Pending 状态附加 SLA 倒计时徽章
+    /// （IsExpiringSoon 橙色、IsExpired 红色、正常 Pending 显示剩余小时数）
+    /// </summary>
+    /// <param name="item">调换课申请响应 DTO</param>
+    private RenderFragment RenderStatusBadge(SwapRequestResponseDto item)
     {
-        var (text, variant) = status switch
+        var (text, variant) = item.Status switch
         {
             "Pending" => ("待确认", BadgeVariant.Warning),
             "Accepted" => ("已生效", BadgeVariant.Success),
             "Rejected" => ("已拒绝", BadgeVariant.Error),
             "Cancelled" => ("已撤销", BadgeVariant.Neutral),
-            _ => (status, BadgeVariant.Neutral)
+            _ => (item.Status, BadgeVariant.Neutral)
         };
-        return @<Badge Variant="variant">@text</Badge>;
+
+        // Pending 状态追加 SLA 倒计时徽章，非 Pending 仅显示状态徽章
+        if (item.Status != "Pending")
+        {
+            return @<Badge Variant="variant">@text</Badge>;
+        }
+
+        // 已逾期（Pending 且超时，等待后台扫描撤销）显示红色徽章
+        if (item.IsExpired)
+        {
+            return @<span class="badge-group">
+                <Badge Variant="variant">@text</Badge>
+                <Badge Variant="BadgeVariant.Error">已逾期</Badge>
+            </span>;
+        }
+
+        // 即将逾期（剩余 ≤ 12 小时）显示橙色徽章 + 剩余小时数
+        if (item.IsExpiringSoon)
+        {
+            return @<span class="badge-group">
+                <Badge Variant="variant">@text</Badge>
+                <Badge Variant="BadgeVariant.Warning">剩余 @item.RemainingHours.ToString("F0") 小时</Badge>
+            </span>;
+        }
+
+        // 正常 Pending 显示剩余小时数（中性色，无紧迫感）
+        return @<span class="badge-group">
+            <Badge Variant="variant">@text</Badge>
+            <Badge Variant="BadgeVariant.Neutral">剩余 @item.RemainingHours.ToString("F0") 小时</Badge>
+        </span>;
     }
 
     /// <summary>渲染行操作按钮：我发起的 + Pending 显示撤销；待我确认 + Pending 显示确认</summary>

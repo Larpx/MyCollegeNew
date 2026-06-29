@@ -93,12 +93,41 @@ else
                     <span class="stat-card__icon stat-card__icon--warning"><Icon Name="shuffle" Size="20" /></span>
                     <div>
                         <div class="todo-reminder__title">待确认调换课申请</div>
-                        <div class="todo-reminder__subtitle">有教师委托您代课的申请待处理</div>
+                        @if (_pendingSwaps.Any(s => s.IsExpiringSoon))
+                        {
+                            <div class="todo-reminder__subtitle todo-reminder__subtitle--danger">
+                                <Icon Name="alert-triangle" Size="16" />
+                                <span>@_pendingSwaps.Count(s => s.IsExpiringSoon) 笔即将逾期，剩余 @_pendingSwaps.Where(s => s.IsExpiringSoon).Min(s => s.RemainingHours).ToString("F0") 小时</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="todo-reminder__subtitle">有教师委托您代课的申请待处理</div>
+                        }
                     </div>
                 </div>
                 <div class="todo-reminder__right">
                     <span class="tab-bar__badge">@_pendingSwapsCount</span>
                     <Button Variant="ButtonVariant.Primary" Icon="shuffle" OnClick="GoToSwaps">前往处理</Button>
+                </div>
+            </div>
+        </Card>
+    }
+
+    @* 待办提醒：原任课教师发起的调换课即将逾期撤销（仅当存在即将逾期项时显示） *@
+    @if (_expiringInitiatedSwapsCount > 0)
+    {
+        <Card Class="mb-6">
+            <div class="todo-reminder">
+                <div class="todo-reminder__left">
+                    <span class="stat-card__icon stat-card__icon--warning"><Icon Name="alert-triangle" Size="20" /></span>
+                    <div>
+                        <div class="todo-reminder__title">代课人未响应，即将自动撤销</div>
+                        <div class="todo-reminder__subtitle">您发起的 @_expiringInitiatedSwapsCount 笔调换课申请 48 小时内未确认将自动撤销</div>
+                    </div>
+                </div>
+                <div class="todo-reminder__right">
+                    <Button Variant="ButtonVariant.Secondary" Icon="shuffle" OnClick="GoToSwaps">查看详情</Button>
                 </div>
             </div>
         </Card>
@@ -227,6 +256,8 @@ else
     private int _pendingLeavesCount;
     private int _pendingAssignmentsCount;
     private int _pendingSwapsCount;
+    private List<SwapRequestResponseDto> _pendingSwaps = new();
+    private int _expiringInitiatedSwapsCount;
     private bool _loading;
     private string? _errorMessage;
     private string _userId = string.Empty;
@@ -270,11 +301,12 @@ else
             var activeTask = ApiClient.GetAsync<List<SessionResponseDto>>("sessions/active");
             var scheduleTask = ApiClient.GetAsync<WeeklyScheduleDto>($"schedules/weekly/teacher/{_userId}?week=1");
 
-            // 辅助流程：教师身份（含系主任标记位）、待确认调换课申请；失败不影响主流程
+            // 辅助流程：教师身份（含系主任标记位）、待确认调换课申请、本人发起的调换课申请（用于 SLA 即将逾期提醒）；失败不影响主流程
             var teacherInfoTask = SafeGetAsync<TeacherResponseDto>("teachers/me");
             var swapsTask = SafeGetAsync<List<SwapRequestResponseDto>>("courses/swaps?role=substitute");
+            var initiatedSwapsTask = SafeGetAsync<List<SwapRequestResponseDto>>("courses/swaps?role=initiator");
 
-            await Task.WhenAll(statsTask, activeTask, scheduleTask, teacherInfoTask, swapsTask);
+            await Task.WhenAll(statsTask, activeTask, scheduleTask, teacherInfoTask, swapsTask, initiatedSwapsTask);
 
             _statistics = statsTask.Result;
             _activeSessions = activeTask.Result;
@@ -283,7 +315,10 @@ else
 
             // 解析系主任身份与待确认调换课数（任课教师可见）
             _isDepartmentHead = teacherInfoTask.Result?.IsDepartmentHead ?? false;
-            _pendingSwapsCount = swapsTask.Result?.Count ?? 0;
+            _pendingSwaps = swapsTask.Result ?? new();
+            _pendingSwapsCount = _pendingSwaps.Count;
+            // 原任课教师发起的调换课中即将逾期未确认的数量（IsExpiringSoon 由后端依据 SLA 计算）
+            _expiringInitiatedSwapsCount = (initiatedSwapsTask.Result ?? new()).Count(s => s.IsExpiringSoon);
 
             // 系主任额外加载待审批接课申请数（仅系主任有权限）
             if (_isDepartmentHead)

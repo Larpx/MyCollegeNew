@@ -47,7 +47,10 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
                 EndSection = s.EndSection,
                 StartWeek = s.StartWeek,
                 EndWeek = s.EndWeek,
-                Classroom = s.Classroom
+                Classroom = s.Classroom,
+                // 原任课教师冗余字段，覆盖层叠加前 TeacherId/Name 等于 OriginalTeacherId/Name
+                OriginalTeacherId = s.TeacherId,
+                OriginalTeacherName = t.Name
             };
 
         /// <summary>
@@ -379,6 +382,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
                 .OrderBy((s, c, cls, t) => s.DayOfWeek).OrderBy((s, c, cls, t) => s.StartSection)
                 .Select(ScheduleSelector).ToListAsync();
 
+            // 叠加代课覆盖层：当前教师既可能是原任课教师，也可能在代课覆盖层中作为代课教师出现
+            await ApplyOverridesAsync(schedules, query.Week, cancellationToken);
+
             return ApiResponse<WeeklyScheduleDto>.Success(BuildWeeklySchedule(query.Week, schedules));
         }
 
@@ -405,6 +411,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
                 .OrderBy((s, c, cls, t) => s.DayOfWeek).OrderBy((s, c, cls, t) => s.StartSection)
                 .Select(ScheduleSelector).ToListAsync();
 
+            // 叠加代课覆盖层：让学生端能看到该周次的实际讲课教师
+            await ApplyOverridesAsync(schedules, query.Week, cancellationToken);
+
             return ApiResponse<WeeklyScheduleDto>.Success(BuildWeeklySchedule(query.Week, schedules));
         }
 
@@ -422,6 +431,92 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
             }
 
             return new WeeklyScheduleDto { Week = week, Days = days };
+        }
+
+        /// <summary>
+        /// 为查询结果叠加代课覆盖层：
+        /// 1. 查询所有未删除覆盖层 WHERE ScheduleId IN (上述scheduleIds)
+        /// 2. 关联 Teacher 表获取代课教师姓名
+        /// 3. 为每个 schedule 拼装 Overrides 列表
+        /// 4. 若传入 week 参数（周课表场景），计算 EffectiveTeacherId/Name 与 IsSubstituted
+        /// </summary>
+        /// <param name="schedules">已查询出的课表响应 DTO 列表（含原任课教师信息）</param>
+        /// <param name="week">当前周次，用于计算 EffectiveTeacher</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        private async Task ApplyOverridesAsync(List<ScheduleResponseDto> schedules, int week, CancellationToken cancellationToken)
+        {
+            if (schedules.Count == 0)
+            {
+                return;
+            }
+
+            var db = _dbContext.Client;
+            var scheduleIds = schedules.Select(s => s.Id).ToList();
+
+            // 查询同期所有未删除覆盖层
+            var overrides = await db.Queryable<CourseScheduleOverride>()
+                .Where(o => !o.IsDeleted && scheduleIds.Contains(o.ScheduleId))
+                .ToListAsync(cancellationToken);
+
+            if (overrides.Count == 0)
+            {
+                // 无覆盖层场景：EffectiveTeacher 默认等于 OriginalTeacher
+                foreach (var schedule in schedules)
+                {
+                    schedule.EffectiveTeacherId = schedule.OriginalTeacherId;
+                    schedule.EffectiveTeacherName = schedule.OriginalTeacherName;
+                    schedule.IsSubstituted = false;
+                }
+                return;
+            }
+
+            // 关联 Teacher 表获取所有代课教师姓名，避免 N+1 查询
+            var substituteTeacherIds = overrides.Select(o => o.SubstituteTeacherId).Distinct().ToList();
+            var substituteTeachers = await db.Queryable<Teacher>()
+                .Where(t => substituteTeacherIds.Contains(t.Id))
+                .Select(t => new { t.Id, t.Name })
+                .ToListAsync(cancellationToken);
+            var teacherNameMap = substituteTeachers.ToDictionary(t => t.Id, t => t.Name);
+
+            // 按 ScheduleId 分组拼装 Overrides 列表，并计算当前周次的实际讲课教师
+            var overridesByScheduleId = overrides.GroupBy(o => o.ScheduleId)
+                .ToDictionary(g => g.Key, g => g.OrderBy(o => o.StartWeek).ToList());
+
+            foreach (var schedule in schedules)
+            {
+                if (overridesByScheduleId.TryGetValue(schedule.Id, out var scheduleOverrides))
+                {
+                    schedule.Overrides = scheduleOverrides.Select(o => new ScheduleOverrideDto
+                    {
+                        SubstituteTeacherId = o.SubstituteTeacherId,
+                        SubstituteTeacherName = teacherNameMap.TryGetValue(o.SubstituteTeacherId, out var name) ? name : string.Empty,
+                        StartWeek = o.StartWeek,
+                        EndWeek = o.EndWeek,
+                        SwapRequestId = o.SwapRequestId
+                    }).ToList();
+
+                    // 找到第一个 StartWeek <= week <= EndWeek 的覆盖层，确定当前周次实际讲课人
+                    var currentOverride = scheduleOverrides.FirstOrDefault(o => o.StartWeek <= week && week <= o.EndWeek);
+                    if (currentOverride is not null)
+                    {
+                        schedule.EffectiveTeacherId = currentOverride.SubstituteTeacherId;
+                        schedule.EffectiveTeacherName = teacherNameMap.TryGetValue(currentOverride.SubstituteTeacherId, out var name) ? name : string.Empty;
+                        schedule.IsSubstituted = true;
+                    }
+                    else
+                    {
+                        schedule.EffectiveTeacherId = schedule.OriginalTeacherId;
+                        schedule.EffectiveTeacherName = schedule.OriginalTeacherName;
+                        schedule.IsSubstituted = false;
+                    }
+                }
+                else
+                {
+                    schedule.EffectiveTeacherId = schedule.OriginalTeacherId;
+                    schedule.EffectiveTeacherName = schedule.OriginalTeacherName;
+                    schedule.IsSubstituted = false;
+                }
+            }
         }
     }
 }

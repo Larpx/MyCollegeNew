@@ -62,12 +62,30 @@ else if (_weeklySchedule is not null)
                         <div class="@dayHeaderClass">@GetDayName(dayCopy)</div>
                         @foreach (var s in daySchedules)
                         {
-                            <div class="schedule-item">
-                                <div class="schedule-item__title">@s.CourseName</div>
+                            // 是否当前周次被代课覆盖：决定卡片是否高亮 + 是否显示代课徽章
+                            var itemClass = s.IsSubstituted ? "schedule-item schedule-item--substituted" : "schedule-item";
+                            <div class="@itemClass">
+                                <div class="schedule-item__title">
+                                    @s.CourseName
+                                    @if (s.IsSubstituted)
+                                    {
+                                        <span class="schedule-item__badge">代课</span>
+                                    }
+                                </div>
                                 <div class="schedule-item__meta">
                                     第@(s.StartSection)-@(s.EndSection)节<br />
                                     @s.ClassName<br />
-                                    @s.Classroom
+                                    @s.Classroom<br />
+                                    @if (s.IsSubstituted)
+                                    {
+                                        // 当前周次为代课：显示代课教师姓名
+                                        <span class="schedule-item__substitute">代课：@s.EffectiveTeacherName</span>
+                                    }
+                                    else
+                                    {
+                                        // 当前周次为原任课：显示原任课教师姓名
+                                        <span>@s.OriginalTeacherName</span>
+                                    }
                                 </div>
                             </div>
                         }

@@ -200,7 +200,42 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
                     CreateTime = s.CreateTime
                 }).ToListAsync(ct);
 
+            // SLA 字段依赖 DateTime.UtcNow 与 Status，无法在 SQL 投影中计算，统一在内存中补齐
+            foreach (var row in rows)
+            {
+                ApplySlaFields(row);
+            }
+
             return Results.Ok(ApiResponse<List<SwapRequestResponseDto>>.Success(rows));
+        }
+
+        /// <summary>
+        /// 根据 Pending 状态与 CreateTime 计算调换课申请 SLA 相关字段：
+        /// SlaDeadline、RemainingHours、IsExpiringSoon、IsExpired
+        /// </summary>
+        /// <param name="dto">待补齐 SLA 字段的响应 DTO</param>
+        private static void ApplySlaFields(SwapRequestResponseDto dto)
+        {
+            dto.SlaDeadline = dto.CreateTime.AddHours(CourseSwapSlaConstants.SlaHours);
+
+            // 非 Pending 状态视为已处理，剩余时间归零，不存在逾期/即将逾期
+            var isPending = string.Equals(
+                dto.Status,
+                SwapStatus.Pending.ToString(),
+                StringComparison.OrdinalIgnoreCase);
+            if (!isPending)
+            {
+                dto.RemainingHours = 0;
+                dto.IsExpiringSoon = false;
+                dto.IsExpired = false;
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+            dto.RemainingHours = Math.Max(0, (dto.SlaDeadline - now).TotalHours);
+            dto.IsExpiringSoon = dto.RemainingHours > 0
+                && dto.RemainingHours <= CourseSwapSlaConstants.ExpiringSoonHours;
+            dto.IsExpired = now > dto.SlaDeadline;
         }
 
         /// <summary>
@@ -384,6 +419,11 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
                     ConfirmedTime = s.ConfirmedTime,
                     CreateTime = s.CreateTime
                 }).FirstAsync(ct);
+
+            if (dto is not null)
+            {
+                ApplySlaFields(dto);
+            }
 
             return dto;
         }
