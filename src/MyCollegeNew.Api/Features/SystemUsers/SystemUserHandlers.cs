@@ -24,6 +24,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.SystemUsers
         private readonly IDbContext _dbContext;
         private readonly ILogger<SystemUserHandlers> _logger;
         private readonly ICurrentUser _currentUser;
+        private readonly IAuditService _auditService;
 
         /// <summary>
         /// 构造函数
@@ -31,11 +32,13 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.SystemUsers
         /// <param name="dbContext">数据库上下文</param>
         /// <param name="logger">日志器</param>
         /// <param name="currentUser">当前登录用户上下文</param>
-        public SystemUserHandlers(IDbContext dbContext, ILogger<SystemUserHandlers> logger, ICurrentUser currentUser)
+        /// <param name="auditService">审计日志服务（M-5：记录用户增删/重置密码）</param>
+        public SystemUserHandlers(IDbContext dbContext, ILogger<SystemUserHandlers> logger, ICurrentUser currentUser, IAuditService auditService)
         {
             _dbContext = dbContext;
             _logger = logger;
             _currentUser = currentUser;
+            _auditService = auditService;
         }
 
         /// <summary>分页查询系统用户列表</summary>
@@ -119,6 +122,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.SystemUsers
             };
             await db.Insertable(user).ExecuteCommandAsync(cancellationToken);
             _logger.LogInformation("创建系统用户 {Username}", user.Username);
+            // M-5：审计日志记录创建系统用户
+            await _auditService.LogAsync("创建系统用户", $"username={user.Username},role={user.Role}", cancellationToken);
 
             return await Handle(new GetSystemUserByIdQuery(user.Id), cancellationToken);
         }
@@ -153,8 +158,10 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.SystemUsers
                 return ApiResponse<object>.Fail(Msg.Common.EntityNotFound($"系统用户 {command.Id}"), 404);
             }
 
-            // 不允许删除当前登录账号，ICurrentUser.UserId 存的是用户名
-            if (user.Username == _currentUser.UserId)
+            // 不允许删除当前登录账号（H-3 修复）：
+            // 旧实现误将 user.Username 与 _currentUser.UserId 比较（前者是用户名，后者是 SystemUser.Id 字符串），恒为 false
+            // 现通过 ICurrentUser.SystemUserId（仅 Admin 角色有值，对应 SystemUser.Id）正确比较
+            if (_currentUser.SystemUserId.HasValue && user.Id == _currentUser.SystemUserId.Value)
             {
                 return ApiResponse<object>.Fail("不可删除当前登录账号", 400);
             }
@@ -163,6 +170,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.SystemUsers
             user.UpdateTime = DateTime.UtcNow;
             await db.Updateable(user).ExecuteCommandAsync(cancellationToken);
             _logger.LogInformation("软删除系统用户 {UserId}", user.Id);
+            // M-5：审计日志记录删除系统用户
+            await _auditService.LogAsync("删除系统用户", $"id={user.Id},username={user.Username}", cancellationToken);
 
             return ApiResponse<object>.Success("删除成功");
         }
@@ -183,6 +192,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.SystemUsers
             user.UpdateTime = DateTime.UtcNow;
             await db.Updateable(user).ExecuteCommandAsync(cancellationToken);
             _logger.LogInformation("重置系统用户密码 {UserId}", user.Id);
+            // M-5：审计日志记录重置用户密码（管理员重置他人密码属高危操作）
+            await _auditService.LogAsync("重置系统用户密码", $"id={user.Id},username={user.Username}", cancellationToken);
 
             return ApiResponse<object>.Success("密码重置成功");
         }

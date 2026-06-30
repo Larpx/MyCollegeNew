@@ -80,6 +80,12 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
             // 注册令牌服务（Singleton：无状态服务）
             builder.Services.AddSingleton<ITokenService, TokenService>();
 
+            // M-3 修复：注册 JWT 撤销服务（Scoped：依赖请求级 IDistributedCache）
+            builder.Services.AddScoped<ITokenRevocationService, TokenRevocationService>();
+
+            // M-5 修复：注册审计日志服务（Scoped：依赖请求级 IDbContext、ICurrentUser、IHttpContextAccessor）
+            builder.Services.AddScoped<IAuditService, Larpx.PersonalTools.MyCollegeNew.Infrastructure.Audit.AuditService>();
+
             // 注册 TOTP 二次验证服务（Singleton：无状态服务）
             builder.Services.AddSingleton<TotpService>();
 
@@ -104,8 +110,28 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
             builder.Configuration.GetSection("Jwt").Bind(jwtConfig);
             if (string.IsNullOrWhiteSpace(jwtConfig.SecretKey))
             {
-                throw new InvalidOperationException("未配置 Jwt:SecretKey，请在 appsettings.json 或环境变量中设置");
+#if DEBUG
+                // L-5 修复：开发环境未配置 SecretKey 时生成随机密钥（每次启动不同，JWT 重启失效）
+                // 开发者可通过 `dotnet user-secrets set "Jwt:SecretKey" "..."` 设置稳定密钥
+                var randomKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+                jwtConfig.SecretKey = randomKey;
+                builder.Configuration["Jwt:SecretKey"] = randomKey;
+                Console.WriteLine("[WARNING] 未配置 Jwt:SecretKey，已生成随机开发密钥。建议执行：dotnet user-secrets set \"Jwt:SecretKey\" \"你的开发密钥\"");
+#else
+                throw new InvalidOperationException("未配置 Jwt:SecretKey，请在 appsettings.json 或环境变量 Jwt__SecretKey 中设置");
+#endif
             }
+
+            // H-5 修复：启动时校验数据库连接字符串非空（DEBUG 模式跳过，便于使用 SQLite）
+            // 生产环境必须通过环境变量 Db__ConnectionString 注入最小权限账号的连接字符串
+            var dbConfig = new DbConfig();
+            builder.Configuration.GetSection("Db").Bind(dbConfig);
+#if !DEBUG
+            if (string.IsNullOrWhiteSpace(dbConfig.ConnectionString))
+            {
+                throw new InvalidOperationException("未配置 Db:ConnectionString，请在 appsettings.json 或环境变量 Db__ConnectionString 中设置（建议使用最小权限账号）");
+            }
+#endif
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
                 {
@@ -119,6 +145,26 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
                         ValidAudience = jwtConfig.Audience,
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfig.SecretKey)),
                         ClockSkew = TimeSpan.FromMinutes(1)
+                    };
+
+                    // M-3 修复：在令牌校验通过后检查黑名单，已撤销的 JWT 拒绝继续处理
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnTokenValidated = async context =>
+                        {
+                            var jti = context.Principal?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)?.Value;
+                            if (string.IsNullOrEmpty(jti))
+                            {
+                                return;
+                            }
+
+                            var revocationService = context.HttpContext.RequestServices
+                                .GetRequiredService<ITokenRevocationService>();
+                            if (await revocationService.IsRevokedAsync(jti, context.HttpContext.RequestAborted))
+                            {
+                                context.Fail("令牌已被撤销");
+                            }
+                        }
                     };
                 });
 
@@ -161,6 +207,15 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
                     opt.QueueLimit = 0;
                 });
 
+                // M-2 修复：2FA 验证/绑定端点独立限流，每 IP 每分钟最多 10 次
+                // 配合 TwoFactorEndpoints 内的 5 次失败锁定机制，防止 6 位 TOTP 暴力破解
+                options.AddFixedWindowLimiter("twofa", opt =>
+                {
+                    opt.PermitLimit = 10;
+                    opt.Window = TimeSpan.FromMinutes(1);
+                    opt.QueueLimit = 0;
+                });
+
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             });
 
@@ -193,14 +248,27 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
             // API 版本控制
             builder.Services.AddApiVersioning();
 
-            // CORS
+            // M-7 修复：CORS 改为白名单模式，从 appsettings.json 的 Cors:AllowedOrigins 读取允许的前端域名
+            // 防止任意外部域名读取 API 响应放大信息泄露面
+            var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
             builder.Services.AddCors(options =>
             {
                 options.AddDefaultPolicy(policy =>
                 {
-                    policy.AllowAnyOrigin()
-                          .AllowAnyMethod()
-                          .AllowAnyHeader();
+                    if (allowedOrigins.Length > 0)
+                    {
+                        policy.WithOrigins(allowedOrigins)
+                              .AllowAnyMethod()
+                              .AllowAnyHeader()
+                              .AllowCredentials();
+                    }
+                    else
+                    {
+                        // 未配置白名单时仅允许同源（不允许任意跨域），开发环境可通过环境变量配置
+                        policy.SetIsOriginAllowed(_ => false)
+                              .AllowAnyMethod()
+                              .AllowAnyHeader();
+                    }
                 });
             });
 

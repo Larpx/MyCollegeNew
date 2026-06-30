@@ -1,4 +1,4 @@
-﻿using FluentValidation;
+using FluentValidation;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Login
 {
@@ -17,6 +17,10 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Auth.Login
 
             RuleFor(x => x.Request.Password)
                 .NotEmpty().WithMessage("密码不能为空");
+
+            // 强制校验滑块验证码 token，防止前端绕过
+            RuleFor(x => x.Request.CaptchaToken)
+                .NotEmpty().WithMessage("滑块验证码不能为空，请完成验证");
         }
     }
 }

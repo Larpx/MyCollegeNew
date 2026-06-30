@@ -2,9 +2,11 @@ using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using MediatR;
 using SqlSugar;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using Msg = Larpx.PersonalTools.MyCollegeNew.Shared.Constants.MessageConstants;
 
@@ -21,23 +23,26 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Students
         IRequestHandler<DeleteStudentCommand, ApiResponse<object>>,
         IRequestHandler<BatchImportStudentsCommand, ApiResponse<BatchImportResultDto>>
     {
-        /// <summary>CSV 导入默认密码取学号后 6 位</summary>
-        private const int DefaultPasswordTailLength = 6;
+        /// <summary>L-2 修复：CSV 导入随机初始密码长度（12 位，含大小写字母与数字）</summary>
+        private const int RandomPasswordLength = 12;
 
         /// <summary>CSV 表头字段数</summary>
         private const int CsvColumnCount = 7;
 
         private readonly IDbContext _dbContext;
+        private readonly IAuditService _auditService;
         private readonly ILogger<StudentHandlers> _logger;
 
         /// <summary>
         /// 构造函数
         /// </summary>
         /// <param name="dbContext">数据库上下文</param>
+        /// <param name="auditService">审计日志服务（M-5：记录批量导入）</param>
         /// <param name="logger">日志器</param>
-        public StudentHandlers(IDbContext dbContext, ILogger<StudentHandlers> logger)
+        public StudentHandlers(IDbContext dbContext, IAuditService auditService, ILogger<StudentHandlers> logger)
         {
             _dbContext = dbContext;
+            _auditService = auditService;
             _logger = logger;
         }
 
@@ -257,36 +262,83 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Students
                         continue;
                     }
 
-                    var defaultPassword = id.Length >= DefaultPasswordTailLength
-                        ? id[^DefaultPasswordTailLength..]
-                        : id;
+                    // L-2 修复：不再使用学号后 6 位作为默认密码，改为生成随机初始密码
+                    // 同时标记 MustChangePassword = true，强制学生首次登录修改密码
+                    var initialPassword = GenerateRandomPassword();
 
                     var student = new Student
                     {
                         Id = id,
                         Name = name,
-                        Password = BCrypt.Net.BCrypt.HashPassword(defaultPassword),
+                        Password = BCrypt.Net.BCrypt.HashPassword(initialPassword),
                         Gender = gender,
                         DepartmentId = departmentId,
                         MajorId = majorId,
                         ClassId = classId,
                         Grade = grade,
                         Status = 0,
+                        MustChangePassword = true,
                         CreateTime = DateTime.UtcNow
                     };
                     await db.Insertable(student).ExecuteCommandAsync(cancellationToken);
                     result.SuccessCount++;
+                    // 将明文密码回传给管理员，由管理员通过安全渠道下发给学生
+                    result.GeneratedPasswords.Add(new BatchImportPasswordItem
+                    {
+                        Id = id,
+                        Name = name,
+                        Password = initialPassword
+                    });
                 }
                 catch (Exception ex)
                 {
                     result.FailedCount++;
-                    result.Failures.Add(new BatchImportFailureItem { Row = lineNumber, Reason = ex.Message });
+                    // M-6 修复：不将 ex.Message 返回客户端（可能包含表名/列名/约束名等内部实现细节）
+                    // 仅返回通用错误提示，详细信息保留在服务端日志中便于运维排查
+                    result.Failures.Add(new BatchImportFailureItem { Row = lineNumber, Reason = $"第 {lineNumber} 行数据格式错误或已存在" });
                     _logger.LogWarning(ex, "CSV 导入第 {Row} 行失败", lineNumber);
                 }
             }
 
             _logger.LogInformation("CSV 批量导入完成：成功 {Success}，失败 {Failed}", result.SuccessCount, result.FailedCount);
+            // M-5：审计日志记录批量导入结果
+            await _auditService.LogAsync("批量导入学生", $"成功{result.SuccessCount}条,失败{result.FailedCount}条", cancellationToken);
             return ApiResponse<BatchImportResultDto>.Success(result);
+        }
+
+        /// <summary>
+        /// L-2 修复：生成密码学安全的随机初始密码（大小写字母 + 数字，共 12 位）
+        /// 使用 RandomNumberGenerator 避免弱随机数导致的可预测性
+        /// </summary>
+        /// <returns>随机初始密码明文</returns>
+        private static string GenerateRandomPassword()
+        {
+            // 字符集：大写字母 + 小写字母 + 数字
+            const string upperCase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+            const string lowerCase = "abcdefghijkmnpqrstuvwxyz";
+            const string digits = "23456789";
+            var allChars = upperCase + lowerCase + digits;
+
+            // 至少各取 1 个大写、1 个小写、1 个数字，满足 L-1 密码复杂度要求
+            Span<char> buffer = stackalloc char[RandomPasswordLength];
+            buffer[0] = upperCase[RandomNumberGenerator.GetInt32(upperCase.Length)];
+            buffer[1] = lowerCase[RandomNumberGenerator.GetInt32(lowerCase.Length)];
+            buffer[2] = digits[RandomNumberGenerator.GetInt32(digits.Length)];
+
+            // 剩余位置从全字符集随机抽取
+            for (var i = 3; i < RandomPasswordLength; i++)
+            {
+                buffer[i] = allChars[RandomNumberGenerator.GetInt32(allChars.Length)];
+            }
+
+            // Fisher-Yates 洗牌避免前三位固定为大小写+数字
+            for (var i = RandomPasswordLength - 1; i > 0; i--)
+            {
+                var j = RandomNumberGenerator.GetInt32(i + 1);
+                (buffer[i], buffer[j]) = (buffer[j], buffer[i]);
+            }
+
+            return new string(buffer);
         }
     }
 }

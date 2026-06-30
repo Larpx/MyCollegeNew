@@ -17,7 +17,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
         public string Name { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "密码不能为空")]
-        [StringLength(128, MinimumLength = 6, ErrorMessage = "密码长度需在 6-128 个字符之间")]
+        [StringLength(128, MinimumLength = 8, ErrorMessage = "密码长度需在 8-128 个字符之间")]
         public string Password { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "性别不能为空")]
@@ -105,7 +105,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
         public string Name { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "密码不能为空")]
-        [StringLength(128, MinimumLength = 6, ErrorMessage = "密码长度需在 6-128 个字符之间")]
+        [StringLength(128, MinimumLength = 8, ErrorMessage = "密码长度需在 8-128 个字符之间")]
         public string Password { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "性别不能为空")]
@@ -177,7 +177,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
         public string OldPassword { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "新密码不能为空")]
-        [StringLength(128, MinimumLength = 6, ErrorMessage = "新密码长度需在 6-128 个字符之间")]
+        [StringLength(128, MinimumLength = 8, ErrorMessage = "新密码长度需在 8-128 个字符之间")]
         public string NewPassword { get; set; } = string.Empty;
     }
 
@@ -189,6 +189,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
         public int SuccessCount { get; set; }
         public int FailedCount { get; set; }
         public List<BatchImportFailureItem> Failures { get; set; } = new();
+
+        /// <summary>L-2 修复：成功导入学生的初始随机密码清单（学号 + 明文密码），供管理员通过安全渠道下发</summary>
+        public List<BatchImportPasswordItem> GeneratedPasswords { get; set; } = new();
     }
 
     /// <summary>
@@ -198,5 +201,20 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
     {
         public int Row { get; set; }
         public string Reason { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// 批量导入生成的初始密码项（L-2 修复：管理员需通过安全渠道下发给学生）
+    /// </summary>
+    public class BatchImportPasswordItem
+    {
+        /// <summary>学号</summary>
+        public string Id { get; set; } = string.Empty;
+
+        /// <summary>姓名</summary>
+        public string Name { get; set; } = string.Empty;
+
+        /// <summary>明文初始密码（仅此次返回，后续不可查询）</summary>
+        public string Password { get; set; } = string.Empty;
     }
 }

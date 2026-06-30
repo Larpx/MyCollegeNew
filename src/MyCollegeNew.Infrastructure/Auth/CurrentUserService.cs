@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -25,10 +25,27 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Auth
             _logger = logger;
         }
 
-        /// <summary>用户ID（学号/工号/admin）</summary>
+        /// <summary>
+        /// 用户ID（学号/工号；Admin 角色为 SystemUser.Id 数字字符串）
+        /// 用于业务实体按主键查询（Student.Id / Teacher.Id / SystemUser.Id 字符串化）
+        /// </summary>
         public string UserId => GetClaimValue(TokenService.ClaimUserId)
                                 ?? GetClaimValue(ClaimTypes.NameIdentifier)
                                 ?? string.Empty;
+
+        /// <summary>
+        /// 系统用户主键（仅 Admin 角色有值，对应 SystemUser.Id）；
+        /// 从 system_user_id claim 解析，用于 SystemUser 表的自助操作校验，
+        /// 避免与 UserId 类型混淆（旧实现误将 Username 与 Id 比较）
+        /// </summary>
+        public long? SystemUserId
+        {
+            get
+            {
+                var value = GetClaimValue(TokenService.ClaimSystemUserId);
+                return long.TryParse(value, out var id) ? id : null;
+            }
+        }
 
         /// <summary>用户名/真实姓名</summary>
         public string UserName => GetClaimValue(TokenService.ClaimUserName)

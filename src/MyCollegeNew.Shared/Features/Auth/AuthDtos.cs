@@ -46,5 +46,23 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Auth
 
         /// <summary>二次验证临时令牌（用于后续验证请求）</summary>
         public string? TwoFactorToken { get; set; }
+
+        /// <summary>是否需要强制修改密码（L-2 修复：学生首次登录使用随机初始密码时为 true）</summary>
+        public bool MustChangePassword { get; set; }
+    }
+
+    /// <summary>
+    /// 强制修改密码请求 DTO（L-2 修复：学生首次登录改密使用）
+    /// </summary>
+    public class ForceChangePasswordRequest
+    {
+        /// <summary>登录时颁发的临时令牌（复用 TwoFactorToken 字段传递）</summary>
+        [Required(ErrorMessage = "临时令牌不能为空")]
+        public string TwoFactorToken { get; set; } = string.Empty;
+
+        /// <summary>新密码</summary>
+        [Required(ErrorMessage = "新密码不能为空")]
+        [StringLength(128, MinimumLength = 8, ErrorMessage = "新密码长度需在 8-128 个字符之间")]
+        public string NewPassword { get; set; } = string.Empty;
     }
 }

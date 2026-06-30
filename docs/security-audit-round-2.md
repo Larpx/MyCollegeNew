@@ -332,3 +332,37 @@ HTTP 请求
 本轮审计在第一轮已修复 5 个高危漏洞的基础上，新发现 5 个 HIGH、7 个 MEDIUM、5 个 LOW 严重度的漏洞。其中 H-1（验证码失效）与 H-2（死端点）是外部可直接利用的高危漏洞应优先修复；H-3 与 H-4 同源（ICurrentUser 类型混淆）应一并修复；H-5 修复成本极低。MEDIUM 中 M-5（审计日志缺失）影响合规取证能力，建议尽快补齐。
 
 注入向量与外部交互两个攻击面经全面清查确认无新增漏洞，SqlSugar ORM 参数化查询、文件路径操作、HttpClient 出站调用等均符合安全规范。
+
+---
+
+## 九、修复状态（2026-06-30 全量修复完成）
+
+本轮审计发现的 17 个漏洞已全部修复，构建验证通过（0 错误 0 警告，70/70 单元测试通过）。
+
+### 修复清单
+
+| 编号 | 严重度 | 问题 | 修复方案 | 状态 |
+|------|--------|------|----------|------|
+| H-1 | HIGH | 登录滑块验证码校验完全失效 | LoginRequest.CaptchaToken 改为必填，LoginValidator 添加 NotEmpty 校验，LoginHandler 强制校验 captcha token | 已修复 |
+| H-2 | HIGH | BFF /auth/2fa-complete 死端点 | 删除该端点，2FA 流程由 /auth/2fa-verify 与 /auth/2fa-bind 完成 | 已修复 |
+| H-3 | HIGH | ICurrentUser 类型混淆 | 新增 SystemUserId 属性，JWT 新增 system_user_id claim，SystemUserHandlers 自删除校验改用 SystemUserId | 已修复 |
+| H-4 | HIGH | 管理员无法修改自身密码 | ChangePasswordHandler Admin 分支兼容 Id/Username 查询 | 已修复 |
+| H-5 | HIGH | appsettings.json 硬编码数据库连接字符串 | 连接字符串置空，启动时校验，生产环境通过环境变量 Db__ConnectionString 注入 | 已修复 |
+| M-1 | MEDIUM | TOTP 验证码缺少重放保护 | TotpService.VerifyCodeAsync 使用 IDistributedCache 记录已用验证码，窗口期内拒绝重放 | 已修复 |
+| M-2 | MEDIUM | 2FA 端点缺少速率限制与锁定 | 新增 twofa 速率限制策略（每 IP 每分钟 10 次）+ 5 次失败锁定临时令牌 | 已修复 |
+| M-3 | MEDIUM | JWT 无服务端撤销机制 | 新增 TokenRevocationService（黑名单 TTL=JWT 剩余有效期）+ /auth/logout 端点 + jti claim + OnTokenValidated 黑名单检查 | 已修复 |
+| M-4 | MEDIUM | TOTP 密钥通过非 HttpOnly Cookie 传输 | 改用 IDistributedCache 服务端会话存储 TOTP 密钥/二维码，TwoFactor.razor 从缓存读取 | 已修复 |
+| M-5 | MEDIUM | 敏感操作无持久化审计日志 | 新增 IAuditService/AuditService（容错写入，IP 解析，字段截断）+ AuditLog 实体，应用于登录/改密/2FA/用户增删/批量导入 | 已修复 |
+| M-6 | MEDIUM | CSV 批量导入 ex.Message 返回客户端 | catch 块替换为通用错误提示，详细信息保留在服务端日志 | 已修复 |
+| M-7 | MEDIUM | CORS 配置过于宽松 | 改用白名单，appsettings.json Cors:AllowedOrigins 置空，生产环境通过环境变量注入 | 已修复 |
+| L-1 | LOW | 密码复杂度要求过低 | 新增 ApplyPasswordPolicy() FluentValidation 扩展（8 位+大小写+数字），应用于所有密码校验器 | 已修复 |
+| L-2 | LOW | 学生默认密码可预测 | CSV 导入使用 RandomNumberGenerator 生成 12 位随机密码，Student 实体新增 MustChangePassword 字段，首次登录强制改密（新增 /auth/force-change-password 端点与 /force-change-password 页面） | 已修复 |
+| L-3 | LOW | 登录用户存在性时序侧信道 | 用户不存在时执行 dummy BCrypt Verify 对齐耗时 | 已修复 |
+| L-4 | LOW | SecurityHeadersMiddleware 缺少安全头 | 新增 CSP、HSTS（HTTPS）、Referrer-Policy、Permissions-Policy | 已修复 |
+| L-5 | LOW | appsettings.Development.json 硬编码 JWT SecretKey | SecretKey 置空，csproj 添加 UserSecretsId，DEBUG 模式自动生成随机密钥，建议使用 dotnet user-secrets 管理 | 已修复 |
+
+### 验证结果
+
+- 构建：0 错误，0 警告
+- 单元测试：70/70 通过
+- 涉及修改的文件清单见各修复项的代码引用

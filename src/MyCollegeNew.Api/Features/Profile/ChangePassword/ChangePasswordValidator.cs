@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+using FluentValidation;
+using Larpx.PersonalTools.MyCollegeNew.Api.Validation;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Profile.ChangePassword
 {
@@ -15,9 +16,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Profile.ChangePassword
             RuleFor(x => x.Dto.OldPassword)
                 .NotEmpty().WithMessage("旧密码不能为空");
 
+            // L-1 修复：应用统一密码复杂度策略（最少 8 位，含大小写字母与数字）
             RuleFor(x => x.Dto.NewPassword)
-                .NotEmpty().WithMessage("新密码不能为空")
-                .MinimumLength(6).WithMessage("新密码长度不能少于6位")
+                .ApplyPasswordPolicy()
                 .NotEqual(x => x.Dto.OldPassword).WithMessage("新密码不能与旧密码相同");
         }
     }

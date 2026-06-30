@@ -42,7 +42,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
 
         /// <summary>登录密码（明文，后端会做 BCrypt 哈希）</summary>
         [Required(ErrorMessage = "密码不能为空")]
-        [StringLength(128, MinimumLength = 6, ErrorMessage = "密码长度需在 6-128 个字符之间")]
+        [StringLength(128, MinimumLength = 8, ErrorMessage = "密码长度需在 8-128 个字符之间")]
         public string Password { get; set; } = string.Empty;
 
         /// <summary>真实姓名</summary>
@@ -77,7 +77,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Features.Users
     {
         /// <summary>新密码（明文，后端会做 BCrypt 哈希）</summary>
         [Required(ErrorMessage = "新密码不能为空")]
-        [StringLength(128, MinimumLength = 6, ErrorMessage = "新密码长度需在 6-128 个字符之间")]
+        [StringLength(128, MinimumLength = 8, ErrorMessage = "新密码长度需在 8-128 个字符之间")]
         public string NewPassword { get; set; } = string.Empty;
     }
 }

@@ -91,6 +91,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure
                 Status INTEGER NOT NULL,
                 Remark TEXT,
                 TwoFactorSecret TEXT,
+                MustChangePassword INTEGER NOT NULL DEFAULT 0,
                 CreateTime TEXT NOT NULL,
                 UpdateTime TEXT,
                 IsDeleted INTEGER NOT NULL DEFAULT 0
@@ -320,6 +321,11 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure
         /// <summary>用户ID</summary>
         public string UserId { get; init; } = "test-admin";
 
+        /// <summary>
+        /// 系统用户主键（仅 Admin 角色有值）；测试场景默认 1，与种子管理员 Id 对齐
+        /// </summary>
+        public long? SystemUserId { get; init; } = 1;
+
         /// <summary>用户名</summary>
         public string UserName { get; init; } = "TestAdmin";
 
@@ -333,9 +339,23 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure
         public static TestCurrentUser Admin => new();
 
         /// <summary>教师测试用户，工号 test-teacher</summary>
-        public static TestCurrentUser Teacher => new() { UserId = "test-teacher", UserName = "TestTeacher", Role = UserRole.Teacher };
+        public static TestCurrentUser Teacher => new() { UserId = "test-teacher", UserName = "TestTeacher", Role = UserRole.Teacher, SystemUserId = null };
 
         /// <summary>学生测试用户，学号 test-student</summary>
-        public static TestCurrentUser Student => new() { UserId = "test-student", UserName = "TestStudent", Role = UserRole.Student };
+        public static TestCurrentUser Student => new() { UserId = "test-student", UserName = "TestStudent", Role = UserRole.Student, SystemUserId = null };
+    }
+
+    /// <summary>
+    /// 测试用审计日志服务（空实现），仅满足构造函数依赖注入，不实际写入审计日志
+    /// </summary>
+    public class NullAuditService : IAuditService
+    {
+        /// <summary>记录审计日志（已认证场景，空实现）</summary>
+        public Task LogAsync(string action, string? target = null, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        /// <summary>记录审计日志（未认证场景，空实现）</summary>
+        public Task LogAsync(string action, string userId, UserRole? role, string? target = null, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

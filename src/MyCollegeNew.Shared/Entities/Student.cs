@@ -51,5 +51,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Shared.Entities
         /// <summary>TOTP 二次验证密钥（Base32 编码），null 表示未绑定</summary>
         [SugarColumn(IsNullable = true, Length = 64, ColumnDescription = "TOTP 二次验证密钥")]
         public string? TwoFactorSecret { get; set; }
+
+        /// <summary>是否需要强制修改密码（L-2 修复：CSV 导入与种子数据使用随机初始密码后置为 true，首次登录改密后清除）</summary>
+        [SugarColumn(ColumnDescription = "是否需要强制修改密码")]
+        public bool MustChangePassword { get; set; }
     }
 }

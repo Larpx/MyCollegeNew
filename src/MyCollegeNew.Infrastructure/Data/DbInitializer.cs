@@ -300,7 +300,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data
         }
 
         /// <summary>
-        /// 播种学生，密码统一为学号后 6 位
+        /// 播种学生。L-2 修复：DEBUG 模式使用固定测试密码 Test1234（满足 L-1 复杂度要求，
+        /// 且不再派生自学号），生产环境应通过 CSV 导入生成随机密码并强制首次登录改密
         /// </summary>
         private async Task SeedStudentAsync(ISqlSugarClient db, string id, string name,
             string gender, long departmentId, long majorId, long classId, int grade)
@@ -312,13 +313,14 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Data
             {
                 Id = id,
                 Name = name,
-                Password = BCrypt.Net.BCrypt.HashPassword(id.Length >= 6 ? id[^6..] : id),
+                Password = BCrypt.Net.BCrypt.HashPassword("Test1234"),
                 Gender = gender,
                 DepartmentId = departmentId,
                 MajorId = majorId,
                 ClassId = classId,
                 Grade = grade,
                 Status = 0,
+                MustChangePassword = false,
                 CreateTime = DateTime.UtcNow
             }).ExecuteCommandAsync();
             _logger.LogInformation("已播种学生 {Id}「{Name}」", id, name);

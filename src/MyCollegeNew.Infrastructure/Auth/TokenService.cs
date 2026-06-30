@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -23,10 +23,44 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Auth
         /// <summary>JWT 自定义声明：角色</summary>
         public const string ClaimRole = "role";
 
+        /// <summary>JWT 自定义声明：系统用户主键（仅 Admin 角色写入，对应 SystemUser.Id）</summary>
+        public const string ClaimSystemUserId = "system_user_id";
+
         private readonly JwtConfig _jwtConfig;
         private readonly ILogger<TokenService> _logger;
         private readonly SymmetricSecurityKey _signingKey;
         private static readonly JwtSecurityTokenHandler _tokenHandler = new();
+
+        /// <summary>
+        /// 从 JWT 字符串解析 jti（JWT ID）与过期时间，用于 M-3 撤销机制计算黑名单 TTL
+        /// </summary>
+        /// <param name="token">JWT 字符串</param>
+        /// <returns>jti 与剩余有效期；解析失败返回 null</returns>
+        public (string Jti, TimeSpan RemainingTtl)? ParseTokenForRevocation(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return null;
+            }
+
+            try
+            {
+                var jwt = _tokenHandler.ReadJwtToken(token);
+                var jti = jwt.Id;
+                if (string.IsNullOrEmpty(jti))
+                {
+                    return null;
+                }
+
+                var remaining = jwt.ValidTo - DateTime.UtcNow;
+                return remaining > TimeSpan.Zero ? (jti, remaining) : null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "解析 JWT 用于撤销失败");
+                return null;
+            }
+        }
 
         /// <summary>
         /// 构造函数，注入 JWT 配置与日志器
@@ -46,21 +80,31 @@ namespace Larpx.PersonalTools.MyCollegeNew.Infrastructure.Auth
         /// <param name="userId">用户ID</param>
         /// <param name="userName">用户名</param>
         /// <param name="role">用户角色</param>
+        /// <param name="systemUserId">系统用户主键（仅 Admin 角色有值，写入 system_user_id claim）</param>
         /// <returns>已签名的 JWT 字符串</returns>
-        public string GenerateToken(string userId, string userName, UserRole role)
+        public string GenerateToken(string userId, string userName, UserRole role, long? systemUserId = null)
         {
             var key = _signingKey;
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var claims = new[]
+            var claims = new List<Claim>
             {
-            new Claim(ClaimTypes.NameIdentifier, userId),
-            new Claim(ClaimTypes.Name, userName),
-            new Claim(ClaimTypes.Role, role.ToString()),
-            new Claim(ClaimUserId, userId),
-            new Claim(ClaimUserName, userName),
-            new Claim(ClaimRole, role.ToString())
-        };
+                new(ClaimTypes.NameIdentifier, userId),
+                new(ClaimTypes.Name, userName),
+                new(ClaimTypes.Role, role.ToString()),
+                new(ClaimUserId, userId),
+                new(ClaimUserName, userName),
+                new(ClaimRole, role.ToString()),
+                // M-3 修复：写入 jti claim，作为 JWT 撤销黑名单的索引
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
+            };
+
+            // 仅 Admin 角色写入 system_user_id claim，供 ICurrentUser.SystemUserId 解析
+            // 用于 SystemUser 表的自助操作校验（修改密码、禁止自删除等），避免与 UserId 类型混淆
+            if (systemUserId.HasValue)
+            {
+                claims.Add(new Claim(ClaimSystemUserId, systemUserId.Value.ToString()));
+            }
 
             var token = new JwtSecurityToken(
                 issuer: _jwtConfig.Issuer,

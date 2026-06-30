@@ -1,4 +1,5 @@
 using FluentValidation;
+using Larpx.PersonalTools.MyCollegeNew.Api.Validation;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.SystemUsers
 {
@@ -13,8 +14,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.SystemUsers
         public CreateSystemUserValidator()
         {
             RuleFor(x => x.Dto.Username).NotEmpty().WithMessage("用户名不能为空");
-            RuleFor(x => x.Dto.Password).NotEmpty().WithMessage("密码不能为空")
-                .MinimumLength(6).WithMessage("密码长度不能少于6位");
+            // L-1 修复：应用统一密码复杂度策略
+            RuleFor(x => x.Dto.Password).ApplyPasswordPolicy();
             RuleFor(x => x.Dto.RealName).NotEmpty().WithMessage("真实姓名不能为空");
         }
     }
@@ -43,8 +44,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.SystemUsers
         /// </summary>
         public ResetSystemUserPasswordValidator()
         {
-            RuleFor(x => x.Dto.NewPassword).NotEmpty().WithMessage("新密码不能为空")
-                .MinimumLength(6).WithMessage("新密码长度不能少于6位");
+            // L-1 修复：应用统一密码复杂度策略
+            RuleFor(x => x.Dto.NewPassword).ApplyPasswordPolicy();
         }
     }
 }

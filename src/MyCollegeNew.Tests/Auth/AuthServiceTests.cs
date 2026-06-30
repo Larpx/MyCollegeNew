@@ -5,7 +5,9 @@ using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Auth;
 using Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Tests.Auth
@@ -17,6 +19,12 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Auth
     {
         private readonly TestDbContext _dbContext;
         private readonly LoginHandler _loginHandler;
+        private readonly IDistributedCache _cache;
+
+        /// <summary>
+        /// 测试用滑块验证码 token（H-1 修复后登录需校验验证码）
+        /// </summary>
+        private const string TestCaptchaToken = "test-captcha-token";
 
         /// <summary>
         /// 构造函数，初始化测试上下文与 LoginHandler 实例
@@ -25,8 +33,12 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Auth
         {
             _dbContext = new TestDbContext();
             var tokenService = new TokenService(TestJwtConfigFactory.Create(), NullLogger<TokenService>.Instance);
-            var cache = Mock.Of<IDistributedCache>();
-            _loginHandler = new LoginHandler(_dbContext, tokenService, cache, NullLogger<LoginHandler>.Instance);
+            // 使用真实的内存分布式缓存（Moq 无法 mock 扩展方法 GetStringAsync）
+            _cache = new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions()));
+            // 预置验证码 token 到缓存，使登录校验通过
+            _cache.SetString($"captcha:token:{TestCaptchaToken}", "valid");
+            var auditService = new NullAuditService();
+            _loginHandler = new LoginHandler(_dbContext, tokenService, _cache, auditService, NullLogger<LoginHandler>.Instance);
         }
 
         /// <summary>
@@ -40,7 +52,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Auth
             var command = new LoginCommand(new LoginRequest
             {
                 Username = "admin",
-                Password = "123456"
+                Password = "123456",
+                CaptchaToken = TestCaptchaToken
             });
 
             // Act
@@ -111,7 +124,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Auth
             var command = new LoginCommand(new LoginRequest
             {
                 Username = "20220101",
-                Password = "220101"
+                Password = "220101",
+                CaptchaToken = TestCaptchaToken
             });
 
             // Act

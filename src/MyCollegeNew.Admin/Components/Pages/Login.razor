@@ -40,6 +40,8 @@
             @* 传统 form POST：由 Program.cs 的 /auth/login 端点处理登录与 2FA 流程 *@
             <form method="post" action="/auth/login" class="login-form__form">
                 <AntiforgeryToken />
+                @* 滑块验证码 token 通过隐藏字段提交到 BFF 端点，再由 BFF 透传至 API 校验 *@
+                <input type="hidden" name="CaptchaToken" value="@_captchaToken" />
                 <div class="ui-input-wrapper">
                     <span class="ui-input-icon">
                         <Icon Name="user" Size="18" />

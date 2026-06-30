@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Api.Features.Profile.ChangePassword;
+using Larpx.PersonalTools.MyCollegeNew.Api.Features.Profile.ChangePassword;
 using Larpx.PersonalTools.MyCollegeNew.Api.Features.Students;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
@@ -24,8 +24,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Users
         public UserServiceTests()
         {
             _dbContext = new TestDbContext();
-            _studentHandlers = new StudentHandlers(_dbContext, NullLogger<StudentHandlers>.Instance);
-            _changePasswordHandler = new ChangePasswordHandler(_dbContext, NullLogger<ChangePasswordHandler>.Instance);
+            var auditService = new NullAuditService();
+            _studentHandlers = new StudentHandlers(_dbContext, auditService, NullLogger<StudentHandlers>.Instance);
+            _changePasswordHandler = new ChangePasswordHandler(_dbContext, auditService, NullLogger<ChangePasswordHandler>.Instance);
         }
 
         /// <summary>

@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+using FluentValidation;
+using Larpx.PersonalTools.MyCollegeNew.Api.Validation;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Students
 {
@@ -14,7 +15,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Students
         {
             RuleFor(x => x.Dto.Id).NotEmpty().WithMessage("学号不能为空");
             RuleFor(x => x.Dto.Name).NotEmpty().WithMessage("姓名不能为空");
-            RuleFor(x => x.Dto.Password).NotEmpty().WithMessage("密码不能为空").MinimumLength(6).WithMessage("密码长度不能少于6位");
+            // L-1 修复：应用统一密码复杂度策略
+            RuleFor(x => x.Dto.Password).ApplyPasswordPolicy();
             RuleFor(x => x.Dto.Gender).NotEmpty().WithMessage("性别不能为空");
             RuleFor(x => x.Dto.DepartmentId).GreaterThan(0).WithMessage("院系ID无效");
             RuleFor(x => x.Dto.MajorId).GreaterThan(0).WithMessage("专业ID无效");

@@ -37,9 +37,19 @@
                 </div>
             }
 
+            @if (!string.IsNullOrEmpty(_infoMessage))
+            {
+                <div class="alert alert--success" role="alert">
+                    <Icon Name="check-circle" Size="18" />
+                    <span>@_infoMessage</span>
+                </div>
+            }
+
             @* 传统 form POST：由 Program.cs 的 /auth/login 端点处理登录与 2FA 流程 *@
             <form method="post" action="/auth/login" class="login-form__form">
                 <AntiforgeryToken />
+                @* 滑块验证码 token 通过隐藏字段提交到 BFF 端点，再由 BFF 透传至 API 校验 *@
+                <input type="hidden" name="CaptchaToken" value="@_captchaToken" />
                 <div class="ui-input-wrapper">
                     <span class="ui-input-icon">
                         <Icon Name="user" Size="18" />
@@ -79,6 +89,10 @@
     [SupplyParameterFromQuery(Name = "error")]
     public string? ErrorMessage { get; set; }
 
+    /// <summary>从查询参数获取信息消息（如改密成功提示）</summary>
+    [SupplyParameterFromQuery(Name = "info")]
+    public string? InfoMessage { get; set; }
+
     /// <summary>滑块验证码组件引用</summary>
     private SliderCaptcha? _captchaRef;
 
@@ -87,6 +101,9 @@
 
     /// <summary>错误消息</summary>
     private string? _errorMessage;
+
+    /// <summary>信息消息（如改密成功提示）</summary>
+    private string? _infoMessage;
 
     /// <summary>根据角色参数动态生成页面标题</summary>
     private string _pageTitle => Role switch
@@ -118,6 +135,15 @@
         {
             "invalid" => "用户名或密码错误",
             "empty" => "用户名和密码不能为空",
+            "captcha" => "请先完成滑块验证",
+            "expired" => "登录会话已过期，请重新登录",
+            _ => null
+        };
+
+        // L-2 修复：强制改密成功后展示提示信息
+        _infoMessage = InfoMessage switch
+        {
+            "changed" => "密码修改成功，请使用新密码登录",
             _ => null
         };
     }

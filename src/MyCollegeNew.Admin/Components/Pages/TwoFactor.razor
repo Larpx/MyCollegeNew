@@ -2,6 +2,8 @@
 @layout LoginLayout
 @inject IAntiforgery Antiforgery
 @inject IHttpContextAccessor HttpContextAccessor
+@inject IDistributedCache DistributedCache
+@inject ILogger<TwoFactor> Logger
 
 <PageTitle>二次验证 - 考勤管理系统</PageTitle>
 
@@ -140,6 +142,10 @@
     [SupplyParameterFromQuery(Name = "error")]
     private string? ErrorParam { get; set; }
 
+    /// <summary>从查询参数获取 setup 就绪标志（M-4 修复后由 /auth/2fa-setup 重定向携带）</summary>
+    [SupplyParameterFromQuery(Name = "setup")]
+    private string? SetupFlag { get; set; }
+
     /// <summary>从 Cookie 读取的二次验证临时令牌</summary>
     private string _twoFactorToken = string.Empty;
 
@@ -158,11 +164,11 @@
     /// <summary>错误消息</summary>
     private string _errorMessage = string.Empty;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         var httpContext = HttpContextAccessor.HttpContext;
 
-        // 从 Cookie 读取 2FA 临时令牌
+        // 从 Cookie 读取 2FA 临时令牌（HttpOnly，仅服务端可读）
         _twoFactorToken = httpContext?.Request.Cookies["2fa_token"] ?? string.Empty;
 
         if (string.IsNullOrEmpty(_twoFactorToken))
@@ -171,19 +177,33 @@
             return;
         }
 
-        // 从 Cookie 判断用户是否已绑定 TOTP
+        // 从 Cookie 判断用户是否已绑定 TOTP（仅布尔标志，非敏感数据）
         var hasSecretCookie = httpContext?.Request.Cookies["2fa_has_secret"];
         _hasSecret = hasSecretCookie == "1";
 
-        // 从 Cookie 读取 setup 数据（由 /auth/2fa-setup 端点设置）
-        var secretCookie = httpContext?.Request.Cookies["2fa_secret"];
-        var qrCookie = httpContext?.Request.Cookies["2fa_qr"];
-
-        if (!string.IsNullOrEmpty(secretCookie) && !string.IsNullOrEmpty(qrCookie))
+        // M-4 修复：TOTP 密钥与二维码不再通过 Cookie 传输，改由服务端 IDistributedCache 提供
+        // 当查询参数 setup=ready 时，从缓存读取并由服务端渲染到页面，避免 XSS 窃取
+        if (SetupFlag == "ready" && !_hasSecret)
         {
-            _secret = secretCookie;
-            _qrCodeBase64 = qrCookie;
-            _setupLoaded = true;
+            var cacheKey = $"2fa:setup:{_twoFactorToken}";
+            var payload = await DistributedCache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(payload))
+            {
+                try
+                {
+                    var setupData = JsonSerializer.Deserialize<TwoFactorSetupResult>(payload);
+                    if (setupData is not null)
+                    {
+                        _secret = setupData.Secret;
+                        _qrCodeBase64 = setupData.QrCodeBase64;
+                        _setupLoaded = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "解析 2FA setup 缓存数据失败");
+                }
+            }
         }
 
         // 处理错误消息
