@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave;
+using Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Exceptions;
@@ -22,7 +22,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Leave
         public LeaveHandlersTests()
         {
             _dbContext = new TestDbContext();
-            _leaveHandlers = new LeaveHandlers(_dbContext, NullLogger<LeaveHandlers>.Instance);
+            _leaveHandlers = new LeaveHandlers(_dbContext, TestCurrentUser.Admin, NullLogger<LeaveHandlers>.Instance);
         }
 
         /// <summary>

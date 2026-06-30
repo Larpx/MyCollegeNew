@@ -1,7 +1,9 @@
 using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using MediatR;
 using SqlSugar;
 using System.Linq.Expressions;
@@ -29,6 +31,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
         IRequestHandler<GetScheduleByClassQuery, ApiResponse<WeeklyScheduleDto>>
     {
         private readonly IDbContext _dbContext;
+        private readonly ICurrentUser _currentUser;
         private readonly ILogger<CourseHandlers> _logger;
 
         /// <summary>课表多表联查的 Select 映射表达式</summary>
@@ -57,10 +60,12 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
         /// 构造函数
         /// </summary>
         /// <param name="dbContext">数据库上下文</param>
+        /// <param name="currentUser">当前登录用户上下文</param>
         /// <param name="logger">日志器</param>
-        public CourseHandlers(IDbContext dbContext, ILogger<CourseHandlers> logger)
+        public CourseHandlers(IDbContext dbContext, ICurrentUser currentUser, ILogger<CourseHandlers> logger)
         {
             _dbContext = dbContext;
+            _currentUser = currentUser;
             _logger = logger;
         }
 
@@ -191,6 +196,19 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
         /// <summary>按教师查询课程</summary>
         public async Task<ApiResponse<List<CourseResponseDto>>> Handle(GetCoursesByTeacherQuery query, CancellationToken cancellationToken)
         {
+            // 校验当前用户是否有权按该教师查询课程：
+            // 管理员可查任意教师；教师/辅导员仅可查自己；学生不允许按教师查询课程
+            if (_currentUser.Role == UserRole.Student)
+            {
+                return ApiResponse<List<CourseResponseDto>>.Fail(Msg.Common.NoPermission, 403);
+            }
+
+            if ((_currentUser.Role == UserRole.Teacher || _currentUser.Role == UserRole.Counselor)
+                && query.TeacherId != _currentUser.UserId)
+            {
+                return ApiResponse<List<CourseResponseDto>>.Fail(Msg.Common.NoPermission, 403);
+            }
+
             var db = _dbContext.Client;
             var rows = await db.Queryable<Course, Teacher>((c, t) => new JoinQueryInfos(JoinType.Left, c.TeacherId == t.Id))
                 .Where((c, t) => !c.IsDeleted && c.TeacherId == query.TeacherId)
@@ -291,6 +309,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
             {
                 CourseId = command.Dto.CourseId,
                 ClassId = command.Dto.ClassId,
+                ClassIds = command.Dto.ClassId.ToString(),
                 TeacherId = command.Dto.TeacherId,
                 DayOfWeek = command.Dto.DayOfWeek,
                 StartSection = command.Dto.StartSection,
@@ -342,6 +361,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
 
             schedule.CourseId = command.Dto.CourseId;
             schedule.ClassId = command.Dto.ClassId;
+            schedule.ClassIds = command.Dto.ClassId.ToString();
             schedule.TeacherId = command.Dto.TeacherId;
             schedule.DayOfWeek = command.Dto.DayOfWeek;
             schedule.StartSection = command.Dto.StartSection;
@@ -375,6 +395,19 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
         /// <summary>按教师查询周课表</summary>
         public async Task<ApiResponse<WeeklyScheduleDto>> Handle(GetScheduleByTeacherQuery query, CancellationToken cancellationToken)
         {
+            // 校验当前用户是否有权按该教师查询周课表：
+            // 管理员可查任意教师；教师/辅导员仅可查自己；学生不允许按教师查询周课表
+            if (_currentUser.Role == UserRole.Student)
+            {
+                return ApiResponse<WeeklyScheduleDto>.Fail(Msg.Common.NoPermission, 403);
+            }
+
+            if ((_currentUser.Role == UserRole.Teacher || _currentUser.Role == UserRole.Counselor)
+                && query.TeacherId != _currentUser.UserId)
+            {
+                return ApiResponse<WeeklyScheduleDto>.Fail(Msg.Common.NoPermission, 403);
+            }
+
             var db = _dbContext.Client;
             var schedules = await db.Queryable<CourseSchedule, Course, Class, Teacher>((s, c, cls, t) =>
                     new JoinQueryInfos(JoinType.Left, s.CourseId == c.Id, JoinType.Left, s.ClassId == cls.Id, JoinType.Left, s.TeacherId == t.Id))
@@ -391,6 +424,14 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
         /// <summary>按学生查询周课表</summary>
         public async Task<ApiResponse<WeeklyScheduleDto>> Handle(GetScheduleByStudentQuery query, CancellationToken cancellationToken)
         {
+            // 校验当前用户是否有权按该学生查询周课表：
+            // 管理员可查任意学生；学生仅可查自己；教师/辅导员不在此处限制，
+            // 由内部调用的 GetScheduleByClassQuery 校验其是否为该学生所在班级的任课教师
+            if (_currentUser.Role == UserRole.Student && query.StudentId != _currentUser.UserId)
+            {
+                return ApiResponse<WeeklyScheduleDto>.Fail(Msg.Common.NoPermission, 403);
+            }
+
             var db = _dbContext.Client;
             var student = await db.Queryable<Student>().FirstAsync(s => s.Id == query.StudentId && !s.IsDeleted);
             if (student is null)
@@ -404,6 +445,13 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
         /// <summary>按班级查询周课表</summary>
         public async Task<ApiResponse<WeeklyScheduleDto>> Handle(GetScheduleByClassQuery query, CancellationToken cancellationToken)
         {
+            // 校验当前用户是否有权访问该班级的课表：
+            // 管理员可访问所有；教师/辅导员需在该班级有排课；学生需属于该班级
+            if (!await CanAccessClassScheduleAsync(_dbContext.Client, query.ClassId, cancellationToken))
+            {
+                return ApiResponse<WeeklyScheduleDto>.Fail(Msg.Common.NoPermission, 403);
+            }
+
             var db = _dbContext.Client;
             var schedules = await db.Queryable<CourseSchedule, Course, Class, Teacher>((s, c, cls, t) =>
                     new JoinQueryInfos(JoinType.Left, s.CourseId == c.Id, JoinType.Left, s.ClassId == cls.Id, JoinType.Left, s.TeacherId == t.Id))
@@ -415,6 +463,44 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses
             await ApplyOverridesAsync(schedules, query.Week, cancellationToken);
 
             return ApiResponse<WeeklyScheduleDto>.Success(BuildWeeklySchedule(query.Week, schedules));
+        }
+
+        /// <summary>
+        /// 校验当前用户是否有权访问指定班级的课表：
+        /// 管理员可访问所有；教师/辅导员需在该班级有排课；学生需属于该班级
+        /// </summary>
+        /// <param name="db">SqlSugar 客户端</param>
+        /// <param name="classId">班级 ID</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>有权访问返回 true，否则 false</returns>
+        private async Task<bool> CanAccessClassScheduleAsync(
+            ISqlSugarClient db, long classId, CancellationToken cancellationToken)
+        {
+            // 管理员可访问所有
+            if (_currentUser.Role == UserRole.Admin)
+            {
+                return true;
+            }
+
+            // 教师/辅导员需在该班级有排课
+            if (_currentUser.Role == UserRole.Teacher || _currentUser.Role == UserRole.Counselor)
+            {
+                return await db.Queryable<CourseSchedule>()
+                    .AnyAsync(s => s.TeacherId == _currentUser.UserId
+                        && s.ClassId == classId
+                        && !s.IsDeleted, cancellationToken);
+            }
+
+            // 学生需属于该班级
+            if (_currentUser.Role == UserRole.Student)
+            {
+                return await db.Queryable<Student>()
+                    .AnyAsync(s => s.Id == _currentUser.UserId
+                        && s.ClassId == classId
+                        && !s.IsDeleted, cancellationToken);
+            }
+
+            return false;
         }
 
         /// <summary>将课表列表按 DayOfWeek 分组构造周课表 DTO</summary>

@@ -1,4 +1,4 @@
-﻿using Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses;
+using Larpx.PersonalTools.MyCollegeNew.Api.Features.Courses;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Courses;
@@ -21,7 +21,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Courses
         public ScheduleServiceTests()
         {
             _dbContext = new TestDbContext();
-            _courseHandlers = new CourseHandlers(_dbContext, NullLogger<CourseHandlers>.Instance);
+            _courseHandlers = new CourseHandlers(_dbContext, TestCurrentUser.Admin, NullLogger<CourseHandlers>.Instance);
         }
 
         /// <summary>

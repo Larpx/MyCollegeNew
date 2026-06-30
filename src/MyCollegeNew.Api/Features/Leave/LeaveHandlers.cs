@@ -3,6 +3,7 @@ using Larpx.PersonalTools.MyCollegeNew.Shared.Entities;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Features.Leave;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Responses;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using MediatR;
 using SqlSugar;
 using System.Linq.Expressions;
@@ -24,6 +25,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave
         IRequestHandler<GetLeavesByClassQuery, ApiResponse<List<LeaveResponseDto>>>
     {
         private readonly IDbContext _dbContext;
+        private readonly ICurrentUser _currentUser;
         private readonly ILogger<LeaveHandlers> _logger;
 
         /// <summary>请假记录多表联查的 Select 映射表达式</summary>
@@ -49,10 +51,12 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave
         /// 构造函数
         /// </summary>
         /// <param name="dbContext">数据库上下文</param>
+        /// <param name="currentUser">当前登录用户上下文</param>
         /// <param name="logger">日志器</param>
-        public LeaveHandlers(IDbContext dbContext, ILogger<LeaveHandlers> logger)
+        public LeaveHandlers(IDbContext dbContext, ICurrentUser currentUser, ILogger<LeaveHandlers> logger)
         {
             _dbContext = dbContext;
+            _currentUser = currentUser;
             _logger = logger;
         }
 
@@ -162,6 +166,15 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Leave
             if (dto is null)
             {
                 return ApiResponse<LeaveResponseDto>.Fail(Msg.Common.EntityNotFound($"请假申请 {query.Id}"), 404);
+            }
+
+            // 校验当前用户是否有权查看该请假详情：
+            // 管理员可查看所有；学生仅可查看自己的；辅导员仅可查看分配给自己的
+            if (_currentUser.Role != UserRole.Admin
+                && dto.StudentId != _currentUser.UserId
+                && dto.CounselorId != _currentUser.UserId)
+            {
+                return ApiResponse<LeaveResponseDto>.Fail(Msg.Common.NoPermission, 403);
             }
 
             return ApiResponse<LeaveResponseDto>.Success(dto);

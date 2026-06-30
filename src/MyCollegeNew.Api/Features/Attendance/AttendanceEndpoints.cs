@@ -105,9 +105,9 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
             .WithName("ManualCheckIn").WithSummary("手动补签").RequireAuthorization("RequireTeacher")
             .Produces<ApiResponse<AttendanceRecordResponseDto>>(StatusCodes.Status200OK);
 
-            group.MapGet("/classes/{classId:long}/random-pick", async (long classId, long? sessionId, IMediator mediator) =>
+            group.MapGet("/classes/{classId:long}/random-pick", async (long classId, long? sessionId, IMediator mediator, ICurrentUser currentUser) =>
             {
-                var result = await mediator.Send(new RandomPickQuery(classId, sessionId));
+                var result = await mediator.Send(new RandomPickQuery(classId, sessionId, currentUser.UserId));
                 return Results.Ok(result);
             })
             .WithName("RandomPick").WithSummary("随机点名").RequireAuthorization("RequireTeacher")

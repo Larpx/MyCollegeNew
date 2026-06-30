@@ -50,7 +50,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
     public record ManualCheckInCommand(long SessionId, string StudentId, AttendanceStatus Status, string TeacherId) : IRequest<ApiResponse<AttendanceRecordResponseDto>>;
 
     /// <summary>随机点名</summary>
-    public record RandomPickQuery(long ClassId, long? SessionId) : IRequest<ApiResponse<RandomPickResult>>;
+    public record RandomPickQuery(long ClassId, long? SessionId, string? TeacherId) : IRequest<ApiResponse<RandomPickResult>>;
 
     /// <summary>标记随机点名结果</summary>
     public record MarkRandomPickCommand(long SessionId, string StudentId, bool Answered) : IRequest<ApiResponse<object>>;

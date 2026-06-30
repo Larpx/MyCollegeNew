@@ -30,7 +30,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Attendance
         {
             _dbContext = new TestDbContext();
             _jwtConfig = TestJwtConfigFactory.Create();
-            _attendanceHandlers = new AttendanceHandlers(_dbContext, _jwtConfig, NullLogger<AttendanceHandlers>.Instance);
+            _attendanceHandlers = new AttendanceHandlers(_dbContext, _jwtConfig, TestCurrentUser.Admin, NullLogger<AttendanceHandlers>.Instance);
         }
 
         /// <summary>
@@ -155,7 +155,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Attendance
             await _attendanceHandlers.Handle(new RollCallCommand(sessionId, "T001"), CancellationToken.None);
 
             // Act
-            var result = await _attendanceHandlers.Handle(new RandomPickQuery(1, sessionId), CancellationToken.None);
+            var result = await _attendanceHandlers.Handle(new RandomPickQuery(1, sessionId, "T001"), CancellationToken.None);
 
             // Assert
             Assert.Equal(200, result.Code);
@@ -184,7 +184,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Attendance
             // 不执行一键点名，会话下无任何已签到学生
 
             // Act
-            var result = await _attendanceHandlers.Handle(new RandomPickQuery(1, sessionId), CancellationToken.None);
+            var result = await _attendanceHandlers.Handle(new RandomPickQuery(1, sessionId, "T001"), CancellationToken.None);
 
             // Assert
             Assert.Equal(400, result.Code);
@@ -305,7 +305,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Attendance
             await SeedReferenceDataAsync();
 
             // Act - 提供会话 Id 但班级不存在，命中班级校验分支
-            var result = await _attendanceHandlers.Handle(new RandomPickQuery(999, 1), CancellationToken.None);
+            var result = await _attendanceHandlers.Handle(new RandomPickQuery(999, 1, "T001"), CancellationToken.None);
 
             // Assert
             Assert.Equal(404, result.Code);
@@ -322,7 +322,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Attendance
             await SeedReferenceDataAsync();
 
             // Act - 未提供会话 Id
-            var result = await _attendanceHandlers.Handle(new RandomPickQuery(1, null), CancellationToken.None);
+            var result = await _attendanceHandlers.Handle(new RandomPickQuery(1, null, "T001"), CancellationToken.None);
 
             // Assert
             Assert.Equal(400, result.Code);

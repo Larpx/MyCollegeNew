@@ -44,6 +44,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
 
         private readonly IDbContext _dbContext;
         private readonly IOptions<JwtConfig> _jwtConfig;
+        private readonly ICurrentUser _currentUser;
         private readonly ILogger<AttendanceHandlers> _logger;
         private readonly SymmetricSecurityKey _signingKey;
         private static readonly JwtSecurityTokenHandler _tokenHandler = new();
@@ -56,11 +57,13 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
         /// </summary>
         /// <param name="dbContext">数据库上下文</param>
         /// <param name="jwtConfig">JWT 配置</param>
+        /// <param name="currentUser">当前登录用户上下文</param>
         /// <param name="logger">日志器</param>
-        public AttendanceHandlers(IDbContext dbContext, IOptions<JwtConfig> jwtConfig, ILogger<AttendanceHandlers> logger)
+        public AttendanceHandlers(IDbContext dbContext, IOptions<JwtConfig> jwtConfig, ICurrentUser currentUser, ILogger<AttendanceHandlers> logger)
         {
             _dbContext = dbContext;
             _jwtConfig = jwtConfig;
+            _currentUser = currentUser;
             _signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfig.Value.SecretKey));
             _logger = logger;
         }
@@ -143,6 +146,12 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
             if (dto is null)
             {
                 return ApiResponse<SessionResponseDto>.Fail(Msg.Common.EntityNotFound("考勤会话"), 404);
+            }
+
+            // 校验当前用户是否有权访问该会话，防止越权查看他人考勤数据
+            if (!await CanAccessSessionAsync(db, dto.TeacherId, dto.ClassId, cancellationToken))
+            {
+                return ApiResponse<SessionResponseDto>.Fail(Msg.Common.NoPermission, 403);
             }
 
             return ApiResponse<SessionResponseDto>.Success(dto);
@@ -272,6 +281,12 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
             if (session is null)
             {
                 return ApiResponse<List<AttendanceRecordResponseDto>>.Fail(Msg.Common.EntityNotFound("考勤会话"), 404);
+            }
+
+            // 校验当前用户是否有权访问该会话，防止越权查看他人考勤记录
+            if (!await CanAccessSessionAsync(db, session.TeacherId, session.ClassId, cancellationToken))
+            {
+                return ApiResponse<List<AttendanceRecordResponseDto>>.Fail(Msg.Common.NoPermission, 403);
             }
 
             // 查询该会话的全部考勤记录
@@ -518,6 +533,24 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
 
             var sessionId = query.SessionId.Value;
 
+            // 校验教师身份
+            if (string.IsNullOrEmpty(query.TeacherId))
+            {
+                return ApiResponse<RandomPickResult>.Fail(Msg.Common.NoPermission, 401);
+            }
+
+            // 校验会话存在且归属当前教师
+            var session = await db.Queryable<AttendanceSession>()
+                .FirstAsync(s => s.Id == sessionId && !s.IsDeleted, cancellationToken);
+            if (session is null)
+            {
+                return ApiResponse<RandomPickResult>.Fail(Msg.Common.EntityNotFound("考勤会话"), 404);
+            }
+            if (session.TeacherId != query.TeacherId)
+            {
+                return ApiResponse<RandomPickResult>.Fail(Msg.Attendance.OnlyOwnSession, 403);
+            }
+
             // 校验班级存在并获取班级名称（响应中需返回）
             var cls = await db.Queryable<Class>().FirstAsync(c => c.Id == query.ClassId && !c.IsDeleted, cancellationToken);
             if (cls is null)
@@ -597,6 +630,42 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api.Features.Attendance
             }
 
             return session;
+        }
+
+        /// <summary>
+        /// 校验当前用户是否有权访问指定考勤会话：
+        /// 管理员可访问所有会话；教师/辅导员必须是该会话的授课教师；学生必须属于该会话的班级
+        /// </summary>
+        /// <param name="db">数据库客户端</param>
+        /// <param name="sessionTeacherId">会话授课教师工号</param>
+        /// <param name="sessionClassId">会话班级 ID</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>有权访问返回 true，否则 false</returns>
+        private async Task<bool> CanAccessSessionAsync(
+            ISqlSugarClient db, string sessionTeacherId, long sessionClassId, CancellationToken cancellationToken)
+        {
+            // 管理员可访问所有会话
+            if (_currentUser.Role == UserRole.Admin)
+            {
+                return true;
+            }
+
+            // 教师/辅导员必须是该会话的授课教师
+            if (_currentUser.Role == UserRole.Teacher || _currentUser.Role == UserRole.Counselor)
+            {
+                return sessionTeacherId == _currentUser.UserId;
+            }
+
+            // 学生必须属于该会话的班级
+            if (_currentUser.Role == UserRole.Student)
+            {
+                return await db.Queryable<Student>()
+                    .AnyAsync(s => s.Id == _currentUser.UserId
+                        && s.ClassId == sessionClassId
+                        && !s.IsDeleted, cancellationToken);
+            }
+
+            return false;
         }
 
         /// <summary>判定签到状态</summary>

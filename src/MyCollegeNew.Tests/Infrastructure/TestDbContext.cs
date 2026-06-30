@@ -1,4 +1,5 @@
 using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
+using Larpx.PersonalTools.MyCollegeNew.Shared.Enums;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using Microsoft.Extensions.Options;
 using SqlSugar;
@@ -239,6 +240,40 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure
                 CreateTime TEXT NOT NULL
             );
             """);
+
+            db.Ado.ExecuteCommand("""
+            CREATE TABLE IF NOT EXISTS course_assignment (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                CourseId INTEGER NOT NULL,
+                TeacherId TEXT NOT NULL,
+                ClassIds TEXT NOT NULL DEFAULT '',
+                Semester TEXT NOT NULL,
+                Status INTEGER NOT NULL,
+                ApplyReason TEXT,
+                ReviewRemark TEXT,
+                CreateTime TEXT NOT NULL,
+                UpdateTime TEXT,
+                IsDeleted INTEGER NOT NULL DEFAULT 0
+            );
+            """);
+
+            db.Ado.ExecuteCommand("""
+            CREATE TABLE IF NOT EXISTS course_swap_request (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ScheduleId INTEGER NOT NULL,
+                OriginalTeacherId TEXT NOT NULL,
+                SubstituteTeacherId TEXT NOT NULL,
+                StartWeek INTEGER NOT NULL,
+                EndWeek INTEGER NOT NULL,
+                Reason TEXT NOT NULL,
+                Status INTEGER NOT NULL,
+                SubstituteRemark TEXT,
+                ConfirmedTime TEXT,
+                CreateTime TEXT NOT NULL,
+                UpdateTime TEXT,
+                IsDeleted INTEGER NOT NULL DEFAULT 0
+            );
+            """);
         }
 
         /// <summary>
@@ -275,5 +310,32 @@ namespace Larpx.PersonalTools.MyCollegeNew.Tests.Infrastructure
                 SecretKey = TestSecretKey,
                 ExpireMinutes = 60
             });
+    }
+
+    /// <summary>
+    /// 测试用当前用户上下文，默认为管理员角色以通过资源归属校验
+    /// </summary>
+    public class TestCurrentUser : ICurrentUser
+    {
+        /// <summary>用户ID</summary>
+        public string UserId { get; init; } = "test-admin";
+
+        /// <summary>用户名</summary>
+        public string UserName { get; init; } = "TestAdmin";
+
+        /// <summary>用户角色</summary>
+        public UserRole Role { get; init; } = UserRole.Admin;
+
+        /// <summary>是否已认证</summary>
+        public bool IsAuthenticated => true;
+
+        /// <summary>管理员测试用户（默认），可访问所有资源</summary>
+        public static TestCurrentUser Admin => new();
+
+        /// <summary>教师测试用户，工号 test-teacher</summary>
+        public static TestCurrentUser Teacher => new() { UserId = "test-teacher", UserName = "TestTeacher", Role = UserRole.Teacher };
+
+        /// <summary>学生测试用户，学号 test-student</summary>
+        public static TestCurrentUser Student => new() { UserId = "test-student", UserName = "TestStudent", Role = UserRole.Student };
     }
 }
