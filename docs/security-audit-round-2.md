@@ -366,3 +366,46 @@ HTTP 请求
 - 构建：0 错误，0 警告
 - 单元测试：70/70 通过
 - 涉及修改的文件清单见各修复项的代码引用
+
+---
+
+## 十、第三方扫描工具核实（2026-07-02）
+
+使用第三方安全扫描工具对本代码库进行复查，该工具基于修复前代码版本生成了与本章原始审计相同的 17 项漏洞报告。经逐项源码核实，结论如下：
+
+### 核实结论
+
+| 严重级别 | 报告数量 | 确认成立 | 已修复不成立 | 非漏洞/描述不准 |
+|----------|----------|----------|-------------|-----------------|
+| HIGH | 5 | 0 | 5 | 0 |
+| MEDIUM | 7 | 0 | 7 | 0 |
+| LOW | 5 | 1（L-3 设计观察） | 3 | 1（L-2 非漏洞） |
+| **合计** | **17** | **1** | **15** | **1** |
+
+**补充说明**：L-1 存在前端提示文案不一致（服务端已强制 8 位密码，前端部分页面仍显示"至少 6 位"），属 UI 一致性问题，非安全漏洞。
+
+### 核实依据
+
+| 编号 | 核实结果 | 关键证据 |
+|------|----------|----------|
+| H-1 | ❌ 已修复 | `LoginValidator.cs:22-23` FluentValidation `NotEmpty()` + `LoginHandler.cs:55-61` 双重校验 |
+| H-2 | ❌ 已修复 | `Web/Program.cs:280-282`、`Admin/Program.cs:256-258` 均注释"原端点已删除"，2FA 由 verify/bind 端点完成 |
+| H-3 | ❌ 已修复 | `ICurrentUser.cs:18-20` 新增 `SystemUserId`（`long?`），`SystemUserHandlers.cs:164` 改用该属性比较 |
+| H-4 | ❌ 已修复 | 与 H-3 同源，`TokenService.cs:104-107` 写入 `system_user_id` claim |
+| H-5 | ❌ 已修复 | `appsettings.json:11` 连接字符串为空，`Program.cs:129-134` 生产环境强制非空校验 |
+| M-1 | ❌ 已修复 | `TotpService.cs:83-126` `VerifyCodeAsync` 使用缓存标记已用验证码，TTL 90 秒 |
+| M-2 | ❌ 已修复 | `TwoFactorEndpoints.cs:39,50` `.RequireRateLimiting("twofa")` + 5 次失败锁定 |
+| M-3 | ❌ 已修复 | `TokenRevocationService.cs` + `Program.cs:150-168` `OnTokenValidated` 检查黑名单 |
+| M-4 | ❌ 已修复 | TOTP 密钥改用 `IDistributedCache` 服务端会话，不再写入 Cookie |
+| M-5 | ❌ 已修复 | `AuditService.cs:69` `Insertable(auditLog).ExecuteCommandAsync()` 已启用写入 |
+| M-6 | ❌ 已修复 | `StudentHandlers.cs:296-298` 返回通用错误，`ex.Message` 仅写日志 |
+| M-7 | ❌ 已修复 | `Program.cs:251-273` 白名单模式，未配置时 `SetIsOriginAllowed(_ => false)` |
+| L-1 | ⚠️ 前端不一致 | 服务端 `MinPasswordLength = 8`，前端 Teachers.razor/SystemUsers.razor/Students.razor/Profile.razor 仍显示"至少 6 位" |
+| L-2 | ❌ 非漏洞 | `RandomNumberGenerator` 是密码学安全随机数生成器，12 位密码 + 强制改密，实现正确 |
+| L-3 | ⚠️ 设计观察 | SystemUser/Teacher/Student 三表均有 Password/TwoFactorSecret 字段，属 table-per-role 设计取舍 |
+| L-4 | ❌ 已修复 | `SecurityHeadersMiddleware.cs` 已含 CSP/HSTS/Referrer-Policy/Permissions-Policy |
+| L-5 | ❌ 已修复 | `appsettings.Development.json:15` SecretKey 为空，DEBUG 自动生成随机密钥 |
+
+### 总结
+
+第三方扫描工具基于修复前代码版本（commit `ab20e15` 之前）生成报告，所有 5 个高危和 7 个中危漏洞均已在第二轮安全修复中解决。仅 L-1 存在前端文案未同步更新的小问题，L-3 为设计层面的观察而非安全漏洞。

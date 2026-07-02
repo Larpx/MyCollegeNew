@@ -51,7 +51,7 @@
 | 缓存 | IDistributedCache + Redis |
 | 监控 | OpenTelemetry |
 | 编排 | .NET Aspire |
-| 测试 | xUnit（55 个测试） |
+| 测试 | xUnit（70 个测试） |
 | 部署 | Docker Compose（Linux） |
 
 ---
@@ -106,20 +106,20 @@
 ```bash
 git clone https://github.com/Larpx/my-college-project.git
 cd my-college-project
-dotnet restore src/Campus.Attendance.sln
-dotnet build src/Campus.Attendance.sln
+dotnet restore src/MyCollegeNew.sln
+dotnet build src/MyCollegeNew.sln
 
 # 运行 API
-dotnet run --project src/Campus.Attendance.Api
+dotnet run --project src/MyCollegeNew.Api
 
 # 运行 Web
-dotnet run --project src/Campus.Attendance.Web
+dotnet run --project src/MyCollegeNew.Web
 
 # 运行测试
-dotnet test src/Campus.Attendance.Tests
+dotnet test src/MyCollegeNew.Tests
 
 # Aspire 本地编排
-dotnet run --project src/Campus.Attendance.AppHost
+dotnet run --project src/MyCollegeNew.AppHost
 
 # Docker 部署
 docker-compose up -d --build
@@ -131,13 +131,13 @@ docker-compose up -d --build
 
 ```bash
 # 初始化 user-secrets（csproj 已配置 UserSecretsId）
-cd src/Campus.Attendance.Api
+cd src/MyCollegeNew.Api
 dotnet user-secrets set "Db:ConnectionString" "DataSource=attendance.db"
 dotnet user-secrets set "Jwt:SecretKey" "<至少 32 字符的随机字符串>"
 dotnet user-secrets set "Cors:AllowedOrigins:0" "https://localhost:7088"
 
 # 同样为 Web 项目配置
-cd ../Campus.Attendance.Web
+cd ../MyCollegeNew.Web
 dotnet user-secrets set "Jwt:SecretKey" "<与 API 一致的随机字符串>"
 ```
 
