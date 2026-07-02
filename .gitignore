@@ -362,8 +362,14 @@ MigrationBackup/
 FodyWeavers.xsd
 
 
+# 数据库文件（开发环境 SQLite）
+*.db
+*.sqlite
+*.sqlite3
+
 #codegraph
 .codegraph/
 
 #trae
 .trae/
+软件著作权申请资料/*

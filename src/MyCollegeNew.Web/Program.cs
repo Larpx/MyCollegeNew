@@ -87,6 +87,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
                 options.LoginPath = "/login";
                 options.AccessDeniedPath = "/login";
                 options.ExpireTimeSpan = TimeSpan.FromHours(2);
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Cookie.SameSite = SameSiteMode.Strict;
             });
             builder.Services.AddAuthorization();
 
@@ -162,7 +164,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
                         context.Response.Cookies.Append("force_pwd_token", result.Data.TwoFactorToken, new CookieOptions
                         {
                             HttpOnly = true,
-                            Secure = false,
+                            Secure = true,
                             SameSite = SameSiteMode.Lax,
                             Expires = DateTimeOffset.UtcNow.AddMinutes(5),
                             Path = "/"
@@ -177,7 +179,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
                         context.Response.Cookies.Append("2fa_token", result.Data.TwoFactorToken, new CookieOptions
                         {
                             HttpOnly = true,
-                            Secure = false,
+                            Secure = true,
                             SameSite = SameSiteMode.Lax,
                             Expires = DateTimeOffset.UtcNow.AddMinutes(5),
                             Path = "/"
@@ -185,7 +187,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
                         context.Response.Cookies.Append("2fa_has_secret", result.Data.HasTwoFactorSecret ? "1" : "0", new CookieOptions
                         {
                             HttpOnly = false,
-                            Secure = false,
+                            Secure = true,
                             SameSite = SameSiteMode.Lax,
                             Expires = DateTimeOffset.UtcNow.AddMinutes(5),
                             Path = "/"
