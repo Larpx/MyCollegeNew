@@ -373,3 +373,6 @@ FodyWeavers.xsd
 #trae
 .trae/
 软件著作权申请资料/*
+
+# cpolar 部署环境变量（包含敏感凭据）
+.env.cpolar

@@ -23,6 +23,7 @@ using Larpx.PersonalTools.MyCollegeNew.Shared.Configuration;
 using Larpx.PersonalTools.MyCollegeNew.Shared.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
@@ -187,6 +188,23 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
             builder.Services.AddProblemDetails();
 
+            // Forwarded Headers：配合反向代理/隧道（如 cpolar、nginx）获取客户端真实协议和地址
+            // 生产环境通过环境变量 ForwardedHeaders__Enabled=true 启用
+            // 警告：ForwardLimit=null 并清空 KnownProxies/KnownIPNetworks 意味着信任所有代理，
+            // 仅适用于应用不直接暴露于公网、且所有入口均由可信反向代理/隧道转发的场景
+            if (builder.Configuration.GetValue<bool>("ForwardedHeaders:Enabled"))
+            {
+                builder.Services.Configure<ForwardedHeadersOptions>(options =>
+                {
+                    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
+                                             | ForwardedHeaders.XForwardedProto
+                                             | ForwardedHeaders.XForwardedHost;
+                    options.ForwardLimit = null;
+                    options.KnownIPNetworks.Clear();
+                    options.KnownProxies.Clear();
+                });
+            }
+
             // OpenAPI 文档生成
             builder.Services.AddOpenApi();
 
@@ -290,6 +308,13 @@ namespace Larpx.PersonalTools.MyCollegeNew.Api
 
             // 全局异常处理（替代自定义中间件）
             app.UseExceptionHandler();
+
+            // Forwarded Headers：配合反向代理/隧道（如 cpolar、nginx）获取客户端真实协议和地址
+            // 必须在 UseHttpsRedirection / UseAuthentication 之前调用
+            if (app.Configuration.GetValue<bool>("ForwardedHeaders:Enabled"))
+            {
+                app.UseForwardedHeaders();
+            }
 
             // .NET Aspire 健康检查端点
             app.MapDefaultEndpoints();

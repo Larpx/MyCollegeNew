@@ -11,6 +11,7 @@ using Serilog;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Json;
+using Microsoft.AspNetCore.HttpOverrides;
 
 namespace Larpx.PersonalTools.MyCollegeNew.Web
 {
@@ -71,6 +72,23 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
             // 注册 JWT 校验服务（Shared.Security.ITokenService → Infrastructure.Auth.TokenService）
             builder.Services.AddSingleton<ITokenService, Larpx.PersonalTools.MyCollegeNew.Infrastructure.Auth.TokenService>();
 
+            // Forwarded Headers：配合反向代理/隧道（如 cpolar、nginx）获取客户端真实协议和地址
+            // 生产环境通过环境变量 ForwardedHeaders__Enabled=true 启用
+            // 警告：ForwardLimit=null 并清空 KnownProxies/KnownIPNetworks 意味着信任所有代理，
+            // 仅适用于应用不直接暴露于公网、且所有入口均由可信反向代理/隧道转发的场景
+            if (builder.Configuration.GetValue<bool>("ForwardedHeaders:Enabled"))
+            {
+                builder.Services.Configure<ForwardedHeadersOptions>(options =>
+                {
+                    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
+                                             | ForwardedHeaders.XForwardedProto
+                                             | ForwardedHeaders.XForwardedHost;
+                    options.ForwardLimit = null;
+                    options.KnownIPNetworks.Clear();
+                    options.KnownProxies.Clear();
+                });
+            }
+
             builder.Services.AddScoped<CustomAuthStateProvider>();
             builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>());
             // 注册分布式缓存（开发环境使用内存实现，生产环境可改用 Redis）
@@ -87,7 +105,8 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
                 options.LoginPath = "/login";
                 options.AccessDeniedPath = "/login";
                 options.ExpireTimeSpan = TimeSpan.FromHours(2);
-                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                // Cookie SecurePolicy 由请求协议动态决定：HTTPS 时 Secure，HTTP 时不设
+                // 生产环境搭配反向代理 HTTPS 终止时，须配置 ForwardedHeaders 中间件
                 options.Cookie.SameSite = SameSiteMode.Strict;
             });
             builder.Services.AddAuthorization();
@@ -104,6 +123,13 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
 
             // .NET Aspire 健康检查端点
             app.MapDefaultEndpoints();
+
+            // Forwarded Headers：配合反向代理/隧道（如 cpolar、nginx）获取客户端真实协议和地址
+            // 必须在 UseHttpsRedirection / UseAuthentication 之前调用
+            if (app.Configuration.GetValue<bool>("ForwardedHeaders:Enabled"))
+            {
+                app.UseForwardedHeaders();
+            }
 
             app.UseHttpsRedirection();
             app.UseAuthentication();
@@ -164,7 +190,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
                         context.Response.Cookies.Append("force_pwd_token", result.Data.TwoFactorToken, new CookieOptions
                         {
                             HttpOnly = true,
-                            Secure = true,
+                            Secure = context.Request.IsHttps,
                             SameSite = SameSiteMode.Lax,
                             Expires = DateTimeOffset.UtcNow.AddMinutes(5),
                             Path = "/"
@@ -179,7 +205,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
                         context.Response.Cookies.Append("2fa_token", result.Data.TwoFactorToken, new CookieOptions
                         {
                             HttpOnly = true,
-                            Secure = true,
+                            Secure = context.Request.IsHttps,
                             SameSite = SameSiteMode.Lax,
                             Expires = DateTimeOffset.UtcNow.AddMinutes(5),
                             Path = "/"
@@ -187,7 +213,7 @@ namespace Larpx.PersonalTools.MyCollegeNew.Web
                         context.Response.Cookies.Append("2fa_has_secret", result.Data.HasTwoFactorSecret ? "1" : "0", new CookieOptions
                         {
                             HttpOnly = false,
-                            Secure = true,
+                            Secure = context.Request.IsHttps,
                             SameSite = SameSiteMode.Lax,
                             Expires = DateTimeOffset.UtcNow.AddMinutes(5),
                             Path = "/"

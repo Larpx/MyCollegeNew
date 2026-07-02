@@ -1,41 +1,63 @@
 # ============================================================
-# MyCollegeNew docker-compose 编排文件
-# 四个服务：redis（缓存）、db（MySQL）、api（后端 API）、web（Blazor Server 前端）
-# 启动顺序：db(healthy) + redis(healthy) → api(healthy) → web
+# MyCollegeNew cpolar 公网隧道部署
+#
+# 适用场景：内网服务器 + cpolar 隧道 + 公网 HTTPS 访问
+# 部署架构：
+#   公网浏览器 → HTTPS → cpolar 隧道 → 内网服务器:8080 → Docker Web 容器
+#
+# 前置条件：
+#   1. 安装 cpolar 并在内网服务器上配置隧道指向 8080 端口
+#   2. 复制 .env.cpolar.example 为 .env.cpolar，填入实际值
+#   3. 确保 .env.cpolar 已添加到 .gitignore，切勿提交到版本库
+#
+# 启动命令：
+#   docker compose -f docker-compose.cpolar.yml --env-file .env.cpolar up -d --build
+#
+# 区别于 docker-compose.yml 的安全改进：
+#   - MySQL 使用专用 app_user 而非 root
+#   - 所有敏感配置通过环境变量注入，无硬编码
+#   - API 端口不映射到宿主机，仅容器内通信
+#   - ForwardedHeaders 启用，识别 cpolar 的 HTTPS 代理头
+#   - AllowedHosts / CORS 白名单限制为 cpolar 域名
 # ============================================================
 
 services:
+
   # ---- Redis 缓存 ----
   redis:
     image: redis:7-alpine
     container_name: attendance-redis
-    ports:
-      - "6379:6379"
+    # 不映射端口到宿主机 - 容器内通信即可
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - app_network
 
   # ---- MySQL 数据库 ----
   db:
     image: mysql:8.0
     container_name: attendance-db
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: attendance
+      MYSQL_USER: app_user
+      MYSQL_PASSWORD: ${MYSQL_DATABASE_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
+    # 不映射端口到宿主机 - 仅容器内通信，降低攻击面
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uapp_user", "-p${MYSQL_DATABASE_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
     restart: unless-stopped
+    networks:
+      - app_network
 
   # ---- 后端 API ----
   api:
@@ -52,15 +74,16 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
       - Db__ProviderType=MySQL
-      - Db__ConnectionString=Server=db;Port=3306;Database=attendance;Uid=root;Pwd=root;
-      - Jwt__SecretKey=${JWT_SECRET_KEY:-MyCollegeNew.SecretKey.2026.DoNotHardCode.InProduction}
+      - Db__ConnectionString=${DB_CONNECTION_STRING}
+      - Jwt__SecretKey=${JWT_SECRET_KEY}
       - Jwt__Issuer=MyCollegeNew.Api
       - Jwt__Audience=MyCollegeNew.Client
-      - Jwt__ExpireMinutes=120
+      - Jwt__ExpireMinutes=${JWT_EXPIRE_MINUTES:-120}
       - ConnectionStrings__redis=redis:6379
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire-dashboard:18889
-    ports:
-      - "5000:8080"
+      - ForwardedHeaders__Enabled=true
+      - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS}
+      - ASPNETCORE_ALLOWEDHOSTS=${CPOLAR_DOMAIN}
+    # 仅容器内通信，不映射端口到宿主机
     healthcheck:
       # 使用 .NET Aspire 提供的 /alive 端点，-f 确保非 2xx 响应被视为失败
       test: ["CMD-SHELL", "curl -sf http://localhost:8080/alive || exit 1"]
@@ -69,6 +92,8 @@ services:
       retries: 5
       start_period: 40s
     restart: unless-stopped
+    networks:
+      - app_network
 
   # ---- Blazor Server 前端 ----
   web:
@@ -83,7 +108,12 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
       - Api__BaseUrl=http://api:8080
-      - Jwt__SecretKey=${JWT_SECRET_KEY:-MyCollegeNew.SecretKey.2026.DoNotHardCode.InProduction}
+      - Jwt__SecretKey=${JWT_SECRET_KEY}
+      - Jwt__Issuer=MyCollegeNew.Api
+      - Jwt__Audience=MyCollegeNew.Client
+      - ForwardedHeaders__Enabled=true
+      - ASPNETCORE_ALLOWEDHOSTS=${CPOLAR_DOMAIN}
+    # cpolar 代理此端口（仅映射 8080，其余端口不暴露）
     ports:
       - "8080:8080"
     healthcheck:
@@ -94,6 +124,12 @@ services:
       retries: 5
       start_period: 40s
     restart: unless-stopped
+    networks:
+      - app_network
 
 volumes:
   mysql_data:
+
+networks:
+  app_network:
+    driver: bridge

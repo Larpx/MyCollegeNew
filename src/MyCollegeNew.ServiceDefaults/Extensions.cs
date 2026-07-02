@@ -88,25 +88,29 @@ namespace Microsoft.Extensions.Hosting
         }
 
         /// <summary>
-        /// 映射默认健康检查端点（仅开发环境）
-        /// /health — 综合健康状态（含数据库等依赖）
-        /// /alive  — 存活探针（仅进程自检，轻量级）
-        /// /ready  — 就绪探针（含数据库连接等依赖就绪检查）
+        /// 映射默认健康检查端点
+        /// /alive  — 存活探针（仅进程自检，轻量级），所有环境均映射，供容器编排使用
+        /// /health — 综合健康状态（含数据库等依赖），仅开发环境映射
+        /// /ready  — 就绪探针（含数据库连接等依赖就绪检查），仅开发环境映射
         /// </summary>
         public static WebApplication MapDefaultEndpoints(this WebApplication app)
         {
-            // 非开发环境不映射健康检查端点到公开路径
-            if (!app.Environment.IsDevelopment()) return app;
-
-            app.MapHealthChecks("/health");
+            // /alive 为轻量存活探针，不涉及敏感信息，生产环境也映射供 docker-compose / Kubernetes 使用
             app.MapHealthChecks("/alive", new HealthCheckOptions
             {
                 Predicate = r => r.Tags.Contains("live")
             });
-            app.MapHealthChecks("/ready", new HealthCheckOptions
+
+            // /health 与 /ready 可能暴露依赖状态，仅在开发环境映射
+            if (app.Environment.IsDevelopment())
             {
-                Predicate = r => r.Tags.Contains("ready") || r.Tags.Contains("live")
-            });
+                app.MapHealthChecks("/health");
+                app.MapHealthChecks("/ready", new HealthCheckOptions
+                {
+                    Predicate = r => r.Tags.Contains("ready") || r.Tags.Contains("live")
+                });
+            }
+
             return app;
         }
     }
