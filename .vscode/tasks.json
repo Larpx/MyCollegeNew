@@ -7,7 +7,7 @@
       "type": "process",
       "args": [
         "build",
-        "${workspaceFolder}/src/MyCollegeNew.sln"
+        "${workspaceFolder}/MyCollegeNew.sln"
       ],
       "problemMatcher": "$msCompile",
       "group": {
@@ -70,7 +70,7 @@
       "type": "process",
       "args": [
         "clean",
-        "${workspaceFolder}/src/MyCollegeNew.sln"
+        "${workspaceFolder}/MyCollegeNew.sln"
       ],
       "problemMatcher": "$msCompile"
     },
@@ -80,7 +80,7 @@
       "type": "process",
       "args": [
         "restore",
-        "${workspaceFolder}/src/MyCollegeNew.sln"
+        "${workspaceFolder}/MyCollegeNew.sln"
       ],
       "problemMatcher": "$msCompile"
     },

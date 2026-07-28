@@ -3,21 +3,21 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.7.11911.148
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.Api", "MyCollegeNew.Api\MyCollegeNew.Api.csproj", "{C6C0D292-50E5-4803-86E7-AF3039D86060}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.Api", "src\MyCollegeNew.Api\MyCollegeNew.Api.csproj", "{C6C0D292-50E5-4803-86E7-AF3039D86060}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.Web", "MyCollegeNew.Web\MyCollegeNew.Web.csproj", "{1F167C89-9651-49C9-8ABA-9A121B06EED5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.Web", "src\MyCollegeNew.Web\MyCollegeNew.Web.csproj", "{1F167C89-9651-49C9-8ABA-9A121B06EED5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.Tests", "MyCollegeNew.Tests\MyCollegeNew.Tests.csproj", "{CDE9AD03-4965-4D54-B907-299F065BB2A6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.Tests", "src\MyCollegeNew.Tests\MyCollegeNew.Tests.csproj", "{CDE9AD03-4965-4D54-B907-299F065BB2A6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.Shared", "MyCollegeNew.Shared\MyCollegeNew.Shared.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.Shared", "src\MyCollegeNew.Shared\MyCollegeNew.Shared.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.Infrastructure", "MyCollegeNew.Infrastructure\MyCollegeNew.Infrastructure.csproj", "{B2C3D4E5-F6A7-8901-BCDE-F12345678901}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.Infrastructure", "src\MyCollegeNew.Infrastructure\MyCollegeNew.Infrastructure.csproj", "{B2C3D4E5-F6A7-8901-BCDE-F12345678901}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.AppHost", "MyCollegeNew.AppHost\MyCollegeNew.AppHost.csproj", "{4F55E890-CCA6-47D4-9466-92EAD47B4468}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.AppHost", "src\MyCollegeNew.AppHost\MyCollegeNew.AppHost.csproj", "{4F55E890-CCA6-47D4-9466-92EAD47B4468}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.ServiceDefaults", "MyCollegeNew.ServiceDefaults\MyCollegeNew.ServiceDefaults.csproj", "{502C253F-1BE6-4BA3-8842-6B884EEE4573}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.ServiceDefaults", "src\MyCollegeNew.ServiceDefaults\MyCollegeNew.ServiceDefaults.csproj", "{502C253F-1BE6-4BA3-8842-6B884EEE4573}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.Admin", "MyCollegeNew.Admin\MyCollegeNew.Admin.csproj", "{ED7A601D-85E3-4C6F-BFC1-BC259310B881}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyCollegeNew.Admin", "src\MyCollegeNew.Admin\MyCollegeNew.Admin.csproj", "{ED7A601D-85E3-4C6F-BFC1-BC259310B881}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Base", "Base", "{2BE32A03-EFA1-4F8E-BC5D-1956DEA8A108}"
 EndProject
